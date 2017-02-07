@@ -670,7 +670,7 @@ class getObs:
 
         :return:
         """
-        print ' this is coming'
+        print ' this is new test '
 
 class getDataTestBed:
     def __init__(self, d1, d2):
