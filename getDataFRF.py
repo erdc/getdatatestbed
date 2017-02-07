@@ -665,6 +665,12 @@ class getObs:
 
         return cbdata
 
+    def getLidarRunup(self):
+        """
+
+        :return:
+        """
+        print ' this is coming'
 
 class getDataTestBed:
     def __init__(self, d1, d2):
@@ -807,3 +813,5 @@ class getDataTestBed:
             field['bathymetryDate'] = np.ones_like(field['time'])
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
         return field
+
+
