@@ -670,9 +670,32 @@ class getObs:
 
         :return:
         """
-        print ' this is new test '
+        self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
+        self.lidarIndex = self.gettime(dtRound=60)
+        if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
+            out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
+                   'lat': self.ncfile[u'lat'][:],  # Coordintes
+                   'lon': self.ncfile[u'lon'][:],
+                   'frfX': self.ncfile[u'frfX'][:],
+                   'frfY': self.ncfile[u'frfY'][:],
+                   'time': self.ncfile[u'time'][self.lidarIndex],
+                   'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
+                   'QCtotalWaterLevel': self.ncfile['QCTotalWaterLevel'][self.lidarIndex],
+                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
+                   'samplingTime': self.ncfile['samplingTime'][self.lidarIndex, :],
+                   'runupX': self.ncfile['runupX'][self.lidarIndex, :],
+                   'runupY': self.ncfile['runupY'][self.lidarIndex, :],
+                   'runupZ': self.ncfile['runupZ'][self.lidarIndex, :],
+                   'runupDownLine': self.ncfile['runupDownLineDistance'][self.lidarIndex, :],
+                   }
+        else:
+            print 'There is no Data during this time period'
+            out = None
+        return out
 
 class getDataTestBed:
+
+
     def __init__(self, d1, d2):
         """
         Initialization description here
@@ -689,7 +712,7 @@ class getDataTestBed:
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.comp_time()
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.62:8080/thredds/dodsC/CMTB'
+        self.crunchDataLoc = u'http://134.164.129.62:8080/thredds/dodsC/CMTB/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
@@ -814,4 +837,94 @@ class getDataTestBed:
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
         return field
 
+    def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True):
+            """
+            This function pulls down the data from the thredds server and puts the data into proper places
+            to be read for STwave Scripts
+            this will return the wavespec with dir/freq bin and directional wave energy
 
+            :param gaugenumber:
+                gaugenumber = 0, 26m wave rider
+                gaugenumber = 1, 17m waverider
+                gaugenumber = 2, awac4 - 11m
+                gaugenumber = 3, awac3 - 8m
+                gaugenumber = 4, awac2 - 6m
+                gaugenumber = 5, awac1 - 5m
+                gaugenumber = 6, adopp2 - 3m
+                gaugenumber = 7, adopp1 - 2m
+                gaugenumber = 8,  Paros xp200m
+                gaugenumber = 9,  Paros xp150m
+                gaugenumber = 10, Paros xp125m
+                gaugenumber = 11, Paros xp100m
+                gaugenumber = 12, 8 m array
+            :param collectionlength:
+                s the time over which the wind record exists
+                ie data is collected in 10 minute increments time is rounded
+                to nearest 10min increment
+                data is rounded to the nearst [collectionlength] (default 30 min)
+            """
+            # Making gauges flexible
+
+            if gaugenumber in [0, 'waverider-26m', 'Waverider-26m', '26m']:
+                # 26 m wave rider
+                self.dataloc = '%s_data/FRF_CMTB_%s_waverider-26m.ncml'  %(prefix, prefix)
+                gname = '26m Waverider Buoy'
+            elif gaugenumber in [1, 'Waverider-17m', 'waverider-17m']:
+                # 2D 17m waverider
+                self.dataloc = '%s_data/FRF_CMTB_%s_waverider-17m.ncml'  %(prefix, prefix)
+                gname = '17m Waverider Buoy'
+            elif gaugenumber in [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']:
+                gname = 'AWAC04 - 11m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_awac11m.ncml'  %(prefix, prefix)
+            elif gaugenumber in [3, 'awac-8m', 'AWAC-8m', 'Awac-8m', 'awac 8m',
+                                 '8m-Array', '8m Array', '8m array', '8m-array']:
+                gname = 'AWAC 8m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_awac-8m.ncml' %(prefix, prefix)
+            elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
+                gname = 'AWAC 6m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_awac-6m.ncml' %(prefix, prefix)
+            elif gaugenumber in [5, 'awac-4.5m', 'Awac-4.5m']:
+                gname = 'AWAC 4.5m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_awac-4.5m.ncml' %(prefix, prefix)
+            elif gaugenumber [6, 'adop-3.5m', 'aquadopp 3.5m']:
+                gname = 'Aquadopp 3.5m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_adop-3.5m.ncml' %(prefix, prefix)
+            elif gaugenumber in [8, 'xp200m', 'xp200']:
+                gname = 'Paros xp200m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_xp200m.ncml' %(prefix, prefix)
+            elif gaugenumber in [9, 'xp150m', 'xp150']:
+                gname = 'Paros xp150m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_xp150m.ncml' %(prefix, prefix)
+            elif gaugenumber == 10 or gaugenumber == 'xp125m':
+                gname = 'Paros xp125m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_xp125m.ncml' %(prefix, prefix)
+            elif gaugenumber == 11 or gaugenumber == 'xp100m':
+                gname = 'Paros xp100m'
+                self.dataloc = '%s_data/FRF_CMTB_%s_xp100m.ncml' %(prefix, prefix)
+            else:
+                gname = 'There Are no Gauge numbers here'
+                raise NameError('Bad Gauge name, specify proper gauge name/number')
+            # parsing out data of interest in time
+            try:
+                self.wavedataindex = self.gettime()
+                assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
+
+                if np.size(self.wavedataindex) >= 1:
+                    wavespec = {'time': nc.num2date(self.ncfile['time'], self.ncfile['time'].units),
+                                'name': nc.chartostring(self.ncfile['station_name'][:]),
+                                'wavefreqbin': self.ncfile['waveFrequency'][:],
+                                'lat': self.ncfile['lat'][:],
+                                'lon': self.ncfile['lon'][:],
+                                'Hs': self.ncfile['waveHs'][self.wavedataindex],
+                                'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex],
+                                'wavedirbin': self.ncfile['waveDirectionBins'][:],
+                                'dWED': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :],
+                                'waveDp': self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex],  # 'waveDp'][self.wavedataindex]
+                                'waveDm': self.ncfile['waveMeanDirection'][self.wavedataindex],
+                                'WED': self.ncfile['waveEnergyDensity'][self.wavedataindex, :],}
+
+            except (RuntimeError, AssertionError):
+                print '<<ERROR>> Retrieving data from %s\n in this time period start: %s  End: %s' % (
+                    gname, self.d1, self.d2)
+                wavespec = None
+            return wavespec
