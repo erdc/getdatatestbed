@@ -23,7 +23,6 @@ except ImportError:
     sys.path.append('/home/%s/repos/sblib' % whoami[:whoami.index('\n')])
     import sblib as sb
 
-
 class getObs:
     """
     Note d1 and d2 have to be in date-time formats
