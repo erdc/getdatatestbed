@@ -14,6 +14,7 @@ import sys
 from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
+import pandas as pd
 
 try:
     import sblib as sb
@@ -76,36 +77,42 @@ class getObs:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
 
-    def gettime(self, dtRound=30):
+    def gettime(self, dtRound=60, profileNumbers=None):
         """
         this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
         from the THREDDS (data loc) server based on d1,d2, and data location
         it returns the indicies in the NCML file of the dates d1>=time>d2
         INPUTS:
 
-            d1: start time - pulled from self
-            d2: end time  - pulled from self
-            dataloc: location of the data to search through
-            :param dtRound: the time delta of the data out of interest
+             :param dtRound: the time delta of the data out of interest, default minute (60 second)
 
         """
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
         try:
 
-            self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+            self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc) #loads all of the netCDF file
             #            try:
             self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar)
-            for i, date in enumerate(self.alltime):
+                                       self.ncfile['time'].calendar) # converts all epoch time to datetime objects
+            for i, date in enumerate(self.alltime):  # rounds time to nearest
                 self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
 
-            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+            if profileNumbers == None: #check only that the time matches
+                mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+            elif pd.Series(profileNumbers).isin(np.unique(self.ncfile['profileNumber'][:])).all(): #if all of the profile numbers match
+                mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:], profileNumbers) # boolean true/false of time and profile number
+            # elif pd.Series(profileNumbers).isin(np.unique(self.ncfile['profileNumber'][:])).any(): #if only some of the profile numbers match
+            #     print 'One or more input profile numbers do not match those in the FRF transects!  Fetching data for those that do.'
+            #     mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
+            else:
+                print 'The input profile numbers do not match any FRF transects'
+                raise AttributeError, 'Profile Numbers given are Not in FRF dataset '
 
             idx = np.where(mask)[0]
-            assert len(idx) > 0, 'no data locally, checking CHLthredds'
+            assert len(idx) > 0, 'no data locally, check CHLthredds'
             print "Data Gathered From Local Thredds Server"
+
         except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
             self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
@@ -137,7 +144,7 @@ class getObs:
         :param gaugenumber:
             gaugenumber = 0, 26m wave rider
             gaugenumber = 1, 17m waverider
-            gaugenumber = 2, awac4 - 11m
+            gaugenumber = 2, 'awac-11m'
             gaugenumber = 3, awac3 - 8m
             gaugenumber = 4, awac2 - 6m
             gaugenumber = 5, awac1 - 5m
@@ -476,7 +483,7 @@ class getObs:
         DGD.download_survey(gridID, grid_fname, output_location)  # , grid_data)
         return grid_fname  # file name returned w/o prefix simply the name
 
-    def getBathyTransectFromNC(self, method, removeMask=True):
+    def getBathyTransectFromNC(self, profilenumbers=None, method=1):
         """
         This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
         method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
@@ -485,18 +492,39 @@ class getObs:
         :return:
 
         """
-        self.dataloc = u'survey/gridded/gridded.ncml'  # location of the gridded surveys
+        # do check here on profile numbers
+        # acceptableProfileNumbers = [None, ]
+        self.dataloc = u'survey/transect/transect.ncml'  # location of the gridded surveys
         try:
-            self.bathydataindex = self.gettime()  # getting the index of the grid
-        except IOError:
+            self.bathydataindex = self.gettime(profileNumbers=profilenumbers)
+        except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
+        # logic to handle no transects in date range
+        if len(self.bathydataindex) == 1:
+            idx = self.bathydataindex
+        elif len(self.bathydataindex) < 1 & method == 1:
+            # there's no exact bathy match so find the max negative number where the negitive
+            # numbers are historical and the max would be the closest historical
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            print 'Bathymetry is taken as closest in HISTORY - operational'
+        elif len(self.bathydataindex) < 1 and method == 0:
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            print 'Bathymetry is taken as closest in TIME - NON-operational'
+        elif len(self.bathydataindex) > 1:
+            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
+            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+        # try:
+        #     assert profilenumbers in acceptableProfileNumbers, 'Ch3eck numbers should be in %s' % acceptableProfileNumbers
+        #     self.bathydataindex = self.gettime(profilenumbers)  # getting the index of the grid
+        # except IOError:
+        #     self.bathydataindex = []
 
-        idx = self.bathydataindex
-        if len(idx) > 0 and idx is not None:
+        if np.size(idx) > 0:
             # now retrieve data with idx
             elevation_points = self.ncfile['elevation'][idx]
-            xCoord = self.ncfile['FRF_Xshore'][idx]
-            yCoord = self.ncfile['FRF_Yshore'][idx]
+            xCoord = self.ncfile['xFRF'][idx]
+            yCoord = self.ncfile['yFRF'][idx]
             lat = self.ncfile['lat'][idx]
             lon = self.ncfile['lon'][idx]
             northing = self.ncfile['northing'][idx]
@@ -506,22 +534,22 @@ class getObs:
             Ellipsoid = self.ncfile['Ellipsoid'][idx]
             time = nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units)
 
-            gridDict = {'xCoord': xCoord,
-                        'yCoord': yCoord,
-                        'elevation': elevation_points,
-                        'time': time,
-                        'lat': lat,
-                        'lon': lon,
-                        'northing': northing,
-                        'easting': easting,
-                        'profileNumber': profileNum,
-                        'surveyNumber': surveyNum,
-                        'Ellipsoid': Ellipsoid,
-                        }
+            profileDict = {'xFRF': xCoord,
+                           'yFRF': yCoord,
+                           'elevation': elevation_points,
+                           'time': time,
+                           'lat': lat,
+                           'lon': lon,
+                           'northing': northing,
+                           'easting': easting,
+                           'profileNumber': profileNum,
+                           'surveyNumber': surveyNum,
+                           'Ellipsoid': Ellipsoid,
+                            }
         else:
-            gridDict = None
+            profileDict = None
 
-        return gridDict
+        return profileDict
 
     def getBathyGridFromNC(self, method, removeMask=True):
         """
