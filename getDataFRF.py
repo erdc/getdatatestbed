@@ -98,24 +98,15 @@ class getObs:
             for i, date in enumerate(self.alltime):  # rounds time to nearest
                 self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
 
-            if profileNumbers == None: #check only that the time matches
-                mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            elif pd.Series(profileNumbers).isin(np.unique(self.ncfile['profileNumber'][:])).all(): #if all of the profile numbers match
-                mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:], profileNumbers) # boolean true/false of time and profile number
-            # elif pd.Series(profileNumbers).isin(np.unique(self.ncfile['profileNumber'][:])).any(): #if only some of the profile numbers match
-            #     print 'One or more input profile numbers do not match those in the FRF transects!  Fetching data for those that do.'
-            #     mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
-            else:
-                print 'The input profile numbers do not match any FRF transects'
-                raise AttributeError, 'Profile Numbers given are Not in FRF dataset '
-
+            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
             idx = np.where(mask)[0]
+
             assert len(idx) > 0, 'no data locally, check CHLthredds'
             print "Data Gathered From Local Thredds Server"
 
         except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+            self.alltime = nc.num2date(self.ncfile[ 'time'][:], self.ncfile['time'].units,
                                        self.ncfile['time'].calendar)
             for i, date in enumerate(self.alltime):
                 self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
@@ -483,7 +474,7 @@ class getObs:
         DGD.download_survey(gridID, grid_fname, output_location)  # , grid_data)
         return grid_fname  # file name returned w/o prefix simply the name
 
-    def getBathyTransectFromNC(self, profilenumbers=None, method=1):
+    def getBathyTransectFromNC(self, profilenumbers=None, method=1, timewindow=None):
         """
         This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
         method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
@@ -518,7 +509,20 @@ class getObs:
         #     assert profilenumbers in acceptableProfileNumbers, 'Ch3eck numbers should be in %s' % acceptableProfileNumbers
         #     self.bathydataindex = self.gettime(profilenumbers)  # getting the index of the grid
         # except IOError:
-        #     self.bathydataindex = []
+                #     self.bathydataindex = []
+
+        # returning whole survey
+        idxSingle = idx
+        idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle])
+
+        if profilenumbers != None:
+            assert pd.Series(profilenumbers).isin(np.unique(self.ncfile['profileNumber'][idx])).all(), 'given profiles don''t Match profiles in database'  # if all of the profile numbers match
+            idx2 = np.in1d(self.ncfile['profileNumber'][idx], profilenumbers)  # boolean true/false of time and profile number
+            idx = idx2
+        # elif pd.Series(profileNumbers).isin(np.unique(self.ncfile['profileNumber'][:])).any(): #if only some of the profile numbers match
+        #     print 'One or more input profile numbers do not match those in the FRF transects!  Fetching data for those that do.'
+        #     mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
+
 
         if np.size(idx) > 0:
             # now retrieve data with idx
