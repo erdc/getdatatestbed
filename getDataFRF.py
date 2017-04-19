@@ -77,7 +77,7 @@ class getObs:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
 
-    def gettime(self, dtRound=60, profileNumbers=None):
+    def gettime(self, dtRound=60):
         """
         this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
         from the THREDDS (data loc) server based on d1,d2, and data location
@@ -487,7 +487,7 @@ class getObs:
         # acceptableProfileNumbers = [None, ]
         self.dataloc = u'survey/transect/transect.ncml'  # location of the gridded surveys
         try:
-            self.bathydataindex = self.gettime(profileNumbers=profilenumbers)
+            self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
         # logic to handle no transects in date range
@@ -513,12 +513,12 @@ class getObs:
 
         # returning whole survey
         idxSingle = idx
-        idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle])
+        idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
 
         if profilenumbers != None:
             assert pd.Series(profilenumbers).isin(np.unique(self.ncfile['profileNumber'][idx])).all(), 'given profiles don''t Match profiles in database'  # if all of the profile numbers match
-            idx2 = np.in1d(self.ncfile['profileNumber'][idx], profilenumbers)  # boolean true/false of time and profile number
-            idx = idx2
+            idx2mask = np.in1d(self.ncfile['profileNumber'][idx], profilenumbers)  # boolean true/false of time and profile number
+            idx = idx[idx2mask]
         # elif pd.Series(profileNumbers).isin(np.unique(self.ncfile['profileNumber'][:])).any(): #if only some of the profile numbers match
         #     print 'One or more input profile numbers do not match those in the FRF transects!  Fetching data for those that do.'
         #     mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
@@ -723,6 +723,56 @@ class getObs:
             print 'There is no Data during this time period'
             out = None
         return out
+
+    def getCTD(self):
+
+        """
+        This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
+        method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+        :param
+        :return:
+        """
+
+        # do check here on profile numbers
+        # acceptableProfileNumbers = [None, ]
+        self.dataloc = u'oceanography/ctd/eop-ctd/eop-ctd.ncml'  # location of the gridded surveys
+
+        try:
+            self.ncfile = self.FRFdataloc + self.dataloc
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            print 'Bathymetry is taken as closest in HISTORY - operational'
+
+        except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
+            self.ncfile = self.chlDataLoc + self.dataloc
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            print 'Bathymetry is taken as closest in HISTORY - operational'
+
+        if np.size(idx) > 0:
+            # now retrieve data with idx
+            depth = self.ncfile['depth'][idx]
+            lat = self.ncfile['lat'][idx]
+            lon = self.ncfile['lon'][idx]
+            time = nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units)
+            temp = self.ncfile['waterTemperature'][idx]
+            salin = self.ncfile['salinity'][idx]
+            soundSpeed = self.ncfile['soundSpeed'][idx]
+            sigmaT = self.ncfile['sigmaT'][idx]
+
+            ctd_Dict = {'depth': depth,
+                        'temp': temp,
+                        'time': time,
+                        'lat': lat,
+                        'lon': lon,
+                        'salin': salin,
+                        'soundSpeed': soundSpeed,
+                        'sigmaT': sigmaT}
+        else:
+            ctd_Dict = None
+
+        return ctd_Dict
 
 class getDataTestBed:
 
