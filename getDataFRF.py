@@ -227,11 +227,15 @@ class getObs:
                 try:
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
-                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][
-                        self.wavedataindex]  # 'waveDp'][self.wavedataindex]
+                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
+                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
                     wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
                     wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
                     wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
+                    wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
+                    wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
+                    wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
+                    wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
                 except IndexError:
                     # this should throw when gauge is non directional
                     # wavespec['peakf'] = self.ncfile['waveFp'][self.wavedataindex],
