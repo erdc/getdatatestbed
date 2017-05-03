@@ -243,11 +243,11 @@ class getObs:
                     wavespec['dWED'] = np.ones(
                         [len(self.wavedataindex), len(wavespec['wavefreqbin']), len(wavespec['wavedirbin'])])  # * 1e-8
                     wavespec['waveDp'] = np.zeros(len(self.wavedataindex))
-                    wavespec['WED'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
+                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
                     wavespec['depthp'] = self.ncfile['depthP'][self.wavedataindex]
                     # wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
                     # multiply the freq spectra for all directions
-                    wavespec['dWED'] = wavespec['dWED'] * wavespec['WED'][:, :, np.newaxis]/len(wavespec['wavedirbin'])
+                    wavespec['dWED'] = wavespec['dWED'] * wavespec['fspec'][:, :, np.newaxis]/len(wavespec['wavedirbin'])
                     wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
 
                 return wavespec
