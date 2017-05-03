@@ -730,6 +730,8 @@ class getObs:
 
     def getCTD(self):
 
+        #THIS FUNCTION IS CURRENTLY BROKEN - THE PROBLEM IS THAT self.ncfile does not have any keys?
+
         """
         This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
         method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
@@ -746,13 +748,16 @@ class getObs:
             self.ncfile = self.FRFdataloc + self.dataloc
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
-            print 'Bathymetry is taken as closest in HISTORY - operational'
+            print 'CTD data is closest in HISTORY - operational'
 
-        except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
-            self.ncfile = self.chlDataLoc + self.dataloc
-            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
-            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
-            print 'Bathymetry is taken as closest in HISTORY - operational'
+        except (RuntimeError, NameError, AssertionError, TypeError):  # if theres any error try to get good data from next location
+            try:
+                self.ncfile = self.chlDataLoc + self.dataloc
+                val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+                idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+                print 'CTD data closest in HISTORY - operational'
+            except (RuntimeError, NameError, AssertionError, TypeError): # if there are still errors, give up
+                idx = []
 
         if np.size(idx) > 0:
             # now retrieve data with idx
