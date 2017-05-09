@@ -216,6 +216,7 @@ class getObs:
                     depth = self.ncfile['depthP'][-1]
 
                 wavespec = {'time': self.snaptime,
+                            'epochtime': self.ncfile['time'][idx]
                             'name': str(self.ncfile.title),
                             'wavefreqbin': self.ncfile['waveFrequency'][:],
                             'lat': self.ncfile['lat'][:],
