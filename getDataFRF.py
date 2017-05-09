@@ -216,7 +216,7 @@ class getObs:
                     depth = self.ncfile['depthP'][-1]
 
                 wavespec = {'time': self.snaptime,
-                            'epochtime': self.ncfile['time'][idx]
+                            'epochtime': self.ncfile['time'][self.wavedataindex],
                             'name': str(self.ncfile.title),
                             'wavefreqbin': self.ncfile['waveFrequency'][:],
                             'lat': self.ncfile['lat'][:],
@@ -881,42 +881,68 @@ class getDataTestBed:
 
         return idx
 
-    def getStwaveField(self, var, prefix, local=True):
+    def getStwaveField(self, var, prefix, local=True, ijLoc=None):
         """
 
         :param Local: defines whether the data is from the nested simulation or the regional simulation
-
+        : param ijLoc: x or y or (x,y) tuple of location of interest
         :return:
         """
         if local == True:
             grid = 'Local'
         elif local == False:
             grid = 'Regional'
-        ncfile = nc.Dataset(self.crunchDataLoc + u'/%s_STWAVE_data/%s_Field/%s_Field.ncml' % (prefix, grid, grid))
+        if prefix == 'CBHPStatic' and local == True:  # this is needed because projects are stored in weird place
+            ncfile = nc.Dataset('http://crunchy:8080/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml')
+        elif prefix =='CBHPStatic' and local == False:
+            ncfile = nc.Dataset('http://crunchy:8080/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml')
+        else:
+            ncfile = nc.Dataset(self.crunchDataLoc + u'/%s_STWAVE_data/%s_Field/%s_Field.ncml' % (prefix, grid, grid))
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
         mask = (ncfile['time'][:] >= nc.date2num(self.d1, ncfile['time'].units)) & (
             ncfile['time'][:] <= nc.date2num(self.d2, ncfile['time'].units))
         idx = np.where(mask)[0]
-        print 'getting %s STWAVE  %s field Data' % (prefix, grid)
-        if ncfile[var].shape[0] > 100:
-            list = np.arange(idx.min(), idx.max(), 100)
+        print 'getting %s STWAVE  %s %s Data' % (prefix, grid, var)
+        # now creating tool to remove single data point
+        if ijLoc != None:
+            assert len(ijLoc) == 2, 'if giving a postion, must be a tuple of i, j location (of length 2)'
+            if type(ijLoc[0]) == int:
+                x = ncfile[var].shape[1] - ijLoc[0]  # the data are stored with inverse indicies to grid node locations
+                y = ijLoc[1]  # use location given by function call
+            else: # ijLoc[0] == slice:
+                x = ijLoc[0]
+                y = ijLoc[1]
+
+        else:
+            x = slice(None)  # take entire data
+            y = slice(None)  # take entire data
+
+        if ncfile[var].shape[0] > 100: # looping through ... if necessicary
+            list = np.round(np.linspace(idx.min(), idx.max(), idx.max()-idx.min(), endpoint=True, dtype=int))
             # if idx.max() not in list:
             #     list = np.append(list, idx.max())
-            for num, minidx in enumerate(list):
-                if num == 0:
-                    bathy = np.array(ncfile[var][range(minidx, list[num + 1]), :, :])
-                    time = nc.num2date(np.array(ncfile['time'][range(minidx, list[num + 1])]), ncfile['time'].units)
-                elif minidx == list[-1]:
-                    lastIdx = (idx - minidx)[(idx - minidx) >= 0] + minidx
-                    bathy = np.append(bathy, ncfile[var][lastIdx, :, :], axis=0)
-                    time = np.append(time, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
-                else:
-                    bathy = np.append(bathy, ncfile[var][range(minidx, list[num + 1]), :, :], axis=0)
-                    time = np.append(time,
-                                     nc.num2date(ncfile['time'][range(minidx, list[num + 1])], ncfile['time'].units),
-                                     axis=0)
+            if len(list) < 100:
+                    bathy = np.array(ncfile[var][np.squeeze(list)])
+                    time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
+            else:
+                for num, minidx in enumerate(list):
+                    if len(list) < 100:
+                        bathy = np.array(ncfile[var][np.squeeze(list)])
+                        time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
+                    elif num == 0:
+                        bathy = np.array(ncfile[var][range(minidx, list[num + 1]), x, y])
+                        time = nc.num2date(np.array(ncfile['time'][range(minidx, list[num + 1])]), ncfile['time'].units)
+                    elif minidx == list[-1]:
+                        lastIdx = (idx - minidx)[(idx - minidx) >= 0] + minidx
+                        bathy = np.append(bathy, ncfile[var][lastIdx, x, y], axis=0)
+                        time = np.append(time, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
+                    else:
+                        bathy = np.append(bathy, ncfile[var][range(minidx, list[num + 1]), x, y], axis=0)
+                        time = np.append(time,
+                                         nc.num2date(ncfile['time'][range(minidx, list[num + 1])], ncfile['time'].units),
+                                         axis=0)
         else:
-            bathy = ncfile['']
+            bathy = ncfile[var][:, x, y]
 
         field = {'time': time,
                  var: bathy,
@@ -927,6 +953,7 @@ class getDataTestBed:
             field['bathymetryDate'] = np.ones_like(field['time'])
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
         return field
+
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True):
             """
