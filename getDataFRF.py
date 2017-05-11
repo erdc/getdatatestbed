@@ -733,9 +733,7 @@ class getObs:
         #THIS FUNCTION IS CURRENTLY BROKEN - THE PROBLEM IS THAT self.ncfile does not have any keys?
 
         """
-        This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
-        method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+        This function gets the CTD data from the thredds server
         :param
         :return:
         """
@@ -782,6 +780,72 @@ class getObs:
             ctd_Dict = None
 
         return ctd_Dict
+
+    def getALT(self, gagename='Alt05', removeMasked=True):
+
+        """
+        This function gets the Altimeter data from the thredds server
+        :param:
+        gagename - 'Alt03, Alt04, Alt05'  This is just the name of the altimeter we want to use
+        :return:
+        """
+        # location of the gridded surveys
+        gage_list = ['Alt03', 'Alt04', 'Alt05']
+        assert gagename in gage_list, 'Input string is not a valid gage name'
+        if gagename == 'Alt05':
+            self.dataloc = u'geomorphology/altimeter/Alt05-altimeter/Alt05-altimeter.ncml'
+        elif gagename == 'Alt04':
+            self.dataloc = u'geomorphology/altimeter/Alt04-altimeter/Alt04-altimeter.ncml'
+        elif gagename == 'Alt03':
+            self.dataloc = u'geomorphology/altimeter/Alt03-altimeter/Alt03-altimeter.ncml'
+
+        altdataindex = self.gettime(dtRound=1 * 60)
+
+        # get the actual current data
+        if np.size(altdataindex) > 1:
+
+            alt_lat = self.ncfile['Latitude'][0]  # pulling latitude
+            alt_lon = self.ncfile['Longitude'][0]  # pulling longitude
+            alt_be = self.ncfile['bottomElevation'][altdataindex]  # pulling bottom elevation
+            alt_pkf = self.ncfile['PKF'][altdataindex]  # i have no idea what this stands for...
+            alt_stationname = self.ncfile['station_name'][0]  # name of the station
+            self.alt_timestart = nc.num2date(self.ncfile['timestart'][altdataindex], self.ncfile['timestart'].units, self.ncfile['time'].calendar)
+            self.alt_timeend = nc.num2date(self.ncfile['timeend'][altdataindex], self.ncfile['timeend'].units, self.ncfile['time'].calendar)
+            self.alt_time = nc.num2date(self.ncfile['time'][altdataindex], self.ncfile['time'].units, self.ncfile['time'].calendar)
+            for num in range(0, len(self.alt_time)):
+                self.alt_time[num] = self.roundtime(self.alt_time[num], roundto=1 * 60)
+                self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
+                self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
+
+            if removeMasked:
+                self.altpacket = {
+                    'name': str(self.ncfile.title),
+                    'time': np.array(self.alt_time[~alt_be.mask]),
+                    'lat': alt_lat,
+                    'PKF': np.array(alt_pkf[~alt_be.mask]),
+                    'lon': alt_lon,
+                    'stationName': alt_stationname,
+                    'gageName': gagename,
+                    'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
+                    'timeEnd': np.array(self.alt_timeend[~alt_be.mask]),
+                    'bottomElev': np.array(alt_be[~alt_be.mask])}
+            else:
+                self.altpacket = {
+                    'name': str(self.ncfile.title),
+                    'time': self.alt_time,
+                    'lat': alt_lat,
+                    'PKF': alt_pkf,
+                    'lon': alt_lon,
+                    'stationName': alt_stationname,
+                    'gageName': gagename,
+                    'timeStart': self.alt_timestart,
+                    'timeEnd': self.alt_timeend,
+                    'bottomElev': alt_be}
+
+            return self.altpacket
+        else:
+            print 'No %s data found for this period' %(gagename)
+
 
 class getDataTestBed:
 
