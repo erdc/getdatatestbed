@@ -216,7 +216,7 @@ class getObs:
                     depth = self.ncfile['depthP'][-1]
 
                 wavespec = {'time': self.snaptime,
-                            'epochtime': self.ncfile['time'][self.wavedataindex],
+                            'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
                             'name': str(self.ncfile.title),
                             'wavefreqbin': self.ncfile['waveFrequency'][:],
                             'lat': self.ncfile['lat'][:],
@@ -1018,12 +1018,14 @@ class getDataTestBed:
             bathy = ncfile[var][:, x, y]
 
         field = {'time': time,
+                 'epochtime': ncfile['time'][idx], # pulling down epoch time of interest
                  var: bathy,
                  }
         try:
             field['bathymetryDate'] = ncfile['bathymetryDate'][idx]
         except IndexError:
             field['bathymetryDate'] = np.ones_like(field['time'])
+
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
         return field
 
