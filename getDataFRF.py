@@ -162,7 +162,7 @@ class getObs:
             self.dataloc = 'oceanography/waves/waverider-17m/waverider-17m.ncml'  # 17 m buoy
             gname = '17m Waverider Buoy'
         elif gaugenumber == 2 or gaugenumber == 'awac-11m':
-            gname = 'AWAC04 - 11m'
+            gname = 'AWAC 11m'
             self.dataloc = 'oceanography/waves/awac-11m/awac-11m.ncml'
         elif gaugenumber == 3 or gaugenumber == 'awac-8m':
             gname = 'AWAC 8m'
