@@ -794,7 +794,10 @@ class getObs:
         gage_list = ['Alt03', 'Alt04', 'Alt05']
         assert gagename in gage_list, 'Input string is not a valid gage name'
         if gagename == 'Alt05':
+            a = 1
+            b = 0
             self.dataloc = u'geomorphology/altimeter/Alt05-altimeter/Alt05-altimeter.ncml'
+
         elif gagename == 'Alt04':
             self.dataloc = u'geomorphology/altimeter/Alt04-altimeter/Alt04-altimeter.ncml'
         elif gagename == 'Alt03':
@@ -818,6 +821,8 @@ class getObs:
                 self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
                 self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
 
+            alt_coords = sb.sblib.FRFcoord(alt_lon, alt_lat)
+
             if removeMasked:
                 self.altpacket = {
                     'name': str(self.ncfile.title),
@@ -825,6 +830,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': np.array(alt_pkf[~alt_be.mask]),
                     'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
@@ -837,6 +844,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': alt_pkf,
                     'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': self.alt_timestart,
