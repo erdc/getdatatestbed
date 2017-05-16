@@ -106,7 +106,7 @@ class getObs:
 
         except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-            self.alltime = nc.num2date(self.ncfile[ 'time'][:], self.ncfile['time'].units,
+            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
                                        self.ncfile['time'].calendar)
             for i, date in enumerate(self.alltime):
                 self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
@@ -259,17 +259,41 @@ class getObs:
             wavespec = None
             return wavespec
 
-    def getCurrents(self, roundto=1):
+    def getCurrents(self, gaugenumber=5, roundto=1):
         """
         This function pulls down the currents data from the Thredds Server
 
-
+            :param gaugenumber:
+            gaugenumber = 2, 'awac-11m'
+            gaugenumber = 3, awac3 - 8m
+            gaugenumber = 4, awac2 - 6m
+            gaugenumber = 5, awac1 - 4.5m
+            gaugenumber = 6, adopp2 - 3m
+            gaugenumber = 7, adopp1 - 2m
+            gaugenumber = 13, awac - 5m
+            
             :param roundto:
                 the time over which the wind record exists
                 ie data is collected in 10 minute increments
                 data is rounded to the nearst [roundto] (default 1 min)
         """
-        self.dataloc = 'oceanography/currents/awac04/awac04.ncml'
+        assert gaugenumber in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m', 'adop-3.5m'], 'Input string/number is not a valid gage name/number'
+
+        if gaugenumber == 2 or gaugenumber == 'awac-11m':
+            gname = 'AWAC04 - 11m'
+            self.dataloc = 'oceanography/currents/awac-11m/awac-11m.ncml'
+        elif gaugenumber == 3 or gaugenumber == 'awac-8m':
+            gname = 'AWAC 8m'
+            self.dataloc = 'oceanography/currents/awac-8m/awac-8m.ncml'
+        elif gaugenumber == 4 or gaugenumber == 'awac-6m':
+            gname = 'AWAC 6m'
+            self.dataloc = 'oceanography/currents/awac-6m/awac-6m.ncml'
+        elif gaugenumber == 5 or gaugenumber == 'awac-4.5m':
+            gname = 'AWAC 4.5m'
+            self.dataloc = 'oceanography/currents/awac-4.5m/awac-4.5m.ncml'
+        elif gaugenumber == 6 or gaugenumber == 'adop-3.5m':
+            gname = 'Aquadopp 3.5m'
+            self.dataloc = 'oceanography/currents/adop-3.5m/adop-3.5m.ncml'
 
         currdataindex = self.gettime(dtRound=roundto * 60)
         # _______________________________________
@@ -279,26 +303,32 @@ class getObs:
             curr_aveV = self.ncfile['aveV'][currdataindex]  # pulling depth averaged Northward current
             curr_spd = self.ncfile['currentSpeed'][currdataindex]  # currents speed [m/s]
             curr_dir = self.ncfile['currentDirection'][currdataindex]  # current from direction [deg]
-            curr_time = nc.num2date(self.ncfile['time'][currdataindex], self.ncfile['time'].units,
+            self.curr_time = nc.num2date(self.ncfile['time'][currdataindex], self.ncfile['time'].units,
                                     self.ncfile['time'].calendar)
             for num in range(0, len(self.curr_time)):
                 self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
+
+            curr_coords = sb.sblib.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
+
             self.curpacket = {
                 'name': str(self.ncfile.title),
-                'time': curr_time,
+                'time': self.curr_time,
                 'aveU': curr_aveU,
                 'aveV': curr_aveV,
                 'speed': curr_spd,
                 'dir': curr_dir,
-                'lat': self.ncfile['lat'][:],
-                'lon': self.ncfile['lon'][:],
+                'lat': self.ncfile['lat'][0],
+                'lon': self.ncfile['lon'][0],
+                'FRF_X': curr_coords['FRF_X'],
+                'FRF_Y': curr_coords['FRF_Y'],
                 'depth': self.ncfile['depth'][:],
                 # Depth is calculated by: depth = -xducerD + blank + (binSize/2) + (numBins * binSize)
-                'meanP': self.ncfile['meanPressure'][currdataindex],
+                'meanP': self.ncfile['meanPressure'][currdataindex]}
 
-            }
             return self.curpacket
+
         else:
+
             print 'ERROR: There is no current data for this time period!!!'
             self.curpacket = None
             return self.curpacket
@@ -855,6 +885,8 @@ class getObs:
             return self.altpacket
         else:
             print 'No %s data found for this period' %(gagename)
+            self.altpacket = None
+            return self.altpacket
 
 
 class getDataTestBed:
