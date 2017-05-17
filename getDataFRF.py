@@ -194,6 +194,9 @@ class getObs:
         elif gaugenumber == 12 or gaugenumber == '8m-array':
             gname = "8m array"
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
+        elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
+            gname = 'Oregon Inlet'
+            self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
         else:
             gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number')
@@ -424,7 +427,7 @@ class getObs:
         method = 1 uses the most recent historical survey but not future to d1
         grid_data = must be true or false, true returns gridded data file, false returns transect data
         """
-        from GetDataTestBed import download_grid_data as DGD
+        from getdatatestbed import download_grid_data as DGD
         # url for raw grid data setup on geospatial database
         if grid_data == True:
             service_url = u'http://gis.sam.usace.army.mil/server/rest/services/FRF/FRF/FeatureServer/4'
@@ -495,6 +498,7 @@ class getObs:
             self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
+
         # logic to handle no transects in date range
         if len(self.bathydataindex) == 1:
             idx = self.bathydataindex
@@ -510,6 +514,7 @@ class getObs:
         elif len(self.bathydataindex) > 1:
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+
         # try:
         #     assert profilenumbers in acceptableProfileNumbers, 'Ch3eck numbers should be in %s' % acceptableProfileNumbers
         #     self.bathydataindex = self.gettime(profilenumbers)  # getting the index of the grid
@@ -530,6 +535,13 @@ class getObs:
 
 
         if np.size(idx) > 0:
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
+                                                                                    self.ncfile['time'].units)
+            print 'Please End new simulation with the date above'
+            raise Exception
+        idx = self.bathydataindex
+        if len(idx) > 0 and idx is not None:
+
             # now retrieve data with idx
             elevation_points = self.ncfile['elevation'][idx]
             xCoord = self.ncfile['xFRF'][idx]
@@ -920,39 +932,77 @@ class getDataTestBed:
         """
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
-        try:
+        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
+        #            try:
+        self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+                                   self.ncfile['time'].calendar)
+        for i, date in enumerate(self.alltime):
+            self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
 
-            self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            #            try:
-            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar)
-            for i, date in enumerate(self.alltime):
-                self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+        mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+        # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
 
-            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
-
-            idx = np.where(mask)[0]
-            assert len(idx) > 0, 'no data locally, checking CHLthredds'
-            print "Data Gathered From Local Thredds Server"
-        except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
-            self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar)
-            for i, date in enumerate(self.alltime):
-                self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-            # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
-
-            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            idx = np.where(mask)[0]
-
-            try:
-                assert len(idx) > 0, ' There are no data within the search parameters for this gauge'
-                print "Data Gathered from CHL thredds Server"
-            except AssertionError:
-                idx = None
+        idx = np.where(mask)[0]
+        print "Data Gathered From crunchy Thredds Server"
 
         return idx
+
+    def getGridCMS(self, method):
+        """
+
+        :param method: can be [1, historical, history]  for historical
+                     can be [0, 'time'] for non oporational consideration
+        :return:
+        """
+        self.dataloc = 'grids/CMSwave_v1/CMSwave_v1.ncml'
+        try:
+            self.bathydataindex = self.gettime()  # getting the index of the grid
+        except IOError:
+            self.bathydataindex = []
+        if len(self.bathydataindex) == 1:
+            idx = self.bathydataindex
+        elif len(self.bathydataindex) < 1 and method in [1, 'historical', 'history']:
+            # there's no exact bathy match so find the max negative number where the negitive
+            # numbers are historical and the max would be the closest historical
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            print 'Bathymetry is taken as closest in HISTORY - operational'
+        elif len(self.bathydataindex) < 1 and method == 0:
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            print 'Bathymetry is taken as closest in TIME - NON-operational'
+        elif len(self.bathydataindex) > 1:
+            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
+            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
+                                                                                    self.ncfile['time'].units)
+            print 'Please End new simulation with the date above'
+            raise Exception
+        if np.size(idx) > 0 and idx is not None:
+            # now retrieve data with idx
+            elevation_points = self.ncfile['elevation'][idx]
+            xCoord = self.ncfile['xFRF'][:]
+            yCoord = self.ncfile['yFRF'][:]
+            lat = self.ncfile['latitude'][:]
+            lon = self.ncfile['longitude'][:]
+            northing = self.ncfile['northing'][:]
+            easting = self.ncfile['easting'][:]
+
+            time = nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units)
+
+            gridDict = {'xCoord': xCoord,
+                        'yCoord': yCoord,
+                        'elevation': elevation_points,
+                        'time': time,
+                        'lat': lat,
+                        'lon': lon,
+                        'northing': northing,
+                        'easting': easting,
+                        'x0': self.ncfile['x0'][:],
+                        'azimuth': self.ncfile['azimuth'][:],
+                        'y0': self.ncfile['y0'][:],
+                        }
+            return gridDict
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
         """
