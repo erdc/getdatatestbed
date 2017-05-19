@@ -106,7 +106,7 @@ class getObs:
 
         except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-            self.alltime = nc.num2date(self.ncfile[ 'time'][:], self.ncfile['time'].units,
+            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
                                        self.ncfile['time'].calendar)
             for i, date in enumerate(self.alltime):
                 self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
@@ -162,7 +162,7 @@ class getObs:
             self.dataloc = 'oceanography/waves/waverider-17m/waverider-17m.ncml'  # 17 m buoy
             gname = '17m Waverider Buoy'
         elif gaugenumber == 2 or gaugenumber == 'awac-11m':
-            gname = 'AWAC04 - 11m'
+            gname = 'AWAC 11m'
             self.dataloc = 'oceanography/waves/awac-11m/awac-11m.ncml'
         elif gaugenumber == 3 or gaugenumber == 'awac-8m':
             gname = 'AWAC 8m'
@@ -194,6 +194,9 @@ class getObs:
         elif gaugenumber == 12 or gaugenumber == '8m-array':
             gname = "8m array"
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
+        elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
+            gname = 'Oregon Inlet'
+            self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
         else:
             gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number')
@@ -259,17 +262,41 @@ class getObs:
             wavespec = None
             return wavespec
 
-    def getCurrents(self, roundto=1):
+    def getCurrents(self, gaugenumber=5, roundto=1):
         """
         This function pulls down the currents data from the Thredds Server
 
-
+            :param gaugenumber:
+            gaugenumber = 2, 'awac-11m'
+            gaugenumber = 3, awac3 - 8m
+            gaugenumber = 4, awac2 - 6m
+            gaugenumber = 5, awac1 - 4.5m
+            gaugenumber = 6, adopp2 - 3m
+            gaugenumber = 7, adopp1 - 2m
+            gaugenumber = 13, awac - 5m
+            
             :param roundto:
                 the time over which the wind record exists
                 ie data is collected in 10 minute increments
                 data is rounded to the nearst [roundto] (default 1 min)
         """
-        self.dataloc = 'oceanography/currents/awac04/awac04.ncml'
+        assert gaugenumber in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m', 'adop-3.5m'], 'Input string/number is not a valid gage name/number'
+
+        if gaugenumber == 2 or gaugenumber == 'awac-11m':
+            gname = 'AWAC04 - 11m'
+            self.dataloc = 'oceanography/currents/awac-11m/awac-11m.ncml'
+        elif gaugenumber == 3 or gaugenumber == 'awac-8m':
+            gname = 'AWAC 8m'
+            self.dataloc = 'oceanography/currents/awac-8m/awac-8m.ncml'
+        elif gaugenumber == 4 or gaugenumber == 'awac-6m':
+            gname = 'AWAC 6m'
+            self.dataloc = 'oceanography/currents/awac-6m/awac-6m.ncml'
+        elif gaugenumber == 5 or gaugenumber == 'awac-4.5m':
+            gname = 'AWAC 4.5m'
+            self.dataloc = 'oceanography/currents/awac-4.5m/awac-4.5m.ncml'
+        elif gaugenumber == 6 or gaugenumber == 'adop-3.5m':
+            gname = 'Aquadopp 3.5m'
+            self.dataloc = 'oceanography/currents/adop-3.5m/adop-3.5m.ncml'
 
         currdataindex = self.gettime(dtRound=roundto * 60)
         # _______________________________________
@@ -279,26 +306,32 @@ class getObs:
             curr_aveV = self.ncfile['aveV'][currdataindex]  # pulling depth averaged Northward current
             curr_spd = self.ncfile['currentSpeed'][currdataindex]  # currents speed [m/s]
             curr_dir = self.ncfile['currentDirection'][currdataindex]  # current from direction [deg]
-            curr_time = nc.num2date(self.ncfile['time'][currdataindex], self.ncfile['time'].units,
+            self.curr_time = nc.num2date(self.ncfile['time'][currdataindex], self.ncfile['time'].units,
                                     self.ncfile['time'].calendar)
             for num in range(0, len(self.curr_time)):
                 self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
+
+            curr_coords = sb.sblib.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
+
             self.curpacket = {
                 'name': str(self.ncfile.title),
-                'time': curr_time,
+                'time': self.curr_time,
                 'aveU': curr_aveU,
                 'aveV': curr_aveV,
                 'speed': curr_spd,
                 'dir': curr_dir,
-                'lat': self.ncfile['lat'][:],
-                'lon': self.ncfile['lon'][:],
+                'lat': self.ncfile['lat'][0],
+                'lon': self.ncfile['lon'][0],
+                'FRF_X': curr_coords['FRF_X'],
+                'FRF_Y': curr_coords['FRF_Y'],
                 'depth': self.ncfile['depth'][:],
                 # Depth is calculated by: depth = -xducerD + blank + (binSize/2) + (numBins * binSize)
-                'meanP': self.ncfile['meanPressure'][currdataindex],
+                'meanP': self.ncfile['meanPressure'][currdataindex]}
 
-            }
             return self.curpacket
+
         else:
+
             print 'ERROR: There is no current data for this time period!!!'
             self.curpacket = None
             return self.curpacket
@@ -424,7 +457,7 @@ class getObs:
         method = 1 uses the most recent historical survey but not future to d1
         grid_data = must be true or false, true returns gridded data file, false returns transect data
         """
-        from GetDataTestBed import download_grid_data as DGD
+        from getdatatestbed import download_grid_data as DGD
         # url for raw grid data setup on geospatial database
         if grid_data == True:
             service_url = u'http://gis.sam.usace.army.mil/server/rest/services/FRF/FRF/FeatureServer/4'
@@ -495,6 +528,7 @@ class getObs:
             self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
+
         # logic to handle no transects in date range
         if len(self.bathydataindex) == 1:
             idx = self.bathydataindex
@@ -510,6 +544,7 @@ class getObs:
         elif len(self.bathydataindex) > 1:
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+
         # try:
         #     assert profilenumbers in acceptableProfileNumbers, 'Ch3eck numbers should be in %s' % acceptableProfileNumbers
         #     self.bathydataindex = self.gettime(profilenumbers)  # getting the index of the grid
@@ -530,6 +565,13 @@ class getObs:
 
 
         if np.size(idx) > 0:
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
+                                                                                    self.ncfile['time'].units)
+            print 'Please End new simulation with the date above'
+            raise Exception
+        idx = self.bathydataindex
+        if len(idx) > 0 and idx is not None:
+
             # now retrieve data with idx
             elevation_points = self.ncfile['elevation'][idx]
             xCoord = self.ncfile['xFRF'][idx]
@@ -794,7 +836,10 @@ class getObs:
         gage_list = ['Alt03', 'Alt04', 'Alt05']
         assert gagename in gage_list, 'Input string is not a valid gage name'
         if gagename == 'Alt05':
+            a = 1
+            b = 0
             self.dataloc = u'geomorphology/altimeter/Alt05-altimeter/Alt05-altimeter.ncml'
+
         elif gagename == 'Alt04':
             self.dataloc = u'geomorphology/altimeter/Alt04-altimeter/Alt04-altimeter.ncml'
         elif gagename == 'Alt03':
@@ -818,6 +863,8 @@ class getObs:
                 self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
                 self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
 
+            alt_coords = sb.sblib.FRFcoord(alt_lon, alt_lat)
+
             if removeMasked:
                 self.altpacket = {
                     'name': str(self.ncfile.title),
@@ -825,6 +872,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': np.array(alt_pkf[~alt_be.mask]),
                     'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
@@ -837,6 +886,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': alt_pkf,
                     'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': self.alt_timestart,
@@ -846,6 +897,8 @@ class getObs:
             return self.altpacket
         else:
             print 'No %s data found for this period' %(gagename)
+            self.altpacket = None
+            return self.altpacket
 
 
 class getDataTestBed:
@@ -911,39 +964,77 @@ class getDataTestBed:
         """
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
-        try:
+        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
+        #            try:
+        self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+                                   self.ncfile['time'].calendar)
+        for i, date in enumerate(self.alltime):
+            self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
 
-            self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            #            try:
-            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar)
-            for i, date in enumerate(self.alltime):
-                self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+        mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+        # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
 
-            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
-
-            idx = np.where(mask)[0]
-            assert len(idx) > 0, 'no data locally, checking CHLthredds'
-            print "Data Gathered From Local Thredds Server"
-        except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
-            self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar)
-            for i, date in enumerate(self.alltime):
-                self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-            # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
-
-            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            idx = np.where(mask)[0]
-
-            try:
-                assert len(idx) > 0, ' There are no data within the search parameters for this gauge'
-                print "Data Gathered from CHL thredds Server"
-            except AssertionError:
-                idx = None
+        idx = np.where(mask)[0]
+        print "Data Gathered From crunchy Thredds Server"
 
         return idx
+
+    def getGridCMS(self, method):
+        """
+
+        :param method: can be [1, historical, history]  for historical
+                     can be [0, 'time'] for non oporational consideration
+        :return:
+        """
+        self.dataloc = 'grids/CMSwave_v1/CMSwave_v1.ncml'
+        try:
+            self.bathydataindex = self.gettime()  # getting the index of the grid
+        except IOError:
+            self.bathydataindex = []
+        if len(self.bathydataindex) == 1:
+            idx = self.bathydataindex
+        elif len(self.bathydataindex) < 1 and method in [1, 'historical', 'history']:
+            # there's no exact bathy match so find the max negative number where the negitive
+            # numbers are historical and the max would be the closest historical
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            print 'Bathymetry is taken as closest in HISTORY - operational'
+        elif len(self.bathydataindex) < 1 and method == 0:
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            print 'Bathymetry is taken as closest in TIME - NON-operational'
+        elif len(self.bathydataindex) > 1:
+            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
+            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
+                                                                                    self.ncfile['time'].units)
+            print 'Please End new simulation with the date above'
+            raise Exception
+        if np.size(idx) > 0 and idx is not None:
+            # now retrieve data with idx
+            elevation_points = self.ncfile['elevation'][idx]
+            xCoord = self.ncfile['xFRF'][:]
+            yCoord = self.ncfile['yFRF'][:]
+            lat = self.ncfile['latitude'][:]
+            lon = self.ncfile['longitude'][:]
+            northing = self.ncfile['northing'][:]
+            easting = self.ncfile['easting'][:]
+
+            time = nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units)
+
+            gridDict = {'xCoord': xCoord,
+                        'yCoord': yCoord,
+                        'elevation': elevation_points,
+                        'time': time,
+                        'lat': lat,
+                        'lon': lon,
+                        'northing': northing,
+                        'easting': easting,
+                        'x0': self.ncfile['x0'][:],
+                        'azimuth': self.ncfile['azimuth'][:],
+                        'y0': self.ncfile['y0'][:],
+                        }
+            return gridDict
 
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
