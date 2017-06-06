@@ -820,7 +820,7 @@ class getObs:
         gagename - 'Alt03, Alt04, Alt05'  This is just the name of the altimeter we want to use
         :return:
         """
-        # location of the gridded surveys
+        # location of the data
         gage_list = ['Alt03', 'Alt04', 'Alt05']
         assert gagename in gage_list, 'Input string is not a valid gage name'
         if gagename == 'Alt05':
@@ -832,6 +832,74 @@ class getObs:
             self.dataloc = u'geomorphology/altimeter/Alt04-altimeter/Alt04-altimeter.ncml'
         elif gagename == 'Alt03':
             self.dataloc = u'geomorphology/altimeter/Alt03-altimeter/Alt03-altimeter.ncml'
+
+        altdataindex = self.gettime(dtRound=1 * 60)
+
+        # get the actual current data
+        if np.size(altdataindex) > 1:
+
+            alt_lat = self.ncfile['Latitude'][0]  # pulling latitude
+            alt_lon = self.ncfile['Longitude'][0]  # pulling longitude
+            alt_be = self.ncfile['bottomElevation'][altdataindex]  # pulling bottom elevation
+            alt_pkf = self.ncfile['PKF'][altdataindex]  # i have no idea what this stands for...
+            alt_stationname = self.ncfile['station_name'][0]  # name of the station
+            self.alt_timestart = nc.num2date(self.ncfile['timestart'][altdataindex], self.ncfile['timestart'].units, self.ncfile['time'].calendar)
+            self.alt_timeend = nc.num2date(self.ncfile['timeend'][altdataindex], self.ncfile['timeend'].units, self.ncfile['time'].calendar)
+            self.alt_time = nc.num2date(self.ncfile['time'][altdataindex], self.ncfile['time'].units, self.ncfile['time'].calendar)
+            for num in range(0, len(self.alt_time)):
+                self.alt_time[num] = self.roundtime(self.alt_time[num], roundto=1 * 60)
+                self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
+                self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
+
+            alt_coords = sb.sblib.FRFcoord(alt_lon, alt_lat)
+
+            if removeMasked:
+                self.altpacket = {
+                    'name': str(self.ncfile.title),
+                    'time': np.array(self.alt_time[~alt_be.mask]),
+                    'lat': alt_lat,
+                    'PKF': np.array(alt_pkf[~alt_be.mask]),
+                    'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
+                    'stationName': alt_stationname,
+                    'gageName': gagename,
+                    'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
+                    'timeEnd': np.array(self.alt_timeend[~alt_be.mask]),
+                    'bottomElev': np.array(alt_be[~alt_be.mask])}
+            else:
+                self.altpacket = {
+                    'name': str(self.ncfile.title),
+                    'time': self.alt_time,
+                    'lat': alt_lat,
+                    'PKF': alt_pkf,
+                    'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
+                    'stationName': alt_stationname,
+                    'gageName': gagename,
+                    'timeStart': self.alt_timestart,
+                    'timeEnd': self.alt_timeend,
+                    'bottomElev': alt_be}
+
+            return self.altpacket
+        else:
+            print 'No %s data found for this period' %(gagename)
+            self.altpacket = None
+            return self.altpacket
+
+    def getLIDAR(self, removeMasked=True):
+
+        """
+        This function gets the LIDAR data from the thredds server
+        :param:
+
+        :return:
+            we are going to pull the runup AND the waveprofile
+        """
+
+        # get the runup .ncml file
+        self.dataloc = u'geomorphology/altimeter/Alt03-altimeter/Alt03-altimeter.ncml'
 
         altdataindex = self.gettime(dtRound=1 * 60)
 
@@ -1061,7 +1129,6 @@ class getDataTestBed:
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
         return field
 
-
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True):
             """
             This function pulls down the data from the thredds server and puts the data into proper places
@@ -1153,3 +1220,76 @@ class getDataTestBed:
                     gname, self.d1, self.d2)
                 wavespec = None
             return wavespec
+
+    def getLIDAR(self, removeMasked=True):
+
+        """
+        This function gets the LIDAR data from the thredds server
+        :param:
+
+        :return:
+            we are going to pull the runup AND the waveprofile
+        """
+
+        # get the runup .ncml file
+        self.dataloc = u'projects/tucker/runup/test.ncml'
+
+        LIDARdataindex = self.gettime(dtRound=1 * 60)
+
+        # get the actual current data
+        if np.size(LIDARdataindex) > 1:
+
+            alt_lat = self.ncfile['lidarLatitude'][0]  # pulling latitude
+            alt_lon = self.ncfile['lidarLongitude'][0]  # pulling longitude
+            lidar_stationname = self.ncfile['station_name'][0]  # name of the station
+            lidar_X = self.ncfile['lidarX'][0]  # x coordinate of LIDAR scan in FRF coordinates
+            lidar_Y = self.ncfile['lidarY'][0]  # y coordinate of LIDAR scan in FRF coordinates
+            lidar_time = self.ncfile['time'][LIDARdataindex]  # pulling bottom elevation
+
+            alt_be = self.ncfile['bottomElevation'][altdataindex]  # pulling bottom elevation
+            alt_pkf = self.ncfile['PKF'][altdataindex]  # i have no idea what this stands for...
+            alt_stationname = self.ncfile['station_name'][0]  # name of the station
+            self.alt_timestart = nc.num2date(self.ncfile['timestart'][altdataindex], self.ncfile['timestart'].units, self.ncfile['time'].calendar)
+            self.alt_timeend = nc.num2date(self.ncfile['timeend'][altdataindex], self.ncfile['timeend'].units, self.ncfile['time'].calendar)
+            self.alt_time = nc.num2date(self.ncfile['time'][altdataindex], self.ncfile['time'].units, self.ncfile['time'].calendar)
+            for num in range(0, len(self.alt_time)):
+                self.alt_time[num] = self.roundtime(self.alt_time[num], roundto=1 * 60)
+                self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
+                self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
+
+            alt_coords = sb.sblib.FRFcoord(alt_lon, alt_lat)
+
+            if removeMasked:
+                self.altpacket = {
+                    'name': str(self.ncfile.title),
+                    'time': np.array(self.alt_time[~alt_be.mask]),
+                    'lat': alt_lat,
+                    'PKF': np.array(alt_pkf[~alt_be.mask]),
+                    'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
+                    'stationName': alt_stationname,
+                    'gageName': gagename,
+                    'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
+                    'timeEnd': np.array(self.alt_timeend[~alt_be.mask]),
+                    'bottomElev': np.array(alt_be[~alt_be.mask])}
+            else:
+                self.altpacket = {
+                    'name': str(self.ncfile.title),
+                    'time': self.alt_time,
+                    'lat': alt_lat,
+                    'PKF': alt_pkf,
+                    'lon': alt_lon,
+                    'FRF_X': alt_coords['FRF_X'],
+                    'FRF_Y': alt_coords['FRF_Y'],
+                    'stationName': alt_stationname,
+                    'gageName': gagename,
+                    'timeStart': self.alt_timestart,
+                    'timeEnd': self.alt_timeend,
+                    'bottomElev': alt_be}
+
+            return self.altpacket
+        else:
+            print 'No %s data found for this period' %(gagename)
+            self.altpacket = None
+            return self.altpacket
