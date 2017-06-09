@@ -221,7 +221,7 @@ class getObs:
                 except IndexError:
                     depth = self.ncfile['depthP'][-1]
 
-                wave_coords = geop.FRFcoordv2(self.ncfile['lon'][:], self.ncfile['lat'][:])
+                wave_coords = geop.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
 
                 wavespec = {'time': self.snaptime,
                             'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
@@ -318,7 +318,7 @@ class getObs:
             for num in range(0, len(self.curr_time)):
                 self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
 
-            curr_coords = geop.FRFcoordv2(self.ncfile['lon'][0], self.ncfile['lat'][0])
+            curr_coords = geop.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
 
             self.curpacket = {
                 'name': str(self.ncfile.title),
@@ -711,7 +711,7 @@ class getObs:
             yloc = ncfile['yloc'][:]
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
         assert len(np.unique(yloc)) == 1, "There are different Y locations in the NetCDF file"
-        locDict = geop.FRFcoordv2(xloc[0], yloc[0])
+        locDict = geop.FRFcoord(xloc[0], yloc[0])
         return locDict
 
     def getBathyGridcBathy(self):
@@ -891,7 +891,7 @@ class getObs:
                 self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
                 self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
 
-            alt_coords = geop.FRFcoordv2(alt_lon, alt_lat)
+            alt_coords = geop.FRFcoord(alt_lon, alt_lat)
 
             if removeMasked:
                 self.altpacket = {
