@@ -210,8 +210,7 @@ class getObs:
 
             if np.size(self.wavedataindex) >= 1:
                 # consistant for all wave gauges
-                self.snaptime = nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units,
-                                            self.ncfile['time'].calendar)
+                self.snaptime = nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units, self.ncfile['time'].calendar)
                 for num in range(0, len(self.snaptime)):
                     self.snaptime[num] = self.roundtime(self.snaptime[num], roundto=roundto * 60)
                 #                if roundto != 30:
@@ -221,14 +220,14 @@ class getObs:
                 except IndexError:
                     depth = self.ncfile['depthP'][-1]
 
-                wave_coords = geop.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
+                wave_coords = geop.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
 
                 wavespec = {'time': self.snaptime,
                             'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
                             'name': str(self.ncfile.title),
                             'wavefreqbin': self.ncfile['waveFrequency'][:],
-                            'lat': self.ncfile['lat'][:],
-                            'lon': self.ncfile['lon'][:],
+                            'lat': self.ncfile['latitude'][:],
+                            'lon': self.ncfile['longitude'][:],
                             'FRF_X': wave_coords['xFRF'],
                             'FRF_Y': wave_coords['yFRF'],
                             'depth': depth,
@@ -571,12 +570,13 @@ class getObs:
         #     mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
 
 
-        if np.size(idx) > 0:
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
-                                                                                    self.ncfile['time'].units)
+        if np.size(idx) == 0:
+
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
             raise Exception
-        idx = self.bathydataindex
+            idx = self.bathydataindex
+
         if len(idx) > 0 and idx is not None:
 
             # now retrieve data with idx
@@ -638,8 +638,7 @@ class getObs:
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
 
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
-                                                                                    self.ncfile['time'].units)
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx], self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
             raise Exception
         # the below line was in place, it should be masking nan's but there is not supposed to be nan's
@@ -1075,9 +1074,9 @@ class getDataTestBed:
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
 
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
-                                                                                    self.ncfile['time'].units)
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx], self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
+
             raise Exception
         if np.size(idx) > 0 and idx is not None:
             # now retrieve data with idx
