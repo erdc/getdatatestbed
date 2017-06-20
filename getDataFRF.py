@@ -15,14 +15,9 @@ from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
+from sblib import sblib as sb
+from sblib import geoprocess as gp
 
-try:
-    import sblib as sb
-except ImportError:
-    whoami = check_output('whoami', shell=True)
-    sys.path.append('C:\Users\spike\Documents\Code_Repositories\sblib')
-    sys.path.append('/home/%s/repos/sblib' % whoami[:whoami.index('\n')])
-    import sblib as sb
 
 class getObs:
     """
@@ -217,8 +212,8 @@ class getObs:
                     depth = self.ncfile['depth'][:]
                 except IndexError:
                     depth = self.ncfile['depthP'][-1]
-
-                wavespec = {'time': self.snaptime,
+                try:
+                    wavespec = {'time': self.snaptime,
                             'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
                             'name': str(self.ncfile.title),
                             'wavefreqbin': self.ncfile['waveFrequency'][:],
@@ -228,6 +223,18 @@ class getObs:
                             'Hs': self.ncfile['waveHs'][self.wavedataindex],
                             'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
                             }
+                except IndexError:  # this is for the new version of variable names
+                    wavespec = {'time': self.snaptime,
+                            'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
+                            'name': str(self.ncfile.title),
+                            'wavefreqbin': self.ncfile['waveFrequency'][:],
+                            'lat': self.ncfile['latitude'][:],
+                            'lon': self.ncfile['longitude'][:],
+                            'depth': depth,
+                            'Hs': self.ncfile['waveHs'][self.wavedataindex],
+                            'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
+                            }
+
                 try:
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
@@ -311,7 +318,7 @@ class getObs:
             for num in range(0, len(self.curr_time)):
                 self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
 
-            curr_coords = sb.sblib.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
+            curr_coords = gp.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
 
             self.curpacket = {
                 'name': str(self.ncfile.title),
@@ -704,7 +711,7 @@ class getObs:
             yloc = ncfile['yloc'][:]
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
         assert len(np.unique(yloc)) == 1, "There are different Y locations in the NetCDF file"
-        locDict = sb.FRFcoord(xloc[0], yloc[0])
+        locDict = gp.FRFcoord(xloc[0], yloc[0])
         return locDict
 
     def getBathyGridcBathy(self):
@@ -863,7 +870,7 @@ class getObs:
                 self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
                 self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
 
-            alt_coords = sb.sblib.FRFcoord(alt_lon, alt_lat)
+            alt_coords = gp.FRFcoord(alt_lon, alt_lat)
 
             if removeMasked:
                 self.altpacket = {
