@@ -18,7 +18,6 @@ import pandas as pd
 from sblib import sblib as sb
 from sblib import geoprocess as gp
 
-
 class getObs:
     """
     Note d1 and d2 have to be in date-time formats
@@ -202,8 +201,7 @@ class getObs:
 
             if np.size(self.wavedataindex) >= 1:
                 # consistant for all wave gauges
-                self.snaptime = nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units,
-                                            self.ncfile['time'].calendar)
+                self.snaptime = nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units, self.ncfile['time'].calendar)
                 for num in range(0, len(self.snaptime)):
                     self.snaptime[num] = self.roundtime(self.snaptime[num], roundto=roundto * 60)
                 #                if roundto != 30:
@@ -212,28 +210,20 @@ class getObs:
                     depth = self.ncfile['depth'][:]
                 except IndexError:
                     depth = self.ncfile['depthP'][-1]
-                try:
-                    wavespec = {'time': self.snaptime,
-                            'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
-                            'name': str(self.ncfile.title),
-                            'wavefreqbin': self.ncfile['waveFrequency'][:],
-                            'lat': self.ncfile['lat'][:],
-                            'lon': self.ncfile['lon'][:],
-                            'depth': depth,
-                            'Hs': self.ncfile['waveHs'][self.wavedataindex],
-                            'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
-                            }
-                except IndexError:  # this is for the new version of variable names
-                    wavespec = {'time': self.snaptime,
-                            'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
-                            'name': str(self.ncfile.title),
-                            'wavefreqbin': self.ncfile['waveFrequency'][:],
-                            'lat': self.ncfile['latitude'][:],
-                            'lon': self.ncfile['longitude'][:],
-                            'depth': depth,
-                            'Hs': self.ncfile['waveHs'][self.wavedataindex],
-                            'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
-                            }
+
+                wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
+                wavespec = {'time': self.snaptime,                # note this is new variable names??
+                        'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
+                        'name': str(self.ncfile.title),
+                        'wavefreqbin': self.ncfile['waveFrequency'][:],
+                        'xFRF': wave_coords['xFRF'],
+                        'yFRF': wave_coords['yFRF'],
+                        'lat': self.ncfile['latitude'][:],
+                        'lon': self.ncfile['longitude'][:],
+                        'depth': depth,
+                        'Hs': self.ncfile['waveHs'][self.wavedataindex],
+                        'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
+                        }
 
                 try:
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
@@ -329,8 +319,8 @@ class getObs:
                 'dir': curr_dir,
                 'lat': self.ncfile['lat'][0],
                 'lon': self.ncfile['lon'][0],
-                'FRF_X': curr_coords['FRF_X'],
-                'FRF_Y': curr_coords['FRF_Y'],
+                'FRF_X': curr_coords['xFRF'],
+                'FRF_Y': curr_coords['yFRF'],
                 'depth': self.ncfile['depth'][:],
                 # Depth is calculated by: depth = -xducerD + blank + (binSize/2) + (numBins * binSize)
                 'meanP': self.ncfile['meanPressure'][currdataindex]}
@@ -571,12 +561,13 @@ class getObs:
         #     mask = (self.alltime >= self.d1) & (self.alltime < self.d2) & np.in1d(self.ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
 
 
-        if np.size(idx) > 0:
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
-                                                                                    self.ncfile['time'].units)
+        if np.size(idx) == 0:
+
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
             raise Exception
-        idx = self.bathydataindex
+            idx = self.bathydataindex
+
         if len(idx) > 0 and idx is not None:
 
             # now retrieve data with idx
@@ -638,8 +629,7 @@ class getObs:
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
 
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
-                                                                                    self.ncfile['time'].units)
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx], self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
             raise Exception
         # the below line was in place, it should be masking nan's but there is not supposed to be nan's
@@ -712,6 +702,7 @@ class getObs:
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
         assert len(np.unique(yloc)) == 1, "There are different Y locations in the NetCDF file"
         locDict = gp.FRFcoord(xloc[0], yloc[0])
+
         return locDict
 
     def getBathyGridcBathy(self):
@@ -750,31 +741,52 @@ class getObs:
 
         return cbdata
 
-    def getLidarRunup(self):
+    def getLidarRunup(self, removeMasked=True):
         """
-
+        :param: removeMasked will toggle the removing of data points from the tsTime series based on the flag status
         :return:
         """
         self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
         self.lidarIndex = self.gettime(dtRound=60)
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
+
             out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
-                   'lat': self.ncfile[u'lat'][:],  # Coordintes
-                   'lon': self.ncfile[u'lon'][:],
-                   'frfX': self.ncfile[u'frfX'][:],
-                   'frfY': self.ncfile[u'frfY'][:],
+                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordintes
+                   'lon': self.ncfile[u'lidarLongitude'][:],
+                   'lidarX': self.ncfile[u'lidarX'][:],
+                   'lidarY': self.ncfile[u'lidarY'][:],
                    'time': self.ncfile[u'time'][self.lidarIndex],
                    'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
-                   'QCtotalWaterLevel': self.ncfile['QCTotalWaterLevel'][self.lidarIndex],
+                   'elevation': self.ncfile['elevation'][self.lidarIndex, :],
+
+                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :],
+                   # this will need to be changed once Tucker uploads the new ncml file, will not be dimensioned in time!
+                   # 'samplingTime': self.ncfile['tsTime'][:],
+
+                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex, :],
+                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex, :],
+                   'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex, :],
+                   'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
                    'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
-                   'samplingTime': self.ncfile['samplingTime'][self.lidarIndex, :],
-                   'runupX': self.ncfile['runupX'][self.lidarIndex, :],
-                   'runupY': self.ncfile['runupY'][self.lidarIndex, :],
-                   'runupZ': self.ncfile['runupZ'][self.lidarIndex, :],
-                   'runupDownLine': self.ncfile['runupDownLineDistance'][self.lidarIndex, :],
                    }
+
+            if removeMasked:
+                # copy mask over to the sampling time!
+                mask = np.ma.getmask(out['elevation'])
+                out['samplingTime'] = np.ma.masked_array(out['samplingTime'], mask)
+
+                out['elevation'] = np.ma.compress_cols(out['elevation'])
+                out['samplingTime'] = np.ma.compress_cols(out['samplingTime'])
+                out['frfX'] = np.ma.compress_cols(out['frfX'])
+                out['frfY'] = np.ma.compress_cols(out['frfY'])
+                out['runupDownLine'] = np.ma.compress_cols(out['runupDownLine'])
+
+
+            else:
+                pass
+
         else:
-            print 'There is no Data during this time period'
+            print 'There is no LIDAR data during this time period'
             out = None
         return out
 
@@ -839,7 +851,7 @@ class getObs:
         gagename - 'Alt03, Alt04, Alt05'  This is just the name of the altimeter we want to use
         :return:
         """
-        # location of the gridded surveys
+        # location of the data
         gage_list = ['Alt03', 'Alt04', 'Alt05']
         assert gagename in gage_list, 'Input string is not a valid gage name'
         if gagename == 'Alt05':
@@ -879,8 +891,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': np.array(alt_pkf[~alt_be.mask]),
                     'lon': alt_lon,
-                    'FRF_X': alt_coords['FRF_X'],
-                    'FRF_Y': alt_coords['FRF_Y'],
+                    'xFRF': alt_coords['xFRF'],
+                    'yFRF': alt_coords['yFRF'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
@@ -893,8 +905,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': alt_pkf,
                     'lon': alt_lon,
-                    'FRF_X': alt_coords['FRF_X'],
-                    'FRF_Y': alt_coords['FRF_Y'],
+                    'xFRF': alt_coords['xFRF'],
+                    'yFRF': alt_coords['yFRF'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': self.alt_timestart,
@@ -906,6 +918,47 @@ class getObs:
             print 'No %s data found for this period' %(gagename)
             self.altpacket = None
             return self.altpacket
+
+    def getLidarWaveProf(self, removeMasked=True):
+
+        """
+        :param: removeMasked will toggle the removing of data points from the tsTime series based on the flag status
+        :return:
+        """
+        self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
+        self.lidarIndex = self.gettime(dtRound=60)
+        if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
+
+            out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
+                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordintes
+                   'lon': self.ncfile[u'lidarLongitude'][:],
+                   'lidarX': self.ncfile[u'lidarX'][:],
+                   'lidarY': self.ncfile[u'lidarY'][:],
+                   'time': self.ncfile[u'time'][self.lidarIndex],
+                   'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
+                   'elevation': self.ncfile['elevation'][self.lidarIndex],
+                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :],
+                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex],
+                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex],
+                   'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex, :],
+                   'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
+                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
+                   }
+
+
+            if removeMasked:
+                out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
+                out['samplingTime'] = np.array(out['samplingTime'][~out['elevation'].mask])
+                out['xFRF'] = np.array(out['frfX'][~out['frfX'].mask])
+                out['yFRF'] = np.array(out['frfY'][~out['frfY'].mask])
+                out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
+
+            else:
+                pass
+        else:
+            print 'There is no LIDAR data during this time period'
+            out = None
+        return out
 
 
 class getDataTestBed:
@@ -1013,9 +1066,9 @@ class getDataTestBed:
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
 
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
-                                                                                    self.ncfile['time'].units)
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx], self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
+
             raise Exception
         if np.size(idx) > 0 and idx is not None:
             # now retrieve data with idx
@@ -1119,7 +1172,6 @@ class getDataTestBed:
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
         return field
 
-
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True):
             """
             This function pulls down the data from the thredds server and puts the data into proper places
@@ -1211,3 +1263,105 @@ class getDataTestBed:
                     gname, self.d1, self.d2)
                 wavespec = None
             return wavespec
+
+    def getLidarRunup(self, removeMasked=True):
+        """
+
+        :return:
+        """
+        self.dataloc = u'projects/tucker/runup/test.ncml'
+        self.lidarIndex = self.gettime(dtRound=60)
+        if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
+
+            out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
+                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordintes
+                   'lon': self.ncfile[u'lidarLongitude'][:],
+                   'lidarX': self.ncfile[u'lidarX'][:],
+                   'lidarY': self.ncfile[u'lidarY'][:],
+                   'time': self.ncfile[u'time'][self.lidarIndex],
+                   'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
+                   'elevation': self.ncfile['elevation'][self.lidarIndex],
+
+                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :], # this will need to be changed once Tucker uploads the new ncml file, will not be dimensioned in time!
+                   # 'samplingTime': self.ncfile['tsTime'][:],
+
+                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex],
+                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex],
+                   'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex],
+                   'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
+                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
+                   }
+
+
+            if removeMasked:
+                # copy mask over to the sampling time!
+                mask = np.ma.getmask(out['elevation'])
+                out['samplingTime'] = np.ma.masked_array(out['samplingTime'], mask)
+
+                out['elevation'] = np.ma.compress_cols(out['elevation'])
+                out['samplingTime'] = np.ma.compress_cols(out['samplingTime'])
+                out['frfX'] = np.ma.compress_cols(out['frfX'])
+                out['frfY'] = np.ma.compress_cols(out['frfY'])
+                out['runupDownLine'] = np.ma.compress_cols(out['runupDownLine'])
+
+
+            else:
+                pass
+
+        else:
+            print 'There is no LIDAR data during this time period'
+            out = None
+        return out
+
+    def getLidarWaveProf(self, removeMasked=True):
+
+        """
+        :return:
+        """
+
+        self.dataloc = u'projects/tucker/waveprofile/test.ncml'
+        self.lidarIndex = self.gettime(dtRound=60)
+
+        if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
+
+            out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
+                   'lat': self.ncfile[u'lidarLatitude'][:],
+                   'lon': self.ncfile[u'lidarLongitude'][:],
+                   'lidarX': self.ncfile[u'lidarX'][:],
+                   'lidarY': self.ncfile[u'lidarY'][:],
+                   'frfX': self.ncfile[u'xFRF'][:],
+                   'frfY': self.ncfile[u'yFRF'][:],
+                   'runupDownLine': self.ncfile['downLineDistance'][:],
+                   'waveFreq': self.ncfile['waveFrequency'][:],
+                   'time': self.ncfile[u'time'][self.lidarIndex],
+                   'WaterLevel': self.ncfile['waterLevel'][self.lidarIndex],
+                   'waveHs': self.ncfile['waveHs'][self.lidarIndex],
+                   'waveHsIG': self.ncfile['waveHsIG'][self.lidarIndex],
+                   'waveHsTot': self.ncfile['waveHsTotal'][self.lidarIndex],
+                   'waveSkewness': self.ncfile['waveSkewness'][self.lidarIndex],
+                   'waveAsymmetry': self.ncfile['waveAsymmetry'][self.lidarIndex],
+                   'waveEnergyDens': self.ncfile['waveEnergyDensity'][self.lidarIndex],
+                   'hydroFlag': self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
+                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
+                   }
+
+
+            if removeMasked:
+                # copy mask over to the sampling time!
+                mask = np.ma.getmask(out['elevation'])
+                out['samplingTime'] = np.ma.masked_array(out['samplingTime'], mask)
+
+                out['elevation'] = np.ma.compress_cols(out['elevation'])
+                out['samplingTime'] = np.ma.compress_cols(out['samplingTime'])
+                out['frfX'] = np.ma.compress_cols(out['frfX'])
+                out['frfY'] = np.ma.compress_cols(out['frfY'])
+                out['runupDownLine'] = np.ma.compress_cols(out['runupDownLine'])
+
+
+            else:
+                pass
+
+        else:
+            print 'There is no LIDAR data during this time period'
+            out = None
+        return out
