@@ -1104,7 +1104,6 @@ class getDataTestBed:
                         }
             return gridDict
 
-
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
         """
 
