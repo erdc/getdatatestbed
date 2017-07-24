@@ -15,17 +15,8 @@ from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
-from sblib import geoprocess as geop
-
-"""
-try:
-    import sblib as sb
-except ImportError:
-    whoami = check_output('whoami', shell=True)
-    sys.path.append('C:\Users\spike\Documents\Code_Repositories\sblib')
-    sys.path.append('/home/%s/repos/sblib' % whoami[:whoami.index('\n')])
-    import sblib as sb
-"""
+from sblib import sblib as sb
+from sblib import geoprocess as gp
 
 class getObs:
     """
@@ -220,20 +211,20 @@ class getObs:
                 except IndexError:
                     depth = self.ncfile['depthP'][-1]
 
-                wave_coords = geop.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
+                wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
+                wavespec = {'time': self.snaptime,                # note this is new variable names??
+                        'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
+                        'name': str(self.ncfile.title),
+                        'wavefreqbin': self.ncfile['waveFrequency'][:],
+                        'xFRF': wave_coords['xFRF'],
+                        'yFRF': wave_coords['yFRF'],
+                        'lat': self.ncfile['latitude'][:],
+                        'lon': self.ncfile['longitude'][:],
+                        'depth': depth,
+                        'Hs': self.ncfile['waveHs'][self.wavedataindex],
+                        'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
+                        }
 
-                wavespec = {'time': self.snaptime,
-                            'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
-                            'name': str(self.ncfile.title),
-                            'wavefreqbin': self.ncfile['waveFrequency'][:],
-                            'lat': self.ncfile['latitude'][:],
-                            'lon': self.ncfile['longitude'][:],
-                            'FRF_X': wave_coords['xFRF'],
-                            'FRF_Y': wave_coords['yFRF'],
-                            'depth': depth,
-                            'Hs': self.ncfile['waveHs'][self.wavedataindex],
-                            'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
-                            }
                 try:
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
@@ -317,7 +308,7 @@ class getObs:
             for num in range(0, len(self.curr_time)):
                 self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
 
-            curr_coords = geop.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
+            curr_coords = gp.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
 
             self.curpacket = {
                 'name': str(self.ncfile.title),
@@ -548,6 +539,10 @@ class getObs:
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
         elif len(self.bathydataindex) > 1:
+
+            # DLY Note - this section of the script does NOT work
+            # (i.e., if you DO have a survey during your date range!!!)
+
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
 
@@ -710,7 +705,8 @@ class getObs:
             yloc = ncfile['yloc'][:]
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
         assert len(np.unique(yloc)) == 1, "There are different Y locations in the NetCDF file"
-        locDict = geop.FRFcoord(xloc[0], yloc[0])
+        locDict = gp.FRFcoord(xloc[0], yloc[0])
+
         return locDict
 
     def getBathyGridcBathy(self):
@@ -890,7 +886,7 @@ class getObs:
                 self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
                 self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
 
-            alt_coords = geop.FRFcoord(alt_lon, alt_lat)
+            alt_coords = gp.FRFcoord(alt_lon, alt_lat)
 
             if removeMasked:
                 self.altpacket = {
@@ -899,8 +895,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': np.array(alt_pkf[~alt_be.mask]),
                     'lon': alt_lon,
-                    'FRF_X': alt_coords['xFRF'],
-                    'FRF_Y': alt_coords['yFRF'],
+                    'xFRF': alt_coords['xFRF'],
+                    'yFRF': alt_coords['yFRF'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
@@ -913,8 +909,8 @@ class getObs:
                     'lat': alt_lat,
                     'PKF': alt_pkf,
                     'lon': alt_lon,
-                    'FRF_X': alt_coords['FRF_X'],
-                    'FRF_Y': alt_coords['FRF_Y'],
+                    'xFRF': alt_coords['xFRF'],
+                    'yFRF': alt_coords['yFRF'],
                     'stationName': alt_stationname,
                     'gageName': gagename,
                     'timeStart': self.alt_timestart,
@@ -957,8 +953,8 @@ class getObs:
             if removeMasked:
                 out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
                 out['samplingTime'] = np.array(out['samplingTime'][~out['elevation'].mask])
-                out['frfX'] = np.array(out['frfX'][~out['frfX'].mask])
-                out['frfY'] = np.array(out['frfY'][~out['frfY'].mask])
+                out['xFRF'] = np.array(out['frfX'][~out['frfX'].mask])
+                out['yFRF'] = np.array(out['frfY'][~out['frfY'].mask])
                 out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
 
             else:
@@ -968,6 +964,41 @@ class getObs:
             out = None
         return out
 
+    def getBathyDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
+
+        """
+        :param utmEmin: left side of DEM bounding box in UTM
+        :param utmEmax: right side of DEM bounding box in UTM
+        :param utmNmin: bottom of DEM bounding box in UTM
+        :param utmNmax: top of DEM bounding box in UTM
+        
+        :return:
+          dictionary comprising a smaller rectangular piece of the DEM data, bounded by inputs above
+        """
+
+        self.dataloc = u'grids/RegionalBackgroundDEM/backgroundDEM.nc'
+        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
+
+        # get a 1D ARRAY of the utmE and utmN of the rectangular grid (NOT the full grid!!!)
+        utmE_all = self.ncfile['utmEasting'][0, :]
+        utmN_all = self.ncfile['utmNorthing'][:, 0]
+
+        # find indices I need to pull...
+        ni_min = np.where(utmE_all >= utmEmin)[0][0]
+        ni_max = np.where(utmE_all <= utmEmax)[0][-1]
+        nj_min = np.where(utmN_all <= utmNmax)[0][0]
+        nj_max = np.where(utmN_all >= utmNmin)[0][-1]
+
+        assert (np.size(ni_min) >= 1) & (np.size(ni_max) >= 1) & (np.size(nj_min) >= 1) & (np.size(nj_max) >= 1), 'getBathyDEM Error: bounding box is too close to edge of DEM domain'
+
+        out = {}
+        out['utmEasting'] = self.ncfile['utmEasting'][nj_min:nj_max + 1, ni_min:ni_max+1]
+        out['utmNorthing'] = self.ncfile['utmNorthing'][nj_min:nj_max + 1, ni_min:ni_max+1]
+        out['latitude'] = self.ncfile['latitude'][nj_min:nj_max + 1, ni_min:ni_max + 1]
+        out['longitude'] = self.ncfile['longitude'][nj_min:nj_max + 1, ni_min:ni_max + 1]
+        out['bottomElevation'] = self.ncfile['bottomElevation'][nj_min:nj_max + 1, ni_min:ni_max + 1]
+
+        return out
 
 class getDataTestBed:
 
