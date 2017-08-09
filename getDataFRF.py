@@ -554,6 +554,10 @@ class getObs:
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
         elif len(self.bathydataindex) > 1:
+
+            # DLY Note - this section of the script does NOT work
+            # (i.e., if you DO have a survey during your date range!!!)
+
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
 
@@ -975,6 +979,41 @@ class getObs:
             out = None
         return out
 
+    def getBathyDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
+
+        """
+        :param utmEmin: left side of DEM bounding box in UTM
+        :param utmEmax: right side of DEM bounding box in UTM
+        :param utmNmin: bottom of DEM bounding box in UTM
+        :param utmNmax: top of DEM bounding box in UTM
+        
+        :return:
+          dictionary comprising a smaller rectangular piece of the DEM data, bounded by inputs above
+        """
+
+        self.dataloc = u'grids/RegionalBackgroundDEM/backgroundDEM.nc'
+        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
+
+        # get a 1D ARRAY of the utmE and utmN of the rectangular grid (NOT the full grid!!!)
+        utmE_all = self.ncfile['utmEasting'][0, :]
+        utmN_all = self.ncfile['utmNorthing'][:, 0]
+
+        # find indices I need to pull...
+        ni_min = np.where(utmE_all >= utmEmin)[0][0]
+        ni_max = np.where(utmE_all <= utmEmax)[0][-1]
+        nj_min = np.where(utmN_all <= utmNmax)[0][0]
+        nj_max = np.where(utmN_all >= utmNmin)[0][-1]
+
+        assert (np.size(ni_min) >= 1) & (np.size(ni_max) >= 1) & (np.size(nj_min) >= 1) & (np.size(nj_max) >= 1), 'getBathyDEM Error: bounding box is too close to edge of DEM domain'
+
+        out = {}
+        out['utmEasting'] = self.ncfile['utmEasting'][nj_min:nj_max + 1, ni_min:ni_max+1]
+        out['utmNorthing'] = self.ncfile['utmNorthing'][nj_min:nj_max + 1, ni_min:ni_max+1]
+        out['latitude'] = self.ncfile['latitude'][nj_min:nj_max + 1, ni_min:ni_max + 1]
+        out['longitude'] = self.ncfile['longitude'][nj_min:nj_max + 1, ni_min:ni_max + 1]
+        out['bottomElevation'] = self.ncfile['bottomElevation'][nj_min:nj_max + 1, ni_min:ni_max + 1]
+
+        return out
 
 class getDataTestBed:
 
