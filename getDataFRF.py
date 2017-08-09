@@ -207,12 +207,15 @@ class getObs:
                 #                if roundto != 30:
                 #                    self.wavedataindex=self.cliprecords(self.snaptime)
                 try:
-                    depth = self.ncfile['depth'][:]
+                    depth = self.ncfile['nominalDepth'][:]  # this should always go
                 except IndexError:
-                    depth = self.ncfile['depthP'][-1]
-
-                wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
-                wavespec = {'time': self.snaptime,                # note this is new variable names??
+                    depth = self.ncfile['gaugeDepth'][:]  # non directional gauges
+                try:
+                    wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
+                except IndexError:
+                    wave_coords = gp.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
+                try:   # try new variable names
+                    wavespec = {'time': self.snaptime,                # note this is new variable names??
                         'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
                         'name': str(self.ncfile.title),
                         'wavefreqbin': self.ncfile['waveFrequency'][:],
@@ -224,7 +227,19 @@ class getObs:
                         'Hs': self.ncfile['waveHs'][self.wavedataindex],
                         'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
                         }
-
+                except IndexError:
+                    wavespec = {'time': self.snaptime,                # note this is old Variable names
+                        'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
+                        'name': str(self.ncfile.title),
+                        'wavefreqbin': self.ncfile['waveFrequency'][:],
+                        'xFRF': wave_coords['xFRF'],
+                        'yFRF': wave_coords['yFRF'],
+                        'lat': self.ncfile['lat'][:],
+                        'lon': self.ncfile['lon'][:],
+                        'depth': depth,
+                        'Hs': self.ncfile['waveHs'][self.wavedataindex],
+                        'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]
+                        }
                 try:
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
@@ -245,7 +260,7 @@ class getObs:
                         [len(self.wavedataindex), len(wavespec['wavefreqbin']), len(wavespec['wavedirbin'])])  # * 1e-8
                     wavespec['waveDp'] = np.zeros(len(self.wavedataindex))
                     wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
-                    wavespec['depthp'] = self.ncfile['depthP'][self.wavedataindex]
+                    # wavespec['depthp'] = self.ncfile['depthP'][self.wavedataindex]  # nominal depth is already in place
                     # wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
                     # multiply the freq spectra for all directions
                     wavespec['dWED'] = wavespec['dWED'] * wavespec['fspec'][:, :, np.newaxis]/len(wavespec['wavedirbin'])
@@ -609,7 +624,7 @@ class getObs:
         :return:
 
         """
-        self.dataloc = u'survey/transect/transect.ncml'  # location of the gridded surveys
+        self.dataloc = u'survey/gridded/gridded.ncml'  # location of the gridded surveys
         try:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
@@ -642,19 +657,19 @@ class getObs:
             elevation_points = np.ma.array(elevation_points, mask=maskedElev)
         if elevation_points.ndim == 3:
             elevation_points = elevation_points[0]
-        xCoord = self.ncfile['FRF_Xshore'][:]
-        yCoord = self.ncfile['FRF_Yshore'][:]
-        lat = self.ncfile['lat'][:]
-        lon = self.ncfile['lon'][:]
+        xCoord = self.ncfile['xFRF'][:]
+        yCoord = self.ncfile['yFRF'][:]
+        lat = self.ncfile['latitude'][:]
+        lon = self.ncfile['longitude'][:]
         northing = self.ncfile['northing'][:]
         easting = self.ncfile['easting'][:]
         if removeMask == True:
             xCoord = xCoord[~np.all(elevation_points.mask, axis=0)]
             yCoord = yCoord[~np.all(elevation_points.mask, axis=1)]
-            lon = lon[~np.all(elevation_points.mask, axis=0)]
-            lat = lat[~np.all(elevation_points.mask, axis=1)]
-            northing = northing[~np.all(elevation_points.mask, axis=0)]
-            easting = easting[~np.all(elevation_points.mask, axis=1)]
+            lon = lon[~np.all(elevation_points.mask, axis=0), :]
+            lat = lat[:, ~np.all(elevation_points.mask, axis=1)]
+            northing = northing[~np.all(elevation_points.mask, axis=0), :]
+            easting = easting[:, ~np.all(elevation_points.mask, axis=1)]
             elevation_points = elevation_points[~np.all(elevation_points.mask, axis=1), :]  #
             elevation_points = elevation_points[:, ~np.all(elevation_points.mask, axis=0)]
         if elevation_points.ndim == 2:
@@ -664,7 +679,7 @@ class getObs:
         print 'Sim start: %s\nSim End: %s\nSim bathy chosen: %s' % (self.d1, self.d2,
                                                                     nc.num2date(self.ncfile['time'][idx],
                                                                                 self.ncfile['time'].units))
-        print 'Bathy is %s old' % (self.d2 - nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units))[0]
+        print 'Bathy is %s old' % (self.d2 - nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units))
 
         gridDict = {'xCoord': xCoord,
                     'yCoord': yCoord,
