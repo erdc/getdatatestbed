@@ -78,7 +78,7 @@ class forecastData:
         # written by Ty Hesser
         # modified by Spicer Bak
 
-        dlist: a list of  datetime objects for cbathy data to be collected
+        dlist: a list of  datetime dataList for cbathy data to be collected
         path: directory to put the cbathy file(s)
         """
 
@@ -94,7 +94,7 @@ class forecastData:
         # quick data check
         if type(dlist) == DT.datetime:
             dlist = [dlist]  # making it into a list if its a single value
-        assert type(dlist[0]) == DT.datetime, 'This function requires datetime objects'
+        assert type(dlist[0]) == DT.datetime, 'This function requires datetime dataList'
         # begin looping through data, acquiring cbathy data
         oflist = []
         for ii in range(0, len(dlist)):
