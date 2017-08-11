@@ -45,16 +45,30 @@ class forecastData:
                 forcastDates.append(DT.datetime.strptime(split[0], '%Y%m%d'))
                 forcastDateLines.append(ii)
         ## now go back through 'lines' and parse spectra
-        spectra = np.array((len(forcastDateLines), nFreq, nDir))
+        spectra = np.ones((len(forcastDateLines), nFreq, nDir), dtype=float) * 1e-8
+        buoyStats = []
         for ll in forcastDateLines:
             numLinesPerSpec = np.ceil(nFreq*float(nDir)/len(lines[ll+2].split())).astype(int)
-            a = lines[ll+1] # these are the buoy number and stats
+            buoyStats.append(
+                lines[ll+1].split())            # these are the buoy number and stats
+            tt = np.floor(float(ll) / (numLinesPerSpec - 1)).astype(int)  # time index
+            linear = []
             for ss in range(numLinesPerSpec):
-                # spectra[ll, ]
-                lines[ss+ll+2]
-                print 'these are spectral densities'
-        # convert frequencies and directions to floats
+                # data =
+                linear.extend(lines[ss + ll + 2].split())
+                # linear.extend(lines[ss+ll+2].split())
+                # ff = np.floor(ss/float(nDir)) * len(data) # freq index
+                # dd = slice(ss * len(data), ss * len(data) + len(data))
+                # spectra[tt, ff, dd] = data
+            spectra[tt] = np.array(linear, dtype=float).reshape(nDir, nFreq).T
 
+
+        out = {'wavedirbin': np.array(directions, dtype=float),
+               'wavefreqbin': np.array(frequencies, dtype=float),
+                'dWED':spectra ,
+                'time': forcastDates}
+
+        return out
     def get_CbathyFromFTP(self, dlist, path, timex=True):
         """
         this function downloads argus cbathy bathy data from the argus ftp server
