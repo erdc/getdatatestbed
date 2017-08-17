@@ -630,7 +630,8 @@ class getObs:
 
     def getBathyGridFromNC(self, method, removeMask=True):
         """
-        This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
+        This function gets the frf krigged grid product, it will currently break with the present link
+        bathymetric data from the thredds server, currently designed for the bathy duck experiment
         method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
         method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
         :param
@@ -705,6 +706,7 @@ class getObs:
                     }
         return gridDict
 
+
     def getBathyDuckLoc(self, gaugenumber):
         """
         this function pulls the stateplane location (if desired) from the surveyed
@@ -753,10 +755,11 @@ class getObs:
         """
         fillValue = -999.99  # assumed fill value from the rest of the files
         try:
-            cbathyloc2 = self.FRFdataloc + u'projects/bathyduck/BathyDuck-ocean_bathy_argus_201510.nc'
+            cbathyloc2 = self.chlDataLoc + u'projects/bathyduck/data/cbathy_old/cbathy.ncml'
             cbfile = nc.Dataset(cbathyloc2)
         except:
-            cbathyloc2 = self.chlDataLoc + u'projects/bathyduck/BathyDuck-ocean_bathy_argus_201510.nc'
+            #
+            cbathyloc2 = self.FRFdataloc + u'projects/bathyduck/BathyDuck-ocean_bathy_argus_201510.nc'
             cbfile = nc.Dataset(cbathyloc2)
         ed1 = nc.date2num(self.d1, 'seconds since 1970-01-01')
         ed2 = nc.date2num(self.d2, 'seconds since 1970-01-01')
@@ -772,11 +775,11 @@ class getObs:
                       'epochtime': cbfile['time'][idx],
                       'xm': cbfile['xm'][:],
                       'ym': cbfile['ym'][:],
-                      'depth': cbfile['depth'][idx, :, :],
+                      'depth': cbfile['depthfC'][idx, :, :],  # may need to be masked
                       'depthKF': depthKF,
-                      'depthKFError': cbfile['depthKFError'][idx, :, :],
-                      'fB': cbfile['fB'][idx, :, :, :],
-                      'k': cbfile['k'][idx, :, :, :]}
+                      'depthKFError': np.ma.array(cbfile['depthKF'][idx, :, :], mask=maskedElev),
+                      'fB': cbfile['fB'][idx, :, :, :],  # may need to be masked
+                      'k': cbfile['k'][idx, :, :, :]}  # may need to be masked
             print 'Grabbed BathyDuck, cBathy Data'
         except IndexError:  # there's no data in the Cbathy
             cbdata = None
@@ -1034,7 +1037,7 @@ class getObs:
             out = None
         return out
 
-    def getBathyDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
+    def getBathyRegionalDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
 
         """
         :param utmEmin: left side of DEM bounding box in UTM
@@ -1204,6 +1207,71 @@ class getDataTestBed:
                         'y0': self.ncfile['y0'][:],
                         }
             return gridDict
+
+    def getBathyIntegratedTransect(self, method=1):
+        """
+        This function gets the integraated bathy, useing the plant (2009) method.
+        :param method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+                       method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+
+        :return:
+        """
+        self.dataloc = 'integratedBathyProduct/surveyTransect/UpdatedBackgroundDEM_Transect.ncml'
+        try:
+            self.bathydataindex = self.gettime()  # getting the index of the grid
+        except IOError:
+            self.bathydataindex = []  # when a server is not available
+        if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
+            idx = self.bathydataindex
+        elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
+            # there's no exact bathy match so find the max negative number where the negitive
+            # numbers are historical and the max would be the closest historical
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            print 'Bathymetry is taken as closest in HISTORY - operational'
+        elif (self.bathydataindex == None or len(self.bathydataindex) < 1) and method == 0:
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            print 'Bathymetry is taken as closest in TIME - NON-operational'
+        elif self.bathydataindex != None and len(self.bathydataindex) > 1:
+            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
+            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
+                                                                                    self.ncfile['time'].units)
+            print 'Please End new simulation with the date above'
+            raise Exception
+
+        # the below line was in place, it should be masking nan's but there is not supposed to be nan's
+        # in the data, should only be fill values (-999)
+        # elevation_points = np.ma.array(ncfile['elevation'][idx,:,:], mask=np.isnan(ncfile['elevation'][idx,:,:]))
+        # remove -999's
+        elevation_points = self.ncfile['elevation'][idx, :, :]
+        xCoord = self.ncfile['xFRF'][:]
+        yCoord = self.ncfile['yFRF'][:]
+        lat = self.ncfile['latitude'][:]
+        lon = self.ncfile['longitude'][:]
+        try:
+            northing = self.ncfile['northing'][:]
+            easting = self.ncfile['easting'][:]
+        except IndexError:
+            northing = None
+            easting = None
+        time = nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units)
+
+
+        print 'Bathy is %s old' % (self.d2 - nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units))
+
+        gridDict = {'xFRF': xCoord,
+                    'yFRF': yCoord,
+                    'elevation': elevation_points,
+                    'time': time,
+                    'lat': lat,
+                    'lon': lon,
+                    'northing': northing,
+                    'easting': easting,
+                    'surveyNumber': self.ncfile['surveyNumber'][idx]
+                    }
+        return gridDict
 
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
