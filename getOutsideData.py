@@ -1,6 +1,7 @@
 import dq:atetime as DT
 import netCDF4 as nc
 import os
+import numpy as np
 
 class forecastData:
     def __init__(self, d1):
@@ -11,32 +12,63 @@ class forecastData:
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.d1 = d1  # start date for data grab
-        self.d2 = d2  # end data for data grab
         self.timeunits = 'seconds since 1970-01-01 00:00:00'
         self.epochd1 = nc.date2num(self.d1, self.timeunits)
-        self.epochd2 = nc.date2num(self.d2, self.timeunits)
-        self.comp_time()
         self.dataLocFRF = u'http://134.164.129.55/thredds/dodsC/FRF/'
         self.dataLocTB = u'http://134.164.129.62:8080/thredds/dodsC/CMTB'
         self.dataLocCHL = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
-        self.dataLocNCEP = u'ftp://ftpprd.ncep.noaa.gov/pub/data/nccf/com/wave/prod/multi_1.'
-        assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
+        self.dataLocNCEP = u'http://nomads.ncep.noaa.gov/pub/data/nccf/com/wave/prod/'#ftpprd.ncep.noaa.gov/pub/data/nccf/com/wave/prod/multi_1.'
+        self.dataLocECWMF = u'ftp://data-portal.ecmwf.int/20170808120000/'  # ECMWF forecasts
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
 
-    def getWWIII(self):
-        import urllib, tarfile
+    def getWWIII(self, forecastHour, buoyNumber=44100):
+        import urllib
+        assert type(forecastHour) is str, 'Forecast hour variable must be a string'
+        urlBack = '/bulls.t%sz/' %forecastHour +'multi_1.%d.spec' %buoyNumber
+        ftpURL = self.dataLocNCEP + 'multi_1.' + self.d1.strftime('%Y%m%d') + urlBack
+        ftpstream = urllib.urlopen(ftpURL)  # open url
+        lines = ftpstream.readlines()  # read the lines of the url into an array of lines
+        ftpstream.close()  # close connection with the server
+        # # # # # # # # # # # # now the forecast spectra are in lines # # # # # # # # # # # #
+        frequencies, directions, forcastDates, forcastDateLines = [], [], [], []
 
-        forecastHour = '00'
-        ftpURL = self.dataLocNCEP + d1.strftime('%Y%m%d') \
-                 + '/multi_1.t%sz.spec_tar.gz' % forecastHour
-        spectralFile = './multi_1.44100.spec'
-        ftpstream = urllib.urlopen(ftpURL)
-        tar = tarfile.open(fileobj=ftpstream, mode='r|bz2')
-        ftpstream.close()
-        f = tar.extractfile(spectralFile)
-        content = f.readlines()
-        tar.close()
+        for ii, line in enumerate(lines):  # read through each line
+            split = line.split()   # split the current line up
+            if split[0].strip("'")  == 'WAVEWATCH':  # is it the header of the file?
+                nFreq = int(split[3])  # number of Frequencies
+                nDir = int(split[4])
+            elif len(split) == 8 or nFreq - len(frequencies) == len(split) and len(frequencies) != nFreq: # this is frequencies
+                frequencies.extend(split)
+            elif (len(split) == 7 or nDir - len(directions) == len(split)) and len(directions) != nDir:  # this is directions
+                directions.extend(split)
+            elif len(split[0]) == 8  and len(split) == 2: ## this is the date line for the beggining of a spectra
+                forcastDates.append(DT.datetime.strptime(split[0], '%Y%m%d'))
+                forcastDateLines.append(ii)
+        ## now go back through 'lines' and parse spectra
+        spectra = np.ones((len(forcastDateLines), nFreq, nDir), dtype=float) * 1e-8
+        buoyStats = []
+        for ll in forcastDateLines:
+            numLinesPerSpec = np.ceil(nFreq*float(nDir)/len(lines[ll+2].split())).astype(int)
+            buoyStats.append(
+                lines[ll+1].split())            # these are the buoy number and stats
+            tt = np.floor(float(ll) / (numLinesPerSpec - 1)).astype(int)  # time index
+            linear = []
+            for ss in range(numLinesPerSpec):
+                # data =
+                linear.extend(lines[ss + ll + 2].split())
+                # linear.extend(lines[ss+ll+2].split())
+                # ff = np.floor(ss/float(nDir)) * len(data) # freq index
+                # dd = slice(ss * len(data), ss * len(data) + len(data))
+                # spectra[tt, ff, dd] = data
+            spectra[tt] = np.array(linear, dtype=float).reshape(nDir, nFreq).T
 
+
+        out = {'wavedirbin': np.array(directions, dtype=float),
+               'wavefreqbin': np.array(frequencies, dtype=float),
+                'dWED':spectra ,
+                'time': forcastDates}
+
+        return out
     def get_CbathyFromFTP(self, dlist, path, timex=True):
         """
         this function downloads argus cbathy bathy data from the argus ftp server
@@ -46,7 +78,7 @@ class forecastData:
         # written by Ty Hesser
         # modified by Spicer Bak
 
-        dlist: a list of  datetime objects for cbathy data to be collected
+        dlist: a list of  datetime dataList for cbathy data to be collected
         path: directory to put the cbathy file(s)
         """
 
@@ -62,7 +94,7 @@ class forecastData:
         # quick data check
         if type(dlist) == DT.datetime:
             dlist = [dlist]  # making it into a list if its a single value
-        assert type(dlist[0]) == DT.datetime, 'This function requires datetime objects'
+        assert type(dlist[0]) == DT.datetime, 'This function requires datetime dataList'
         # begin looping through data, acquiring cbathy data
         oflist = []
         for ii in range(0, len(dlist)):
