@@ -95,7 +95,7 @@ class getObs:
             mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
             idx = np.argwhere(mask).squeeze()
 
-            assert len(idx) > 0, 'no data locally, check CHLthredds'
+            assert np.size(idx) > 0, 'no data locally, check CHLthredds'
             print "Data Gathered From Local Thredds Server"
 
         except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
@@ -111,7 +111,7 @@ class getObs:
                 idx = np.argwhere(mask).squeeze()
 
                 try:
-                    assert len(idx) > 0, ' There are no data within the search parameters for this gauge'
+                    assert np.size(idx) > 0, ' There are no data within the search parameters for this gauge'
                     print "Data Gathered from CHL thredds Server"
                 except AssertionError:
                     idx = None
@@ -771,7 +771,7 @@ class getObs:
             maskedElev = (cbfile['depthKF'][idx, :, :] == fillValue)
             depthKF = np.ma.array(cbfile['depthKF'][idx, :, :], mask=maskedElev)
             time = nc.num2date(cbfile['time'][idx], 'seconds since 1970-01-01')
-            cbdata = {'time': time,
+            cbdata = {'time': sb.roundtime(time, roundTo=60*30),  # round the time to the nearest 30 minutes
                       'epochtime': cbfile['time'][idx],
                       'xm': cbfile['xm'][:],
                       'ym': cbfile['ym'][:],
