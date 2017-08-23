@@ -108,6 +108,7 @@ class getObs:
                 # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
 
                 mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+
                 idx = np.argwhere(mask).squeeze()
 
                 try:
@@ -118,6 +119,7 @@ class getObs:
             except IOError:  # this occors when thredds is down
                 print ' Trouble Connecteing to data on CHL Thredds'
                 idx = None
+
         return idx
 
     def getWaveSpec(self, gaugenumber=0, roundto=30):
@@ -550,6 +552,11 @@ class getObs:
             self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
+
+        if self.bathydataindex is None:
+            self.bathydataindex = []
+        else:
+            pass
 
         # logic to handle no transects in date range
         if len(self.bathydataindex) == 1:
@@ -1273,7 +1280,6 @@ class getDataTestBed:
                     'surveyNumber': self.ncfile['surveyNumber'][idx]
                     }
         return gridDict
-
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
         """
