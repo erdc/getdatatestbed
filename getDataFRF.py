@@ -119,7 +119,7 @@ class getObs:
             except IOError:  # this occors when thredds is down
                 print ' Trouble Connecteing to data on CHL Thredds'
                 idx = None
-                
+
         return idx
 
     def getWaveSpec(self, gaugenumber=0, roundto=30):
@@ -1215,8 +1215,6 @@ class getDataTestBed:
                         }
             return gridDict
 
-<<<<<<< HEAD
-=======
     def getBathyIntegratedTransect(self, method=1):
         """
         This function gets the integraated bathy, useing the plant (2009) method.
@@ -1282,8 +1280,6 @@ class getDataTestBed:
                     }
         return gridDict
 
-
->>>>>>> 4d6c4e4dad57013ab5d47d00811714c987c76faf
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
         """
 
