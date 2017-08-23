@@ -384,7 +384,8 @@ class getObs:
             print '<EE>ERROR Specifiy proper Gauge number'
 
         self.winddataindex = self.gettime(dtRound=collectionlength * 60)
-
+        # remove nan's that shouldn't be there
+        self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
@@ -1222,7 +1223,7 @@ class getDataTestBed:
         except IOError:
             self.bathydataindex = []  # when a server is not available
         if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
-            idx = self.bathydataindex
+            idx = self.bathydataindex.squeeze()
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
