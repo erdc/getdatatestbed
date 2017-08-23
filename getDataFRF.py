@@ -1216,14 +1216,28 @@ class getDataTestBed:
                         }
             return gridDict
 
-    def getBathyIntegratedTransect(self, method=1):
+    def getBathyIntegratedTransect(self, method=1, ForcedSurveyDate=None):
         """
         This function gets the integraated bathy, useing the plant (2009) method.
         :param method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-                       method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+                       method == 0  -  > 'Bathymetry is taken as closest in TIME - NON-operational'
+        :param ForcedSurveyDate:  This is to force a date of survey gathering
+
 
         :return:
         """
+        if ForcedSurveyDate != None:
+            # d1 is used in the gettime function,
+            # to force a selection of survey date self.d1/d2 is changed to the forced
+            # survey date and then changed back using logged start/stop
+            # a check is in place to ensure that the retieved time is == to the forced time
+            oldD1 = self.d1
+            oldD2 = self.d2
+            self.d1 = ForcedSurveyDate  # change time one
+            self.d2 = ForcedSurveyDate + DT.timedelta(0,1)  # and time 2
+
+            print 'Forced bathy date %s' % ForcedSurveyDate
+
         self.dataloc = 'integratedBathyProduct/surveyTransect/UpdatedBackgroundDEM_Transect.ncml'
         try:
             self.bathydataindex = self.gettime()  # getting the index of the grid
