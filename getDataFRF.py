@@ -99,21 +99,23 @@ class getObs:
             print "Data Gathered From Local Thredds Server"
 
         except (RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
-            self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar)
-            for i, date in enumerate(self.alltime):
-                self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-            # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
-
-            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            idx = np.where(mask)[0]
-
             try:
-                assert len(idx) > 0, ' There are no data within the search parameters for this gauge'
-                print "Data Gathered from CHL thredds Server"
-            except AssertionError:
-                idx = None
+                self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
+                self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+                                           self.ncfile['time'].calendar)
+                for i, date in enumerate(self.alltime):
+                    self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+                # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+
+                mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+                idx = np.where(mask)[0]
+
+            except:
+                try:
+                    assert len(idx) > 0, ' There are no data within the search parameters for this gauge'
+                    print "Data Gathered from CHL thredds Server"
+                except AssertionError:
+                    idx = None
 
         return idx
 
@@ -525,6 +527,11 @@ class getObs:
             self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
+
+        if self.bathydataindex is None:
+            self.bathydataindex = []
+        else:
+            pass
 
         # logic to handle no transects in date range
         if len(self.bathydataindex) == 1:
