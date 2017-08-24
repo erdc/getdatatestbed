@@ -169,7 +169,7 @@ class getObs:
         elif gaugenumber == 4 or gaugenumber == 'awac-6m':
             gname = 'AWAC 6m'
             self.dataloc = 'oceanography/waves/awac-6m/awac-6m.ncml'
-        elif gaugenumber == 5 or gaugenumber == 'awac-4.5m':
+        elif gaugenumber  in [5, 'awac-4.5m', 'awac_4.5m']:
             gname = 'AWAC 4.5m'
             self.dataloc = 'oceanography/waves/awac-4.5m/awac-4.5m.ncml'
         elif gaugenumber == 6 or gaugenumber == 'adop-3.5m':
