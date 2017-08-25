@@ -546,7 +546,8 @@ class getObs:
         """
         # do check here on profile numbers
         # acceptableProfileNumbers = [None, ]
-        self.dataloc = u'survey/transect/transect.ncml'  # location of the gridded surveys
+        self.dataloc = u'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location of the gridded surveys
+
         try:
             self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
@@ -712,7 +713,6 @@ class getObs:
                     'easting': easting
                     }
         return gridDict
-
 
     def getBathyDuckLoc(self, gaugenumber):
         """
