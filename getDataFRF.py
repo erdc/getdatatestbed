@@ -108,6 +108,7 @@ class getObs:
                 # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
 
                 mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+
                 idx = np.argwhere(mask).squeeze()
 
                 try:
@@ -118,6 +119,7 @@ class getObs:
             except IOError:  # this occors when thredds is down
                 print ' Trouble Connecteing to data on CHL Thredds'
                 idx = None
+
         return idx
 
     def getWaveSpec(self, gaugenumber=0, roundto=30):
@@ -167,7 +169,7 @@ class getObs:
         elif gaugenumber == 4 or gaugenumber == 'awac-6m':
             gname = 'AWAC 6m'
             self.dataloc = 'oceanography/waves/awac-6m/awac-6m.ncml'
-        elif gaugenumber == 5 or gaugenumber == 'awac-4.5m':
+        elif gaugenumber  in [5, 'awac-4.5m', 'awac_4.5m']:
             gname = 'AWAC 4.5m'
             self.dataloc = 'oceanography/waves/awac-4.5m/awac-4.5m.ncml'
         elif gaugenumber == 6 or gaugenumber == 'adop-3.5m':
@@ -211,6 +213,7 @@ class getObs:
                 #         self.snaptime[num] = self.roundtime(self.snaptime[num], roundto=roundto * 60)
                 # elif np.size(self.snaptime) == 1:
                 #     self.snaptime = self.roundtime(self.snaptime, roundto=roundto * 60)
+
                 try:
                     depth = self.ncfile['nominalDepth'][:]  # this should always go
                 except IndexError:
@@ -390,7 +393,8 @@ class getObs:
             print '<EE>ERROR Specifiy proper Gauge number'
 
         self.winddataindex = self.gettime(dtRound=collectionlength * 60)
-
+        # remove nan's that shouldn't be there
+        self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
@@ -547,11 +551,17 @@ class getObs:
         """
         # do check here on profile numbers
         # acceptableProfileNumbers = [None, ]
-        self.dataloc = u'survey/transect/transect.ncml'  # location of the gridded surveys
+        self.dataloc = u'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location of the gridded surveys
+
         try:
             self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
+
+        if self.bathydataindex is None:
+            self.bathydataindex = []
+        else:
+            pass
 
         # logic to handle no transects in date range
         if len(self.bathydataindex) == 1:
@@ -708,7 +718,6 @@ class getObs:
                     'easting': easting
                     }
         return gridDict
-
 
     def getBathyDuckLoc(self, gaugenumber):
         """
@@ -1212,21 +1221,35 @@ class getDataTestBed:
                         }
             return gridDict
 
-    def getBathyIntegratedTransect(self, method=1):
+    def getBathyIntegratedTransect(self, method=1, ForcedSurveyDate=None):
         """
         This function gets the integraated bathy, useing the plant (2009) method.
         :param method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-                       method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+                       method == 0  -  > 'Bathymetry is taken as closest in TIME - NON-operational'
+        :param ForcedSurveyDate:  This is to force a date of survey gathering
+
 
         :return:
         """
+        if ForcedSurveyDate != None:
+            # d1 is used in the gettime function,
+            # to force a selection of survey date self.d1/d2 is changed to the forced
+            # survey date and then changed back using logged start/stop
+            # a check is in place to ensure that the retieved time is == to the forced time
+            oldD1 = self.d1
+            oldD2 = self.d2
+            self.d1 = ForcedSurveyDate  # change time one
+            self.d2 = ForcedSurveyDate + DT.timedelta(0,1)  # and time 2
+
+            print 'Forced bathy date %s' % ForcedSurveyDate
+
         self.dataloc = 'integratedBathyProduct/survey/survey.ncml'
         try:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
             self.bathydataindex = []  # when a server is not available
         if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
-            idx = self.bathydataindex
+            idx = self.bathydataindex.squeeze()
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
@@ -1275,7 +1298,6 @@ class getDataTestBed:
                     'surveyNumber': self.ncfile['surveyNumber'][idx]
                     }
         return gridDict
-
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
         """

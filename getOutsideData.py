@@ -1,4 +1,4 @@
-import datetime as DT
+import dq:atetime as DT
 import netCDF4 as nc
 import os
 import numpy as np
