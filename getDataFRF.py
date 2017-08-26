@@ -207,7 +207,7 @@ class getObs:
             if np.size(self.wavedataindex) >= 1:
                 # consistant for all wave gauges
                 self.snaptime = nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units, self.ncfile['time'].calendar)
-                for num in range(0, len(self.snaptime)):
+                for num in range(0, np.size(self.snaptime)):
                     self.snaptime[num] = self.roundtime(self.snaptime[num], roundto=roundto * 60)
                 #                if roundto != 30:
                 #                    self.wavedataindex=self.cliprecords(self.snaptime)
@@ -1238,7 +1238,7 @@ class getDataTestBed:
 
             print 'Forced bathy date %s' % ForcedSurveyDate
 
-        self.dataloc = 'integratedBathyProduct/surveyTransect/UpdatedBackgroundDEM_Transect.ncml'
+        self.dataloc = 'integratedBathyProduct/survey/survey.ncml'
         try:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
