@@ -87,29 +87,40 @@ class getObs:
 
             self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc) #loads all of the netCDF file
             #            try:
-            self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar) # converts all epoch time to datetime objects
-            for i, date in enumerate(self.alltime):  # rounds time to nearest
-                self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-
-            mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            idx = np.argwhere(mask).squeeze()
-
+            allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+            # now find the boolean!
+            emask = (allEpoch >= self.epochd1) & (allEpoch < self.epochd2)
+            idx = np.argwhere(emask).squeeze()
+            # old slow way of doing time!
+            # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+            #                            self.ncfile['time'].calendar) # converts all epoch time to datetime objects
+            # for i, date in enumerate(self.alltime):  # rounds time to nearest
+            #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+            #
+            # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+            if (np.argwhere(mask).squeeze() == idx).all():
+                print '.... old Times match New Times' % np.argwhere(mask).squeeze()
             assert np.size(idx) > 0, 'no data locally, check CHLthredds'
             print "Data Gathered From Local Thredds Server"
 
         except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             try:
                 self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-                self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                           self.ncfile['time'].calendar)
-                for i, date in enumerate(self.alltime):
-                    self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-                # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+                allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+                # now find the boolean !
+                emask = (allEpoch >= self.epochd1) & (allEpoch < self.epochd2)
+                idx = np.argwhere(emask).squeeze()
 
-                mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+                # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+                #                            self.ncfile['time'].calendar)
+                # for i, date in enumerate(self.alltime):
+                #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+                # # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+                #
+                # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+                #
+                # idx = np.argwhere(mask).squeeze()
 
-                idx = np.argwhere(mask).squeeze()
 
                 try:
                     assert np.size(idx) > 0, ' There are no data within the search parameters for this gauge'
@@ -738,6 +749,68 @@ class getObs:
         locDict = gp.FRFcoord(xloc[0], yloc[0])
 
         return locDict
+
+    def getWaveGaugeLoc(self, gaugenumber):
+        """
+        This function gets gauge location data quickly, faster than get wave data
+
+        :param gaugenumber:
+        :return:
+        """
+        if gaugenumber in [0, 'waverider-26m', 'Waverider-26m', '26m']:
+            # 26 m wave rider
+            self.dataloc = 'oceanography/waves/waverider-26m/waverider-26m.ncml'  # 'oceanography/waves/waverider430/waverider430.ncml'  # 26m buoy
+            gname = '26m Waverider Buoy'
+        elif gaugenumber == 1 or gaugenumber == 'waverider-17m':
+            # 2D 17m waverider
+            self.dataloc = 'oceanography/waves/waverider-17m/waverider-17m.ncml'  # 17 m buoy
+            gname = '17m Waverider Buoy'
+        elif gaugenumber == 2 or gaugenumber == 'awac-11m':
+            gname = 'AWAC 11m'
+            self.dataloc = 'oceanography/waves/awac-11m/awac-11m.ncml'
+        elif gaugenumber == 3 or gaugenumber == 'awac-8m':
+            gname = 'AWAC 8m'
+            self.dataloc = 'oceanography/waves/awac-8m/awac-8m.ncml'
+        elif gaugenumber == 4 or gaugenumber == 'awac-6m':
+            gname = 'AWAC 6m'
+            self.dataloc = 'oceanography/waves/awac-6m/awac-6m.ncml'
+        elif gaugenumber  in [5, 'awac-4.5m', 'awac_4.5m']:
+            gname = 'AWAC 4.5m'
+            self.dataloc = 'oceanography/waves/awac-4.5m/awac-4.5m.ncml'
+        elif gaugenumber == 6 or gaugenumber == 'adop-3.5m':
+            gname = 'Aquadopp 3.5m'
+            self.dataloc = 'oceanography/waves/adop-3.5m/adop-3.5m.ncml'
+        elif gaugenumber == 7 or gaugenumber == 'adop-2m':
+            gname = 'Aquadopp01 - 2m'
+            self.dataloc = 'oceanography/waves/adop01/adop01.ncml'
+        elif gaugenumber == 8 or gaugenumber == 'xp200m':
+            gname = 'Paros xp200m'
+            self.dataloc = 'oceanography/waves/xp200m/xp200m.ncml'
+        elif gaugenumber == 9 or gaugenumber == 'xp150m':
+            gname = 'Paros xp150m'
+            self.dataloc = 'oceanography/waves/xp150m/xp150m.ncml'
+        elif gaugenumber == 10 or gaugenumber == 'xp125m':
+            gname = 'Paros xp125m'
+            self.dataloc = 'oceanography/waves/xp125m/xp125m.ncml'
+        elif gaugenumber == 11 or gaugenumber == 'xp100m':
+            gname = 'Paros xp100m'
+            self.dataloc = 'oceanography/waves/xp100m/xp100m.ncml'
+        elif gaugenumber == 12 or gaugenumber == '8m-array':
+            gname = "8m array"
+            self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
+        elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
+            gname = 'Oregon Inlet'
+            self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
+        else:
+            gname = 'There Are no Gauge numbers here'
+            raise NameError('Bad Gauge name, specify proper gauge name/number')
+        try:
+            ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+        except IOError:
+            ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
+        out = {'lat': ncfile['latitude'][:],
+               'lon': ncfile['longitude'][:]}
+        return out
 
     def getBathyGridcBathy(self, **kwargs):
         """
