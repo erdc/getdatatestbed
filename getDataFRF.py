@@ -89,7 +89,7 @@ class getObs:
             #            try:
             self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
             # now find the boolean!
-            mask = (allEpoch >= self.epochd1) & (allEpoch < self.epochd2)
+            mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
             idx = np.argwhere(mask).squeeze()
             # old slow way of doing time!
             # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
@@ -106,9 +106,9 @@ class getObs:
         except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             try:
                 self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-                allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+                self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
                 # now find the boolean !
-                emask = (allEpoch >= self.epochd1) & (allEpoch < self.epochd2)
+                emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
                 idx = np.argwhere(emask).squeeze()
 
                 # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
