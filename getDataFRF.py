@@ -1200,33 +1200,65 @@ class getDataTestBed:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
 
-    def gettime(self, dtRound=30):
+    def gettime(self, dtRound=60):
         """
         this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
         from the THREDDS (data loc) server based on d1,d2, and data location
         it returns the indicies in the NCML file of the dates d1>=time>d2
         INPUTS:
 
-            d1: start time - pulled from self
-            d2: end time  - pulled from self
-            dataloc: location of the data to search through
-            :param dtRound: the time delta of the data out of interest
+             :param dtRound: the time delta of the data out of interest, default minute (60 second)
 
         """
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
-        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
-        #            try:
-        self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                   self.ncfile['time'].calendar)
-        for i, date in enumerate(self.alltime):
-            self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+        try:
 
-        mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-        # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+            self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc) #loads all of the netCDF file
+            #            try:
+            self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+            # now find the boolean!
+            mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
+            idx = np.argwhere(mask).squeeze()
+            # old slow way of doing time!
+            # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+            #                            self.ncfile['time'].calendar) # converts all epoch time to datetime objects
+            # for i, date in enumerate(self.alltime):  # rounds time to nearest
+            #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+            #
+            # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+            # if (np.argwhere(mask).squeeze() == idx).all():
+            #     print '.... old Times match New Times' % np.argwhere(mask).squeeze()
+            assert np.size(idx) > 0, 'no data locally, check CHLthredds'
+            print "Data Gathered From Local Thredds Server"
 
-        idx = np.where(mask)[0]
-        print "Data Gathered From crunchy Thredds Server"
+        except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
+            try:
+                self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
+                self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+                # now find the boolean !
+                emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
+                idx = np.argwhere(emask).squeeze()
+
+                # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+                #                            self.ncfile['time'].calendar)
+                # for i, date in enumerate(self.alltime):
+                #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+                # # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+                #
+                # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+                #
+                # idx = np.argwhere(mask).squeeze()
+
+
+                try:
+                    assert np.size(idx) > 0, ' There are no data within the search parameters for this gauge'
+                    print "Data Gathered from CHL thredds Server"
+                except AssertionError:
+                    idx = None
+            except IOError:  # this occors when thredds is down
+                print ' Trouble Connecteing to data on CHL Thredds'
+                idx = None
 
         return idx
 
@@ -1304,10 +1336,13 @@ class getDataTestBed:
             # a check is in place to ensure that the retieved time is == to the forced time
             oldD1 = self.d1
             oldD2 = self.d2
+            oldD1epoch = self.epochd1
+            oldD2epoch = self.epochd2
             self.d1 = ForcedSurveyDate  # change time one
             self.d2 = ForcedSurveyDate + DT.timedelta(0,1)  # and time 2
-
-            print 'Forced bathy date %s' % ForcedSurveyDate
+            self.epochd1 = nc.date2num(self.d1, 'seconds since 1970-01-01')
+            self.epochd2 = nc.date2num(self.d2, 'seconds since 1970-01-01')
+            print '!!!Forced bathy date %s' % ForcedSurveyDate
 
         self.dataloc = 'integratedBathyProduct/survey/survey.ncml'
         try:
@@ -1350,13 +1385,18 @@ class getDataTestBed:
             northing = None
             easting = None
 
-
-        print 'Bathy is %s old' % (self.d2 - self.alltime[idx])
-
+        # putting dates and times back for all the other instances that use get time
+        if ForcedSurveyDate != None:
+            self.d1 = oldD1
+            self.d2 = oldD2
+            self.epochd2 = oldD2epoch
+            self.epochd1 = oldD1epoch
+        bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
+        print 'Bathy is %s old' % (self.d1 - bathyT)
         gridDict = {'xFRF': xCoord,
                     'yFRF': yCoord,
                     'elevation': elevation_points,
-                    'time': self.alltime[idx],
+                    'time': bathyT,
                     'lat': lat,
                     'lon': lon,
                     'northing': northing,
