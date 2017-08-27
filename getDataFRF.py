@@ -87,7 +87,7 @@ class getObs:
 
             self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc) #loads all of the netCDF file
             #            try:
-            allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+            self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
             # now find the boolean!
             mask = (allEpoch >= self.epochd1) & (allEpoch < self.epochd2)
             idx = np.argwhere(mask).squeeze()
@@ -218,7 +218,7 @@ class getObs:
                 # consistant for all wave gauges
                 if np.size(self.wavedataindex) == 1:
                     self.wavedataindex = np.expand_dims(self.wavedataindex, axis=0)
-                self.snaptime = nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units)
+                self.snaptime = nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units)
                 try:
                     depth = self.ncfile['nominalDepth'][:]  # this should always go
                 except IndexError:
@@ -412,7 +412,7 @@ class getObs:
             sustspeed = self.ncfile['sustWindSpeed'][self.winddataindex]  # 1 minute largest mean wind speed
             gaugeht = self.ncfile.geospatial_vertical_max
 
-            self.windtime = nc.num2date(self.ncfile['time'][self.winddataindex], self.ncfile['time'].units)
+            self.windtime = nc.num2date(self.allEpoch[self.winddataindex], self.ncfile['time'].units)
 
             # correcting for wind elevations from Johnson (1999) - Simple Expressions for correcting wind speed data for elevation
             if gaugeht <= 20:
@@ -464,7 +464,7 @@ class getObs:
             #                           self.ncfile['time'].calendar)
             # for num in range(0, len(self.WLtime)):
             #     self.WLtime[num] = self.roundtime(self.WLtime[num], roundto=collectionlength * 60)
-            self.WLtime = nc.num2date(self.ncfile['time'][self.WLdataindex], self.ncfile['time'].units)
+            self.WLtime = nc.num2date(self.allEpoch[self.WLdataindex], self.ncfile['time'].units)
             self.WLpacket = {
                 'name': str(self.ncfile.title),
                 'WL': self.ncfile['waterLevel'][self.WLdataindex],
