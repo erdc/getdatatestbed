@@ -214,10 +214,10 @@ class getObs:
         try:
             self.wavedataindex = self.gettime(dtRound=roundto * 60)
             assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
-            if np.size(self.wavedataindex):
-                self.wavedataindex = np.expand_dims(self.wavedataindex, axis=0)
             if np.size(self.wavedataindex) >= 1:
                 # consistant for all wave gauges
+                if np.size(self.wavedataindex) == 1:
+                    self.wavedataindex = np.expand_dims(self.wavedataindex, axis=0)
                 self.snaptime = nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units)
                 try:
                     depth = self.ncfile['nominalDepth'][:]  # this should always go
