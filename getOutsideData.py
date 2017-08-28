@@ -1,4 +1,4 @@
-import dq:atetime as DT
+import datetime as DT
 import netCDF4 as nc
 import os
 import numpy as np
@@ -21,7 +21,14 @@ class forecastData:
         self.dataLocECWMF = u'ftp://data-portal.ecmwf.int/20170808120000/'  # ECMWF forecasts
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
 
-    def getWWIII(self, forecastHour, buoyNumber=44100):
+    def getWW3(self, forecastHour, buoyNumber=44100):
+        """
+        This funcion will get spectral forecasts from the NCEP nomads server and parse it out
+        to geographic coordinate system
+        :param forecastHour:
+        :param buoyNumber:
+        :return:
+        """
         import urllib
         assert type(forecastHour) is str, 'Forecast hour variable must be a string'
         urlBack = '/bulls.t%sz/' %forecastHour +'multi_1.%d.spec' %buoyNumber
@@ -63,12 +70,13 @@ class forecastData:
             spectra[tt] = np.array(linear, dtype=float).reshape(nDir, nFreq).T
 
 
-        out = {'wavedirbin': np.array(directions, dtype=float),
+        out = {'wavedirbin': np.array(np.rad2deg(directions), dtype=float),
                'wavefreqbin': np.array(frequencies, dtype=float),
-                'dWED':spectra ,
-                'time': forcastDates}
+               'dWED':spectra ,
+               'time': forcastDates}
 
         return out
+
     def get_CbathyFromFTP(self, dlist, path, timex=True):
         """
         this function downloads argus cbathy bathy data from the argus ftp server
