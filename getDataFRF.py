@@ -911,33 +911,43 @@ class getObs:
                    'lon': self.ncfile[u'lidarLongitude'][:],
                    'lidarX': self.ncfile[u'lidarX'][:],
                    'lidarY': self.ncfile[u'lidarY'][:],
-                   'time': self.ncfile[u'time'][self.lidarIndex],
+                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units, self.ncfile['time'].calendar),
                    'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
                    'elevation': self.ncfile['elevation'][self.lidarIndex, :],
-
-                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :],
-                   # this will need to be changed once Tucker uploads the new ncml file, will not be dimensioned in time!
-                   # 'samplingTime': self.ncfile['tsTime'][:],
-
-                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex, :],
-                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex, :],
+                   'xFRF': self.ncfile[u'xFRF'][self.lidarIndex, :],
+                   'yFRF': self.ncfile[u'yFRF'][self.lidarIndex, :],
+                   'samplingTime': self.ncfile['tsTime'][:],
                    'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex, :],
                    'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
                    'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
                    }
 
             if removeMasked:
-                # copy mask over to the sampling time!
-                mask = np.ma.getmask(out['elevation'])
-                out['samplingTime'] = np.ma.masked_array(out['samplingTime'], mask)
 
-                out['elevation'] = np.ma.compress_cols(out['elevation'])
-                out['samplingTime'] = np.ma.compress_cols(out['samplingTime'])
-                out['frfX'] = np.ma.compress_cols(out['frfX'])
-                out['frfY'] = np.ma.compress_cols(out['frfY'])
-                out['runupDownLine'] = np.ma.compress_cols(out['runupDownLine'])
-
-
+                if isinstance(out['elevation'], np.ma.MaskedArray):
+                    out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
+                else:
+                    pass
+                if isinstance(out['totalWaterLevel'], np.ma.MaskedArray):
+                    out['totalWaterLevel'] = np.array(out['totalWaterLevel'][~out['totalWaterLevel'].mask])
+                else:
+                    pass
+                if isinstance(out['xFRF'], np.ma.MaskedArray):
+                    out['xFRF'] = np.array(out['xFRF'][~out['xFRF'].mask])
+                else:
+                    pass
+                if isinstance(out['yFRF'], np.ma.MaskedArray):
+                    out['yFRF'] = np.array(out['yFRF'][~out['yFRF'].mask])
+                else:
+                    pass
+                if isinstance(out['runupDownLine'], np.ma.MaskedArray):
+                    out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
+                else:
+                    pass
+                if isinstance(out['samplingTime'], np.ma.MaskedArray):
+                    out['samplingTime'] = np.array(out['samplingTime'][~out['samplingTime'].mask])
+                else:
+                    pass
             else:
                 pass
 
@@ -1081,33 +1091,62 @@ class getObs:
         :param: removeMasked will toggle the removing of data points from the tsTime series based on the flag status
         :return:
         """
-        self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
+        self.dataloc = 'oceanography/waves/lidarHydrodynamics/lidarHydrodynamics.ncml'
         self.lidarIndex = self.gettime(dtRound=60)
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
             out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
-                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordintes
+                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordinates
                    'lon': self.ncfile[u'lidarLongitude'][:],
                    'lidarX': self.ncfile[u'lidarX'][:],
                    'lidarY': self.ncfile[u'lidarY'][:],
-                   'time': self.ncfile[u'time'][self.lidarIndex],
-                   'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
-                   'elevation': self.ncfile['elevation'][self.lidarIndex],
-                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :],
-                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex],
-                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex],
-                   'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex, :],
-                   'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
-                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
+                   'xFRF': self.ncfile[u'xFRF'][:],
+                   'yFRF': self.ncfile[u'yFRF'][:],
+                   'runupDownLine': self.ncfile['downLineDistance'][:],
+                   'waveFrequency': self.ncfile['waveFrequency'][:],
+                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units, self.ncfile['time'].calendar),
+                   'hydroQCflag': self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
+                   'waterLevel': self.ncfile['waterLevel'][self.lidarIndex, :],
+                   'waveHs': self.ncfile['waveHs'][self.lidarIndex, :],
+                   'waveHsIG': self.ncfile['waveHsIG'][self.lidarIndex, :],
+                   'waveHsTotal': self.ncfile['waveHsTotal'][self.lidarIndex, :],
+                   'waveSkewness': self.ncfile['waveSkewness'][self.lidarIndex, :],
+                   'waveAsymmetry': self.ncfile['waveAsymmetry'][self.lidarIndex, :],
+                   'waveEnergyDensity': self.ncfile['waveEnergyDensity'][self.lidarIndex, :, :],
+                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex, :],
                    }
 
 
             if removeMasked:
-                out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
-                out['samplingTime'] = np.array(out['samplingTime'][~out['elevation'].mask])
-                out['xFRF'] = np.array(out['frfX'][~out['frfX'].mask])
-                out['yFRF'] = np.array(out['frfY'][~out['frfY'].mask])
-                out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
+
+                if isinstance(out['waterLevel'], np.ma.MaskedArray):
+                    out['waterLevel'] = np.array(out['waterLevel'][~out['waterLevel'].mask])
+                else:
+                    pass
+                if isinstance(out['waveHs'], np.ma.MaskedArray):
+                    out['waveHs'] = np.array(out['waveHs'][~out['waveHs'].mask])
+                else:
+                    pass
+                if isinstance(out['waveHsIG'], np.ma.MaskedArray):
+                    out['waveHsIG'] = np.array(out['waveHsIG'][~out['waveHsIG'].mask])
+                else:
+                    pass
+                if isinstance(out['waveHsTotal'], np.ma.MaskedArray):
+                    out['waveHsTotal'] = np.array(out['waveHsTotal'][~out['waveHsTotal'].mask])
+                else:
+                    pass
+                if isinstance(out['waveSkewness'], np.ma.MaskedArray):
+                    out['waveSkewness'] = np.array(out['waveSkewness'][~out['waveSkewness'].mask])
+                else:
+                    pass
+                if isinstance(out['waveAsymmetry'], np.ma.MaskedArray):
+                    out['waveAsymmetry'] = np.array(out['waveAsymmetry'][~out['waveAsymmetry'].mask])
+                else:
+                    pass
+                if isinstance(out['waveEnergyDensity'], np.ma.MaskedArray):
+                    out['waveEnergyDensity'] = np.array(out['waveEnergyDensity'][~out['waveEnergyDensity'].mask])
+                else:
+                    pass
 
             else:
                 pass
