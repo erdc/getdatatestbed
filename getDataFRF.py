@@ -583,9 +583,10 @@ class getObs:
 
             # DLY Note - this section of the script does NOT work
             # (i.e., if you DO have a survey during your date range!!!)
-
-            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
-            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+            timeunits = 'seconds since 1970-01-01 00:00:00'
+            d1Epoch = nc.date2num(self.d1, timeunits)
+            val = (max([n for n in (self.ncfile['time'][:] - d1Epoch) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - d1Epoch) == val)[0][0]
 
         # try:
         #     assert profilenumbers in acceptableProfileNumbers, 'Ch3eck numbers should be in %s' % acceptableProfileNumbers
@@ -842,6 +843,9 @@ class getObs:
         ed1 = nc.date2num(self.d1, 'seconds since 1970-01-01')
         ed2 = nc.date2num(self.d2, 'seconds since 1970-01-01')
         emask = (cbfile['time'][:] >= ed1) & (cbfile['time'][:] < ed2)
+
+
+
         # mask = (time > d1) & (time < d2)
         # assert (emask == mask).all(), 'epoch time is not working'
         idx = np.where(emask)[0] # this leaves a list that keeps the data iteratable with a size 1.... DON'T CHANGE
@@ -911,33 +915,43 @@ class getObs:
                    'lon': self.ncfile[u'lidarLongitude'][:],
                    'lidarX': self.ncfile[u'lidarX'][:],
                    'lidarY': self.ncfile[u'lidarY'][:],
-                   'time': self.ncfile[u'time'][self.lidarIndex],
+                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units, self.ncfile['time'].calendar),
                    'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
                    'elevation': self.ncfile['elevation'][self.lidarIndex, :],
-
-                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :],
-                   # this will need to be changed once Tucker uploads the new ncml file, will not be dimensioned in time!
-                   # 'samplingTime': self.ncfile['tsTime'][:],
-
-                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex, :],
-                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex, :],
+                   'xFRF': self.ncfile[u'xFRF'][self.lidarIndex, :],
+                   'yFRF': self.ncfile[u'yFRF'][self.lidarIndex, :],
+                   'samplingTime': self.ncfile['tsTime'][:],
                    'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex, :],
                    'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
                    'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
                    }
 
             if removeMasked:
-                # copy mask over to the sampling time!
-                mask = np.ma.getmask(out['elevation'])
-                out['samplingTime'] = np.ma.masked_array(out['samplingTime'], mask)
 
-                out['elevation'] = np.ma.compress_cols(out['elevation'])
-                out['samplingTime'] = np.ma.compress_cols(out['samplingTime'])
-                out['frfX'] = np.ma.compress_cols(out['frfX'])
-                out['frfY'] = np.ma.compress_cols(out['frfY'])
-                out['runupDownLine'] = np.ma.compress_cols(out['runupDownLine'])
-
-
+                if isinstance(out['elevation'], np.ma.MaskedArray):
+                    out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
+                else:
+                    pass
+                if isinstance(out['totalWaterLevel'], np.ma.MaskedArray):
+                    out['totalWaterLevel'] = np.array(out['totalWaterLevel'][~out['totalWaterLevel'].mask])
+                else:
+                    pass
+                if isinstance(out['xFRF'], np.ma.MaskedArray):
+                    out['xFRF'] = np.array(out['xFRF'][~out['xFRF'].mask])
+                else:
+                    pass
+                if isinstance(out['yFRF'], np.ma.MaskedArray):
+                    out['yFRF'] = np.array(out['yFRF'][~out['yFRF'].mask])
+                else:
+                    pass
+                if isinstance(out['runupDownLine'], np.ma.MaskedArray):
+                    out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
+                else:
+                    pass
+                if isinstance(out['samplingTime'], np.ma.MaskedArray):
+                    out['samplingTime'] = np.array(out['samplingTime'][~out['samplingTime'].mask])
+                else:
+                    pass
             else:
                 pass
 
@@ -1081,33 +1095,62 @@ class getObs:
         :param: removeMasked will toggle the removing of data points from the tsTime series based on the flag status
         :return:
         """
-        self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
+        self.dataloc = 'oceanography/waves/lidarHydrodynamics/lidarHydrodynamics.ncml'
         self.lidarIndex = self.gettime(dtRound=60)
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
             out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
-                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordintes
+                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordinates
                    'lon': self.ncfile[u'lidarLongitude'][:],
                    'lidarX': self.ncfile[u'lidarX'][:],
                    'lidarY': self.ncfile[u'lidarY'][:],
-                   'time': self.ncfile[u'time'][self.lidarIndex],
-                   'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
-                   'elevation': self.ncfile['elevation'][self.lidarIndex],
-                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :],
-                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex],
-                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex],
-                   'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex, :],
-                   'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
-                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
+                   'xFRF': self.ncfile[u'xFRF'][:],
+                   'yFRF': self.ncfile[u'yFRF'][:],
+                   'runupDownLine': self.ncfile['downLineDistance'][:],
+                   'waveFrequency': self.ncfile['waveFrequency'][:],
+                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units, self.ncfile['time'].calendar),
+                   'hydroQCflag': self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
+                   'waterLevel': self.ncfile['waterLevel'][self.lidarIndex, :],
+                   'waveHs': self.ncfile['waveHs'][self.lidarIndex, :],
+                   'waveHsIG': self.ncfile['waveHsIG'][self.lidarIndex, :],
+                   'waveHsTotal': self.ncfile['waveHsTotal'][self.lidarIndex, :],
+                   'waveSkewness': self.ncfile['waveSkewness'][self.lidarIndex, :],
+                   'waveAsymmetry': self.ncfile['waveAsymmetry'][self.lidarIndex, :],
+                   'waveEnergyDensity': self.ncfile['waveEnergyDensity'][self.lidarIndex, :, :],
+                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex, :],
                    }
 
 
             if removeMasked:
-                out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
-                out['samplingTime'] = np.array(out['samplingTime'][~out['elevation'].mask])
-                out['xFRF'] = np.array(out['frfX'][~out['frfX'].mask])
-                out['yFRF'] = np.array(out['frfY'][~out['frfY'].mask])
-                out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
+
+                if isinstance(out['waterLevel'], np.ma.MaskedArray):
+                    out['waterLevel'] = np.array(out['waterLevel'][~out['waterLevel'].mask])
+                else:
+                    pass
+                if isinstance(out['waveHs'], np.ma.MaskedArray):
+                    out['waveHs'] = np.array(out['waveHs'][~out['waveHs'].mask])
+                else:
+                    pass
+                if isinstance(out['waveHsIG'], np.ma.MaskedArray):
+                    out['waveHsIG'] = np.array(out['waveHsIG'][~out['waveHsIG'].mask])
+                else:
+                    pass
+                if isinstance(out['waveHsTotal'], np.ma.MaskedArray):
+                    out['waveHsTotal'] = np.array(out['waveHsTotal'][~out['waveHsTotal'].mask])
+                else:
+                    pass
+                if isinstance(out['waveSkewness'], np.ma.MaskedArray):
+                    out['waveSkewness'] = np.array(out['waveSkewness'][~out['waveSkewness'].mask])
+                else:
+                    pass
+                if isinstance(out['waveAsymmetry'], np.ma.MaskedArray):
+                    out['waveAsymmetry'] = np.array(out['waveAsymmetry'][~out['waveAsymmetry'].mask])
+                else:
+                    pass
+                if isinstance(out['waveEnergyDensity'], np.ma.MaskedArray):
+                    out['waveEnergyDensity'] = np.array(out['waveEnergyDensity'][~out['waveEnergyDensity'].mask])
+                else:
+                    pass
 
             else:
                 pass
@@ -1200,33 +1243,65 @@ class getDataTestBed:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
 
-    def gettime(self, dtRound=30):
+    def gettime(self, dtRound=60):
         """
         this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
         from the THREDDS (data loc) server based on d1,d2, and data location
         it returns the indicies in the NCML file of the dates d1>=time>d2
         INPUTS:
 
-            d1: start time - pulled from self
-            d2: end time  - pulled from self
-            dataloc: location of the data to search through
-            :param dtRound: the time delta of the data out of interest
+             :param dtRound: the time delta of the data out of interest, default minute (60 second)
 
         """
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
-        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
-        #            try:
-        self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                                   self.ncfile['time'].calendar)
-        for i, date in enumerate(self.alltime):
-            self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+        try:
 
-        mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-        # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+            self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc) #loads all of the netCDF file
+            #            try:
+            self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+            # now find the boolean!
+            mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
+            idx = np.argwhere(mask).squeeze()
+            # old slow way of doing time!
+            # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+            #                            self.ncfile['time'].calendar) # converts all epoch time to datetime objects
+            # for i, date in enumerate(self.alltime):  # rounds time to nearest
+            #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+            #
+            # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+            # if (np.argwhere(mask).squeeze() == idx).all():
+            #     print '.... old Times match New Times' % np.argwhere(mask).squeeze()
+            assert np.size(idx) > 0, 'no data locally, check CHLthredds'
+            print "Data Gathered From Local Thredds Server"
 
-        idx = np.where(mask)[0]
-        print "Data Gathered From crunchy Thredds Server"
+        except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
+            try:
+                self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
+                self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+                # now find the boolean !
+                emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
+                idx = np.argwhere(emask).squeeze()
+
+                # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
+                #                            self.ncfile['time'].calendar)
+                # for i, date in enumerate(self.alltime):
+                #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+                # # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
+                #
+                # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
+                #
+                # idx = np.argwhere(mask).squeeze()
+
+
+                try:
+                    assert np.size(idx) > 0, ' There are no data within the search parameters for this gauge'
+                    print "Data Gathered from CHL thredds Server"
+                except AssertionError:
+                    idx = None
+            except IOError:  # this occors when thredds is down
+                print ' Trouble Connecteing to data on CHL Thredds'
+                idx = None
 
         return idx
 
@@ -1304,10 +1379,13 @@ class getDataTestBed:
             # a check is in place to ensure that the retieved time is == to the forced time
             oldD1 = self.d1
             oldD2 = self.d2
+            oldD1epoch = self.epochd1
+            oldD2epoch = self.epochd2
             self.d1 = ForcedSurveyDate  # change time one
             self.d2 = ForcedSurveyDate + DT.timedelta(0,1)  # and time 2
-
-            print 'Forced bathy date %s' % ForcedSurveyDate
+            self.epochd1 = nc.date2num(self.d1, 'seconds since 1970-01-01')
+            self.epochd2 = nc.date2num(self.d2, 'seconds since 1970-01-01')
+            print '!!!Forced bathy date %s' % ForcedSurveyDate
 
         self.dataloc = 'integratedBathyProduct/survey/survey.ncml'
         try:
@@ -1351,12 +1429,19 @@ class getDataTestBed:
             easting = None
 
 
+        # putting dates and times back for all the other instances that use get time
+        if ForcedSurveyDate != None:
+            self.d1 = oldD1
+            self.d2 = oldD2
+            self.epochd2 = oldD2epoch
+            self.epochd1 = oldD1epoch
+        bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
         print '  Measured Bathy is %s old' % (self.d2 - self.alltime[idx])
 
         gridDict = {'xFRF': xCoord,
                     'yFRF': yCoord,
                     'elevation': elevation_points,
-                    'time': self.alltime[idx],
+                    'time': bathyT,
                     'lat': lat,
                     'lon': lon,
                     'northing': northing,
