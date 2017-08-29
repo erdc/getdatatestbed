@@ -1351,7 +1351,7 @@ class getDataTestBed:
             easting = None
 
 
-        print 'Bathy is %s old' % (self.d2 - self.alltime[idx])
+        print '  Measured Bathy is %s old' % (self.d2 - self.alltime[idx])
 
         gridDict = {'xFRF': xCoord,
                     'yFRF': yCoord,
