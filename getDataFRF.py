@@ -761,6 +761,9 @@ class getObs:
         ed1 = nc.date2num(self.d1, 'seconds since 1970-01-01')
         ed2 = nc.date2num(self.d2, 'seconds since 1970-01-01')
         emask = (cbfile['time'][:] >= ed1) & (cbfile['time'][:] < ed2)
+
+
+
         # mask = (time > d1) & (time < d2)
         # assert (emask == mask).all(), 'epoch time is not working'
         idx = np.where(emask)[0]
