@@ -583,9 +583,10 @@ class getObs:
 
             # DLY Note - this section of the script does NOT work
             # (i.e., if you DO have a survey during your date range!!!)
-
-            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
-            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+            timeunits = 'seconds since 1970-01-01 00:00:00'
+            d1Epoch = nc.date2num(self.d1, timeunits)
+            val = (max([n for n in (self.ncfile['time'][:] - d1Epoch) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - d1Epoch) == val)[0][0]
 
         # try:
         #     assert profilenumbers in acceptableProfileNumbers, 'Ch3eck numbers should be in %s' % acceptableProfileNumbers
