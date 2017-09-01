@@ -1436,7 +1436,7 @@ class getDataTestBed:
             self.epochd2 = oldD2epoch
             self.epochd1 = oldD1epoch
         bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
-        print '  Measured Bathy is %s old' % (self.d2 - self.alltime[idx])
+        print '  Measured Bathy is %s old' % (self.d2 - bathyT)
 
         gridDict = {'xFRF': xCoord,
                     'yFRF': yCoord,
