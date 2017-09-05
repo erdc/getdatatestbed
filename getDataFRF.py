@@ -1448,19 +1448,20 @@ class getDataTestBed:
         """
 
         :param Local: defines whether the data is from the nested simulation or the regional simulation
-        : param ijLoc: x or y or (x,y) tuple of location of interest
+        :param ijLoc:  x or y or (x,y) tuple of location of interest in FRF Coordinates
         :return:
         """
         if local == True:
             grid = 'Local'
         elif local == False:
             grid = 'Regional'
+        ############## setting up the ncfile ############################
         if prefix == 'CBHPStatic' and local == True:  # this is needed because projects are stored in weird place
             ncfile = nc.Dataset('http://crunchy:8080/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml')
         elif prefix =='CBHPStatic' and local == False:
             ncfile = nc.Dataset('http://crunchy:8080/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml')
-        else:
-            ncfile = nc.Dataset(self.crunchDataLoc + u'/%s_STWAVE_data/%s_Field/%s_Field.ncml' % (prefix, grid, grid))
+        else:  # this is standard operational model url Structure
+            ncfile = nc.Dataset(self.crunchDataLoc + u'waveModels/STWAVE/%s/%s-Field/%s-Field.ncml' % (prefix, grid, grid))
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
         mask = (ncfile['time'][:] >= nc.date2num(self.d1, ncfile['time'].units)) & (
             ncfile['time'][:] <= nc.date2num(self.d2, ncfile['time'].units))
@@ -1474,16 +1475,18 @@ class getDataTestBed:
                 y = ijLoc[1]  # use location given by function call
             else: # ijLoc[0] == slice:
                 x = ijLoc[0]
-                y = ijLoc[1]
+                y = np.argmin(np.abs(ncfile['yFRF'][:] - ijLoc[1]))
 
         else:
             x = slice(None)  # take entire data
             y = slice(None)  # take entire data
 
-        if ncfile[var].shape[0] > 100: # looping through ... if necessicary
+        if ncfile[var][idx].ndim >2 and ncfile[var][idx].shape[0] > 100: # looping through ... if necessicary
             list = np.round(np.linspace(idx.min(), idx.max(), idx.max()-idx.min(), endpoint=True, dtype=int))
             # if idx.max() not in list:
             #     list = np.append(list, idx.max())
+            xFRF = ncfile['xFRF'][x]
+            yFRF = ncfile['yFRF'][y]
             if len(list) < 100:
                     bathy = np.array(ncfile[var][np.squeeze(list)])
                     time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
@@ -1493,23 +1496,28 @@ class getDataTestBed:
                         bathy = np.array(ncfile[var][np.squeeze(list)])
                         time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
                     elif num == 0:
-                        bathy = np.array(ncfile[var][range(minidx, list[num + 1]), x, y])
+                        bathy = np.array(ncfile[var][range(minidx, list[num + 1]), y, x])
                         time = nc.num2date(np.array(ncfile['time'][range(minidx, list[num + 1])]), ncfile['time'].units)
                     elif minidx == list[-1]:
                         lastIdx = (idx - minidx)[(idx - minidx) >= 0] + minidx
-                        bathy = np.append(bathy, ncfile[var][lastIdx, x, y], axis=0)
+                        bathy = np.append(bathy, ncfile[var][lastIdx, y, x], axis=0)
                         time = np.append(time, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
                     else:
-                        bathy = np.append(bathy, ncfile[var][range(minidx, list[num + 1]), x, y], axis=0)
+                        bathy = np.append(bathy, ncfile[var][range(minidx, list[num + 1]), y, x], axis=0)
                         time = np.append(time,
                                          nc.num2date(ncfile['time'][range(minidx, list[num + 1])], ncfile['time'].units),
                                          axis=0)
         else:
-            bathy = ncfile[var][:, x, y]
-
+            bathy = ncfile[var][idx, y, x]
+            xFRF = ncfile['xFRF'][x]
+            yFRF = ncfile['yFRF'][y]
+            time = nc.num2date(ncfile['time'][np.squeeze(idx)], ncfile['time'].units)
+        # package for output
         field = {'time': time,
                  'epochtime': ncfile['time'][idx], # pulling down epoch time of interest
                  var: bathy,
+                 'xFRF': xFRF,
+                 'yFRF': yFRF,
                  }
         try:
             field['bathymetryDate'] = ncfile['bathymetryDate'][idx]
