@@ -583,9 +583,10 @@ class getObs:
 
             # DLY Note - this section of the script does NOT work
             # (i.e., if you DO have a survey during your date range!!!)
-
-            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
-            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+            timeunits = 'seconds since 1970-01-01 00:00:00'
+            d1Epoch = nc.date2num(self.d1, timeunits)
+            val = (max([n for n in (self.ncfile['time'][:] - d1Epoch) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - d1Epoch) == val)[0][0]
 
         # try:
         #     assert profilenumbers in acceptableProfileNumbers, 'Ch3eck numbers should be in %s' % acceptableProfileNumbers
@@ -842,6 +843,9 @@ class getObs:
         ed1 = nc.date2num(self.d1, 'seconds since 1970-01-01')
         ed2 = nc.date2num(self.d2, 'seconds since 1970-01-01')
         emask = (cbfile['time'][:] >= ed1) & (cbfile['time'][:] < ed2)
+
+
+
         # mask = (time > d1) & (time < d2)
         # assert (emask == mask).all(), 'epoch time is not working'
         idx = np.where(emask)[0] # this leaves a list that keeps the data iteratable with a size 1.... DON'T CHANGE
@@ -1424,6 +1428,7 @@ class getDataTestBed:
             northing = None
             easting = None
 
+
         # putting dates and times back for all the other instances that use get time
         if ForcedSurveyDate != None:
             self.d1 = oldD1
@@ -1431,7 +1436,8 @@ class getDataTestBed:
             self.epochd2 = oldD2epoch
             self.epochd1 = oldD1epoch
         bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
-        print 'Bathy is %s old' % (self.d1 - bathyT)
+        print '  Measured Bathy is %s old' % (self.d2 - bathyT)
+
         gridDict = {'xFRF': xCoord,
                     'yFRF': yCoord,
                     'elevation': elevation_points,
