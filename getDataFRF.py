@@ -845,7 +845,7 @@ class getObs:
             cbdata = None  # throw a kick out if there's no data avaiable
             return cbdata
         # truncating data from experimental parameters to
-        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2 and (self.cbidx != None).all():
+        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
             if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
                 kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
             # first min of x
@@ -869,7 +869,7 @@ class getObs:
             # cbdata['k'] = cbdata['k'][:, :, removeMinX:removeMaxX, :]
             # cbdata['fB'] = cbdata['fB'][:, :, removeMinX:removeMaxX, :]
 
-        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2 and  (self.cbidx != None).all():
+        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
             if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
                 kwargs['ybounds'] = np.flip(kwargs['ybounds'],axis=0)
             # first min of y
