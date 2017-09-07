@@ -841,8 +841,8 @@ class getObs:
         # mask = (time > d1) & (time < d2)
         # assert (emask == mask).all(), 'epoch time is not working'
         # idx = np.where(emask)[0] # this leaves a list that keeps the data iteratable with a size 1.... DON'T CHANGE
-        if self.cbidx == None:
-            cbdata = None
+        if np.size(self.cbidx) == 1 and self.cbidx == None :
+            cbdata = None  # throw a kick out if there's no data avaiable
             return cbdata
         # truncating data from experimental parameters to
         if 'xbounds' in kwargs and (self.cbidx != None).all():
