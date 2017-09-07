@@ -841,7 +841,9 @@ class getObs:
         # mask = (time > d1) & (time < d2)
         # assert (emask == mask).all(), 'epoch time is not working'
         # idx = np.where(emask)[0] # this leaves a list that keeps the data iteratable with a size 1.... DON'T CHANGE
-
+        if self.cbidx == None:
+            cbdata = None
+            return cbdata
         # truncating data from experimental parameters to
         if 'xbounds' in kwargs and (self.cbidx != None).all():
             if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
@@ -858,7 +860,8 @@ class getObs:
             else:
                 removeMaxX = np.argwhere(self.ncfile['xm'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1 # python indexing
             xs = slice(removeMinX, removeMaxX)
-
+        else:
+            xs = slice(None)
             # cbdata['xm'] = cbdata['xm'][removeMinX:removeMaxX]  # sectioning off data from min to max
             # cbdata['depthKF'] = cbdata['depthKF'][:, :, removeMinX:removeMaxX]
             # cbdata['depthKFError'] = cbdata['depthKFError'][:, :, removeMinX:removeMaxX]
@@ -881,7 +884,8 @@ class getObs:
             else:
                 removeMaxY = np.argwhere(self.ncfile['ym'][:] >= kwargs['ybounds'][1]).squeeze().min()+1  # python indexing
             ys = slice(removeMinY, removeMaxY)
-
+        else:
+            ys = slice(None)
 
             # # <= used here to handle inclusive initial index inherant in python
             # removeMinY = np.argwhere(cbdata['ym'] <= kwargs['ybounds'][0]).squeeze().max()
