@@ -397,9 +397,10 @@ class getObs:
 
         self.winddataindex = self.gettime(dtRound=collectionlength * 60)
         # remove nan's that shouldn't be there
-        self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
+            self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
+
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
             windspeed = self.ncfile['windSpeed'][self.winddataindex]  # wind speed
             winddir = self.ncfile['windDirection'][self.winddataindex]  # wind direction
@@ -1403,7 +1404,7 @@ class getDataTestBed:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
             self.bathydataindex = []  # when a server is not available
-        if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
+        if np.size(self.bathydataindex) == 1 and self.bathydataindex != None:
             idx = self.bathydataindex.squeeze()
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
