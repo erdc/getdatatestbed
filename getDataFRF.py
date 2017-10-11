@@ -12,6 +12,7 @@ This is a class definition designed to get data from the FRF thredds server
 import datetime as DT
 import sys
 from subprocess import check_output
+import warnings
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
@@ -1412,6 +1413,15 @@ class getDataTestBed:
             self.bathydataindex = []  # when a server is not available
         if np.size(self.bathydataindex) == 1 and self.bathydataindex != None:
             idx = self.bathydataindex.squeeze()
+        elif np.size(self.bathydataindex) > 1:
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            # idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
+            warnings.warn('Pulled multiple bathymetries')
+            print '   The nearest bathy to your simulation start date is %s' % nc.num2date(self.allEpoch[idx],
+                                                                                    self.ncfile['time'].units)
+            print '   Please End new simulation with the date above, so it does not pull multiple bathymetries'
+            raise NotImplementedError
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
@@ -1419,16 +1429,9 @@ class getDataTestBed:
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             print 'Bathymetry is taken as closest in HISTORY - operational'
         elif (self.bathydataindex == None or np.size(self.bathydataindex) < 1) and method == 0:
-            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
-        elif self.bathydataindex != None and len(self.bathydataindex) > 1:
-            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
-            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
 
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
-                                                                                    self.ncfile['time'].units)
-            print 'Please End new simulation with the date above'
-            raise Exception
 
         # the below line was in place, it should be masking nan's but there is not supposed to be nan's
         # in the data, should only be fill values (-999)
