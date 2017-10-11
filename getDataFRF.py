@@ -229,16 +229,16 @@ class getObs:
                     wave_coords = gp.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
                 # try:   # try new variable names
                 wavespec = {'time': self.snaptime,                # note this is new variable names??
-                        'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
-                        'name': str(self.ncfile.title),
-                        'wavefreqbin': self.ncfile['waveFrequency'][:],
-                        'xFRF': wave_coords['xFRF'],
-                        'yFRF': wave_coords['yFRF'],
-                        'lat': self.ncfile['latitude'][:],
-                        'lon': self.ncfile['longitude'][:],
-                        'depth': depth,
-                        'Hs': self.ncfile['waveHs'][self.wavedataindex],
-                        'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex]}
+                            'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
+                            'name': str(self.ncfile.title),
+                            'wavefreqbin': self.ncfile['waveFrequency'][:],
+                            'xFRF': wave_coords['xFRF'],
+                            'yFRF': wave_coords['yFRF'],
+                            'lat': self.ncfile['latitude'][:],
+                            'lon': self.ncfile['longitude'][:],
+                            'depth': depth,
+                            'Hs': self.ncfile['waveHs'][self.wavedataindex],
+                            'peakf': 1/self.ncfile['waveTp'][self.wavedataindex]}
                     # except IndexError:
                 #     wavespec = {'time': self.snaptime,                # note this is old Variable names remove soon
                 #         'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
@@ -1232,7 +1232,7 @@ class getDataTestBed:
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.comp_time()
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.62:8080/thredds/dodsC/CMTB/'
+        self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
@@ -1334,21 +1334,38 @@ class getDataTestBed:
         try:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
-            self.bathydataindex = []
-        if len(self.bathydataindex) == 1:
-            idx = self.bathydataindex
-        elif len(self.bathydataindex) < 1 and method in [1, 'historical', 'history']:
+            self.bathydataindex = None
+        if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
+            idx = self.bathydataindex.squeeze()
+        elif (self.bathydataindex == None or len(self.bathydataindex) < 1) and method in [1, 'historical', 'history']:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             print 'Bathymetry is taken as closest in HISTORY - operational'
-        elif len(self.bathydataindex) < 1 and method == 0:
+        elif (self.bathydataindex == None or np.size(self.bathydataindex) < 1) and method == 0:
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
-        elif len(self.bathydataindex) > 1:
+        elif self.bathydataindex != None and len(self.bathydataindex) > 1:
             val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
             idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+
+        #
+        # if self.bathydataindex is not None and  len(self.bathydataindex) == 1:
+        #     idx = self.bathydataindex
+        # elif self.bathydataindex is not None and len(self.bathydataindex) < 1 and method in [1, 'historical', 'history']:
+        #     # there's no exact bathy match so find the max negative number where the negitive
+        #     # numbers are historical and the max would be the closest historical
+        #     val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+        #     idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+        #     print 'Bathymetry is taken as closest in HISTORY - operational'
+        # elif self.bathydataindex is not None and len(self.bathydataindex) < 1 and method == 0:
+        #     idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+        #     print 'Bathymetry is taken as closest in TIME - NON-operational'
+        # elif self.bathydataindex is not None and len(self.bathydataindex) > 1:
+        #     val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
+        #     idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+
 
             print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx], self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
