@@ -571,15 +571,35 @@ class getObs:
         if len(self.bathydataindex) == 1:
             idx = self.bathydataindex
         elif len(self.bathydataindex) < 1 & method == 1:
+
+            try:
+                # switch back to the FRF ncfile?
+                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+            except:
+                pass
+
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             print 'Bathymetry is taken as closest in HISTORY - operational'
         elif len(self.bathydataindex) < 1 and method == 0:
+
+            try:
+                # switch back to the FRF ncfile?
+                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+            except:
+                pass
+
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
         elif len(self.bathydataindex) > 1:
+
+            try:
+                # switch back to the FRF ncfile?
+                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+            except:
+                pass
 
             # DLY Note - this section of the script does NOT work
             # (i.e., if you DO have a survey during your date range!!!)
@@ -645,6 +665,81 @@ class getObs:
             profileDict = None
 
         return profileDict
+
+    def getBathyTransectProfNum(self, method=1):
+        """
+        This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
+        method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+        :param
+        :return:
+
+        """
+        # do check here on profile numbers
+        # acceptableProfileNumbers = [None, ]
+        self.dataloc = u'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location of the gridded surveys
+
+        try:
+            self.bathydataindex = self.gettime()
+        except IOError:  # when data are not on CHL thredds
+            self.bathydataindex = []
+
+        if self.bathydataindex is None:
+            self.bathydataindex = []
+        else:
+            pass
+
+        # logic to handle no transects in date range
+        if len(self.bathydataindex) == 1:
+            idx = self.bathydataindex
+        elif len(self.bathydataindex) < 1 & method == 1:
+
+            try:
+                # switch back to the FRF ncfile?
+                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+            except:
+                pass
+
+            # there's no exact bathy match so find the max negative number where the negative
+            # numbers are historical and the max would be the closest historical
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            print 'Bathymetry is taken as closest in HISTORY - operational'
+
+        elif len(self.bathydataindex) < 1 and method == 0:
+
+            try:
+                # switch back to the FRF ncfile?
+                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+            except:
+                pass
+
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            print 'Bathymetry is taken as closest in TIME - NON-operational'
+
+        elif len(self.bathydataindex) > 1:
+
+            try:
+                # switch back to the FRF ncfile?
+                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
+            except:
+                pass
+
+            # DLY Note - this section of the script does NOT work
+            # (i.e., if you DO have a survey during your date range!!!)
+            timeunits = 'seconds since 1970-01-01 00:00:00'
+            d1Epoch = nc.date2num(self.d1, timeunits)
+            val = (max([n for n in (self.ncfile['time'][:] - d1Epoch) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - d1Epoch) == val)[0][0]
+
+        # returning whole survey
+        idxSingle = idx
+        idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
+
+        # what profile numbers are in this survey?
+        prof_nums = np.unique(self.ncfile['profileNumber'][idx])
+
+        return prof_nums
 
     def getBathyGridFromNC(self, method, removeMask=True):
         """
@@ -903,8 +998,10 @@ class getObs:
         :param: removeMasked will toggle the removing of data points from the tsTime series based on the flag status
         :return:
         """
+
         self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
         self.lidarIndex = self.gettime(dtRound=60)
+
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
             out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
