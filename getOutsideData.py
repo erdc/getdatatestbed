@@ -23,14 +23,14 @@ class forecastData:
 
     def getWWIII(self, forecastHour, buoyNumber=44100):
         import urllib
-        assert type(forecastHour) is str, 'Forecast hour variable must be a string'
+        assert type(forecastHour) is str, 'Forecast hour variable must be Dp string'
         urlBack = '/bulls.t%sz/' %forecastHour +'multi_1.%d.spec' %buoyNumber
         ftpURL = self.dataLocNCEP + 'multi_1.' + self.d1.strftime('%Y%m%d') + urlBack
         ftpstream = urllib.urlopen(ftpURL)  # open url
         lines = ftpstream.readlines()  # read the lines of the url into an array of lines
         ftpstream.close()  # close connection with the server
         # # # # # # # # # # # # now the forecast spectra are in lines # # # # # # # # # # # #
-        frequencies, directions, forcastDates, forcastDateLines = [], [], [], []
+        frequencies, somethingElse, forecastDates, forecastDateLines = [], [], [], []
 
         for ii, line in enumerate(lines):  # read through each line
             split = line.split()   # split the current line up
@@ -39,34 +39,46 @@ class forecastData:
                 nDir = int(split[4])
             elif len(split) == 8 or nFreq - len(frequencies) == len(split) and len(frequencies) != nFreq: # this is frequencies
                 frequencies.extend(split)
-            elif (len(split) == 7 or nDir - len(directions) == len(split)) and len(directions) != nDir:  # this is directions
-                directions.extend(split)
-            elif len(split[0]) == 8  and len(split) == 2: ## this is the date line for the beggining of a spectra
-                forcastDates.append(DT.datetime.strptime(split[0], '%Y%m%d'))
-                forcastDateLines.append(ii)
+            elif (len(split) == 7 or nDir - len(somethingElse) == len(split)) and len(somethingElse) != nDir:  # this is somethingElse
+                somethingElse.extend(split)
+            elif len(split[0]) == 8  and len(split) == 2: ## this is the date line for the beggining of Dp spectra
+                forecastDates.append(DT.datetime.strptime(line, '%Y%m%d %H%M%S\n'))
+                forecastDateLines.append(ii)
         ## now go back through 'lines' and parse spectra
-        spectra = np.ones((len(forcastDateLines), nFreq, nDir), dtype=float) * 1e-8
-        buoyStats = []
-        for ll in forcastDateLines:
+        spectra = np.ones((len(forecastDateLines), nFreq, nDir), dtype=float) * 1e-8
+        buoyNum, lon, lat, Depth, Hm0, Dp, b, c = [], [], [], [], [], [], [], []
+        for ll in forecastDateLines:
             numLinesPerSpec = np.ceil(nFreq*float(nDir)/len(lines[ll+2].split())).astype(int)
-            buoyStats.append(
-                lines[ll+1].split())            # these are the buoy number and stats
+            buoyStats = lines[ll+1].split()
+            buoyNum.append(int(buoyStats[0].strip("'")))
+            lon.append(float(buoyStats[2]))
+            lat.append(float(buoyStats[3])) # these are the buoy number and stats
+            Depth.append(float(buoyStats[4]))  # not sure what this fild is
+            Hm0.append(float(buoyStats[5])) #
+            Dp.append(float(buoyStats[6]))
+            b.append(float(buoyStats[7]))
+            c.append(float(buoyStats[8]))
+
             tt = np.floor(float(ll) / (numLinesPerSpec - 1)).astype(int)  # time index
             linear = []
             for ss in range(numLinesPerSpec):
                 # data =
                 linear.extend(lines[ss + ll + 2].split())
-                # linear.extend(lines[ss+ll+2].split())
-                # ff = np.floor(ss/float(nDir)) * len(data) # freq index
-                # dd = slice(ss * len(data), ss * len(data) + len(data))
-                # spectra[tt, ff, dd] = data
             spectra[tt] = np.array(linear, dtype=float).reshape(nDir, nFreq).T
 
-
-        out = {'wavedirbin': np.array(directions, dtype=float),
+        # TODO convert from feet to meters
+        out = {'wavedirbin':np.array(somethingElse, dtype=float), #np.linspace(0,360, nDir, endpoint=False)[::-1],
+               'Hm0': Hm0,
+               'Dp':Dp,
+               'b':b,
+               'c':c,
+               'lon': lon,
+               'lat': lat,
+               'depth': Depth,
+               'somethingElse': np.array(somethingElse, dtype=float),  # not sure what this is
                'wavefreqbin': np.array(frequencies, dtype=float),
-                'dWED':spectra ,
-                'time': forcastDates}
+               'dWED':spectra ,
+               'time': np.array(forecastDates)}
 
         return out
     def get_CbathyFromFTP(self, dlist, path, timex=True):
