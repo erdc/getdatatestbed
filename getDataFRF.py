@@ -105,6 +105,8 @@ class getObs:
 
         except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             try:
+                #MPG DEBUG
+                print 'in gettime'
                 self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
                 self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
                 # now find the boolean !
@@ -397,9 +399,10 @@ class getObs:
 
         self.winddataindex = self.gettime(dtRound=collectionlength * 60)
         # remove nan's that shouldn't be there
-        self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
+            # MPG: moved inside if statement b/c call to gettime possibly returns None.
+            self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
             windspeed = self.ncfile['windSpeed'][self.winddataindex]  # wind speed
             winddir = self.ncfile['windDirection'][self.winddataindex]  # wind direction
@@ -979,7 +982,7 @@ class getObs:
         return out
 
     def getCTD(self):
-
+        
         #THIS FUNCTION IS CURRENTLY BROKEN - THE PROBLEM IS THAT self.ncfile does not have any keys?
 
         """
@@ -1295,7 +1298,8 @@ class getDataTestBed:
 
         except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             try:
-                self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
+                # MPG: Use self.chlDataLoc with 'frf/' removed from string for correct url.
+                self.ncfile = nc.Dataset(self.chlDataLoc.replace('frf/', 'cmtb/') + self.dataloc)
                 self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
                 # now find the boolean !
                 emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
