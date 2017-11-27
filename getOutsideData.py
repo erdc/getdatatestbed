@@ -21,7 +21,14 @@ class forecastData:
         self.dataLocECWMF = u'ftp://data-portal.ecmwf.int/20170808120000/'  # ECMWF forecasts
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
 
-    def getWWIII(self, forecastHour, buoyNumber=44100):
+    def getWW3(self, forecastHour, buoyNumber=44100):
+        """
+        This funcion will get spectral forecasts from the NCEP nomads server and parse it out
+        to geographic coordinate system
+        :param forecastHour:
+        :param buoyNumber:
+        :return:
+        """
         import urllib
         assert type(forecastHour) is str, 'Forecast hour variable must be Dp string'
         urlBack = '/bulls.t%sz/' %forecastHour +'multi_1.%d.spec' %buoyNumber
@@ -80,7 +87,9 @@ class forecastData:
                'dWED':spectra ,
                'time': np.array(forecastDates)}
 
+
         return out
+
     def get_CbathyFromFTP(self, dlist, path, timex=True):
         """
         this function downloads argus cbathy bathy data from the argus ftp server
