@@ -1312,7 +1312,6 @@ class getObs:
 
 class getDataTestBed:
 
-
     def __init__(self, d1, d2):
         """
         Initialization description here
