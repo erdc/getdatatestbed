@@ -832,17 +832,12 @@ class getObs:
                'lon': ncfile['longitude'][:]}
         return out
 
-    def get_sensor_locations_from_thredds(timestamp):
+    def get_sensor_locations_from_thredds(self):
 
         """ 
         Retrieves lat/lon coordinates for each gauge in gauge_list, converts 
         to state plane and frf coordinates and creates a dictionary containing 
-        all three coordinates types with gaugenumbers as keys. 
-
-        Parameters
-        ----------
-        timestamp : datetime.datetime
-            timestamp for which coordinates are desired.
+        all three coordinates types with gaugenumbers as keys.
 
         Returns
         -------
@@ -850,9 +845,6 @@ class getObs:
             Dictionary containing lat/lon, state plane, and frf coordinates
             for each available gaugenumber with gaugenumbers as keys.
         """
-        d1 = timestamp
-        d2 = timestamp + timedelta(hours=1)
-        go = getObs(d1, d2)
 
         loc_dict = {}
 
@@ -862,7 +854,7 @@ class getObs:
 
             # Get latlon from Thredds server.
             try:
-                latlon = go.getWaveGaugeLoc(g)
+                latlon = self.getWaveGaugeLoc(g)
             except IOError:
                 continue
 
@@ -890,8 +882,7 @@ class getObs:
 
         return loc_dict
 
-    def get_sensor_locations(self, timestamp, 
-                             datafile='frf_sensor_locations.pkl', 
+    def get_sensor_locations(self, datafile='frf_sensor_locations.pkl', 
                              window_days=14):
         """
         Retrieve sensor coordinate dictionary from file if there is an entry
@@ -935,7 +926,7 @@ class getObs:
                     # data is available.
                     sensor_locations[g] = {}
         else:
-            sensor_locations = get_sensor_locations_from_thredds(timestamp)
+            sensor_locations = self.get_sensor_locations_from_thredds(timestamp)
             loc_dict[timestamp] = sensor_locations
             pickle.dump(loc_dict, open(datafile, 'wb'))
 
