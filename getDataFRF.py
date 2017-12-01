@@ -1329,7 +1329,7 @@ class getDataTestBed:
         self.comp_time()
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
-        self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
+        self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/cmtb/' #'http://10.200.23.50/thredds/dodsC/frf/'
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
 
