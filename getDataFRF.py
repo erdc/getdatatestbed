@@ -911,9 +911,9 @@ class getObs:
         """
         loc_dict = pickle.load(open(datafile, 'rb'))
         available_timestamps = np.array(loc_dict.keys()) 
-        idx = np.abs(timestamp - available_timestamps).argmin()
+        idx = np.abs(self.d1 - available_timestamps).argmin()
         nearest_timestamp = available_timestamps[idx]
-        if abs(timestamp - nearest_timestamp).days < window_days:
+        if abs(self.d1 - nearest_timestamp).days < window_days:
             archived_sensor_locations = loc_dict[nearest_timestamp]
             # MPG: only use locations specified in self.gaugelist (for the case 
             # that there are archived locations that should not be used).
@@ -926,8 +926,8 @@ class getObs:
                     # data is available.
                     sensor_locations[g] = {}
         else:
-            sensor_locations = self.get_sensor_locations_from_thredds(timestamp)
-            loc_dict[timestamp] = sensor_locations
+            sensor_locations = self.get_sensor_locations_from_thredds()
+            loc_dict[self.d1] = sensor_locations
             pickle.dump(loc_dict, open(datafile, 'wb'))
 
         return sensor_locations
