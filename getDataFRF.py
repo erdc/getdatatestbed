@@ -120,8 +120,6 @@ class getObs:
 
         except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             try:
-                #MPG DEBUG
-                print 'in gettime'
                 self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
                 self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
                 # now find the boolean !
