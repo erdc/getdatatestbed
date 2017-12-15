@@ -24,11 +24,18 @@ class forecastData:
 
     def getWW3(self, forecastHour, buoyNumber=44100):
         """
-        This funcion will get spectral forecasts from the NCEP nomads server and parse it out
-        to geographic coordinate system
+        This funcion will get spectral forecasts from the NCEP nomads server and 
+        parse it out to geographic coordinate system. Currently, the data is 
+        transformed from oceanographic to meteorological coordinates and from 
+        units of m^2 s rad^-1 to m^2 s deg^-1 to maintain FRF gauge data 
+        conventions. Spectra are also sorted in ascending order by frequency and
+        direction. The functionality associated with transforming the data may be 
+        more appropriately located in cmtb/PrepData.
+        
         :param forecastHour:
         :param buoyNumber:
-        :return:
+        :return: A dictionary with wave directions, frequencies, directional wave
+            spectra, and the timestamps for each spectrum.
         """
         import urllib
         assert type(forecastHour) is str, 'Forecast hour variable must be a string'
