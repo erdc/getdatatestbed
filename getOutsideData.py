@@ -2,6 +2,7 @@ import datetime as DT
 import netCDF4 as nc
 import os
 import numpy as np
+import sys
 
 class forecastData:
     def __init__(self, d1):
@@ -31,6 +32,7 @@ class forecastData:
         """
         import urllib
         assert type(forecastHour) is str, 'Forecast hour variable must be a string'
+        forecastHour = forecastHour.zfill(2)
         urlBack = '/bulls.t%sz/' %forecastHour +'multi_1.%d.spec' %buoyNumber
         ftpURL = self.dataLocNCEP + 'multi_1.' + self.d1.strftime('%Y%m%d') + urlBack
         ftpstream = urllib.urlopen(ftpURL)  # open url
@@ -38,7 +40,6 @@ class forecastData:
         ftpstream.close()  # close connection with the server
         # # # # # # # # # # # # now the forecast spectra are in lines # # # # # # # # # # # #
         frequencies, directions, forcastDates, forcastDateLines = [], [], [], []
-
         for ii, line in enumerate(lines):  # read through each line
             split = line.split()   # split the current line up
             if split[0].strip("'")  == 'WAVEWATCH':  # is it the header of the file?
@@ -49,8 +50,32 @@ class forecastData:
             elif (len(split) == 7 or nDir - len(directions) == len(split)) and len(directions) != nDir:  # this is directions
                 directions.extend(split)
             elif len(split[0]) == 8  and len(split) == 2: ## this is the date line for the beggining of a spectra
-                forcastDates.append(DT.datetime.strptime(split[0], '%Y%m%d'))
+                # MPG: Include time component (second entry in date line).
+                timestampstr = split[0] + split[1] 
+                timestamp = DT.datetime.strptime(timestampstr, '%Y%m%d%H%M%S')
+                forcastDates.append(timestamp)
                 forcastDateLines.append(ii)
+        
+        # MPG: convert directions and frequencies from list(string) to 
+        # np.array(float).
+        directions = np.array(directions).astype('float')
+        frequencies = np.array(frequencies).astype('float')
+
+        # MPG: convert directions from radians to degrees.
+        directions = np.rad2deg(directions)
+
+        # MPG: convert directions from oceanographic to meteorological 
+        # convention to be consistent w/ FRF wave gauge data.
+        small_angle = directions < 180.0
+        directions[small_angle] = 180.0 + directions[small_angle]
+        directions[~small_angle] = directions[~small_angle] - 180.0
+
+        # MPG: sort directions and frequencies.
+        didx = directions.argsort()
+        fidx = frequencies.argsort()
+        directions = directions[didx]
+        frequencies = frequencies[fidx]
+        
         ## now go back through 'lines' and parse spectra
         spectra = np.ones((len(forcastDateLines), nFreq, nDir), dtype=float) * 1e-8
         buoyStats = []
@@ -68,10 +93,14 @@ class forecastData:
                 # dd = slice(ss * len(data), ss * len(data) + len(data))
                 # spectra[tt, ff, dd] = data
             spectra[tt] = np.array(linear, dtype=float).reshape(nDir, nFreq).T
+            spectra[tt] = spectra[tt][fidx][:,didx]
 
-
-        out = {'wavedirbin': np.array(np.rad2deg(directions), dtype=float),
-               'wavefreqbin': np.array(frequencies, dtype=float),
+        # MPG: convert dWED from rad^-1 to deg^-1 to be consistent w/
+        # FRF wave gauge data.
+        spectra = spectra*2*np.pi / 180.0
+        
+        out = {'wavedirbin': directions,
+               'wavefreqbin': frequencies,
                'dWED':spectra ,
                'time': forcastDates}
 
