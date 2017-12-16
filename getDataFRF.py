@@ -18,6 +18,9 @@ import pandas as pd
 from sblib import sblib as sb
 from sblib import geoprocess as gp
 
+# MPG: import cPickle for file i/o. 
+import cPickle as pickle
+
 class getObs:
     """
     Note d1 and d2 have to be in date-time formats
@@ -32,7 +35,19 @@ class getObs:
         Data are returned in self.datainex are inclusive at d1,d2
         Data comes from waverider 632 (26m?)
         """
-
+        
+        self.gaugelist = [
+            'waverider-17m', 
+            'awac-11m', 
+            '8m-array', 
+            'awac-6m', 
+            'awac-4.5m', 
+            'adop-3.5m', 
+            'xp200m', 
+            'xp150m', 
+            'xp125m', 
+            'waverider-26m'
+            ]
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.d1 = d1  # start date for data grab
@@ -400,9 +415,10 @@ class getObs:
 
         self.winddataindex = self.gettime(dtRound=collectionlength * 60)
         # remove nan's that shouldn't be there
-        self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
+            # MPG: moved inside if statement b/c call to gettime possibly returns None.
+            self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
             windspeed = self.ncfile['windSpeed'][self.winddataindex]  # wind speed
             winddir = self.ncfile['windDirection'][self.winddataindex]  # wind direction
@@ -912,6 +928,106 @@ class getObs:
                'lon': ncfile['longitude'][:]}
         return out
 
+    def get_sensor_locations_from_thredds(self):
+
+        """ 
+        Retrieves lat/lon coordinates for each gauge in gauge_list, converts 
+        to state plane and frf coordinates and creates a dictionary containing 
+        all three coordinates types with gaugenumbers as keys.
+
+        Returns
+        -------
+        loc_dict : dict
+            Dictionary containing lat/lon, state plane, and frf coordinates
+            for each available gaugenumber with gaugenumbers as keys.
+        """
+
+        loc_dict = {}
+
+        for g in self.gaugelist:
+            loc_dict[g] = {}
+            data = loc_dict[g]
+
+            # Get latlon from Thredds server.
+            try:
+                latlon = self.getWaveGaugeLoc(g)
+            except IOError:
+                continue
+
+            # lat and lon values currently stored as 1 element arrays. 
+            # Cast to float for consistency.
+            lat = float(latlon['lat'])
+            lon = float(latlon['lon'])
+
+            # Covert latlon to stateplane.
+            coords = gp.LatLon2ncsp(lon, lat)
+            spE = coords['StateplaneE']
+            spN = coords['StateplaneN']
+
+            # Convert stateplane to frf coords.
+            frfcoords = gp.ncsp2FRF(spE, spN)
+            xfrf = frfcoords['xFRF']
+            yfrf = frfcoords['yFRF']
+
+            data['lat'] = lat
+            data['lon'] = lon
+            data['spE'] = spE
+            data['spN'] = spN
+            data['xFRF'] = xfrf
+            data['yFRF'] = yfrf
+
+        return loc_dict
+
+    def get_sensor_locations(self, datafile='frf_sensor_locations.pkl', 
+                             window_days=14):
+        """
+        Retrieve sensor coordinate dictionary from file if there is an entry
+        within window_days of the specified timestampstr. Otherwise query the 
+        Thredds server for location information and update archived data 
+        accordingly.
+
+        Parameters
+        ----------
+        timestamp : datetime.datetime
+            timestamp for which coordinates are desired.
+        datafile : str
+            Name of file containing archived sensor location data.
+        window_days : int
+            Maximum interval between desired timestamp and closest timestamp
+            in datafile to use archived data. If this interval is larger than 
+            window_days days, query the Thredds server.
+
+        Returns
+        -------
+        sensor_locations : dict
+            Coordinates in lat/lon, stateplane, and frf for each available 
+            gaugenumber (gauges 0 to 12).
+
+        Updates datafile when new information is retrieved.
+        """
+        loc_dict = pickle.load(open(datafile, 'rb'))
+        available_timestamps = np.array(loc_dict.keys()) 
+        idx = np.abs(self.d1 - available_timestamps).argmin()
+        nearest_timestamp = available_timestamps[idx]
+        if abs(self.d1 - nearest_timestamp).days < window_days:
+            archived_sensor_locations = loc_dict[nearest_timestamp]
+            # MPG: only use locations specified in self.gaugelist (for the case 
+            # that there are archived locations that should not be used).
+            sensor_locations = {}
+            for g in self.gaugelist:
+                if g in archived_sensor_locations:
+                    sensor_locations[g] = archived_sensor_locations[g]
+                else:
+                    # MPG: use empty dict as a placeholder to indicate that no
+                    # data is available.
+                    sensor_locations[g] = {}
+        else:
+            sensor_locations = self.get_sensor_locations_from_thredds()
+            loc_dict[self.d1] = sensor_locations
+            pickle.dump(loc_dict, open(datafile, 'wb'))
+
+        return sensor_locations
+
     def getBathyGridcBathy(self, **kwargs):
         """
         this functin gets the cbathy data from the below address, assumes fill value of -999
@@ -1079,7 +1195,7 @@ class getObs:
         return out
 
     def getCTD(self):
-
+        
         #THIS FUNCTION IS CURRENTLY BROKEN - THE PROBLEM IS THAT self.ncfile does not have any keys?
 
         """
@@ -1395,7 +1511,8 @@ class getDataTestBed:
 
         except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
             try:
-                self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
+                # MPG: Use self.chlDataLoc with 'frf/' removed from string for correct url.
+                self.ncfile = nc.Dataset(self.chlDataLoc.replace('frf/', 'cmtb/') + self.dataloc)
                 self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
                 # now find the boolean !
                 emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
