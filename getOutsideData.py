@@ -37,9 +37,9 @@ class forecastData:
         :return: A dictionary with wave directions, frequencies, directional wave
             :key 'wavedirbin':
             :key 'wavefreqbin':
-            :key 'dWED':spectra
-            :key 'lat': lat,
-            :key 'lon': lon,
+            :key 'dWED': 2dimensional wave spectra [t, freq, dir]
+            :key 'lat': latitude
+            :key 'lon': longitude
             :key 'time': date time
             spectra, and the timestamps for each spectrum.
         """
