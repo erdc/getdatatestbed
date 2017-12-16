@@ -237,8 +237,11 @@ class getObs:
                             'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
                             'depth': depth,
-                            'Hs': self.ncfile['waveHs'][self.wavedataindex],
-                            'peakf': 1/self.ncfile['waveTp'][self.wavedataindex]}
+                            'Hs': self.ncfile['waveHs'][self.wavedataindex],}
+                try:
+                    wavespec['peakf'] =  1/self.ncfile['waveTp'][self.wavedataindex]
+                except:
+                    wavespec['peakf'] = 1/self.ncfile['waveTpPeak'][self.wavedataindex]
                     # except IndexError:
                 #     wavespec = {'time': self.snaptime,                # note this is old Variable names remove soon
                 #         'epochtime': nc.date2num(self.snaptime, self.ncfile['time'].units),
@@ -1693,64 +1696,81 @@ class getDataTestBed:
                 data is rounded to the nearst [collectionlength] (default 30 min)
             """
             # Making gauges flexible
-
+            if prefix in ['CB', 'HP', 'CBHP', 'FP']:
+                model = 'STWAVE'
+                urlFront = 'waveModels/%s/%s' %(model, prefix)
+            elif prefix.startswith('S') and prefix[1].isdigit():  # this is static bathy
+                model = 'STWAVE'
+                urlFront = 'projects/%s/CBHP/SingleBathy_%s' %(model, prefix[1:])
+            elif prefix in ['CBThresh_0']:
+                model = 'STWAVE'
+                urlFront = 'projects/STWAVE/CBThresh_0'
+            ############### now identify file name #################
             if gaugenumber in [0, 'waverider-26m', 'Waverider-26m', '26m']:
                 # 26 m wave rider
-                self.dataloc = '%s_data/FRF_CMTB_%s_waverider-26m.ncml'  %(prefix, prefix)
+                fname = 'waverider-26m/waverider-26m.ncml'
                 gname = '26m Waverider Buoy'
             elif gaugenumber in [1, 'Waverider-17m', 'waverider-17m']:
                 # 2D 17m waverider
-                self.dataloc = '%s_data/FRF_CMTB_%s_waverider-17m.ncml'  %(prefix, prefix)
+                fname = 'waverider-17/waverider-17m.ncml'
                 gname = '17m Waverider Buoy'
             elif gaugenumber in [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']:
                 gname = 'AWAC04 - 11m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_awac11m.ncml'  %(prefix, prefix)
+                fname = 'awac11m/awac11m.ncml'
             elif gaugenumber in [3, 'awac-8m', 'AWAC-8m', 'Awac-8m', 'awac 8m',
                                  '8m-Array', '8m Array', '8m array', '8m-array']:
                 gname = 'AWAC 8m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_awac-8m.ncml' %(prefix, prefix)
+                fname = 'wac-8m/awac-8m.ncml'
             elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
                 gname = 'AWAC 6m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_awac-6m.ncml' %(prefix, prefix)
+                fname = 'awac-6m/awac-6m.ncml'
             elif gaugenumber in [5, 'awac-4.5m', 'Awac-4.5m']:
                 gname = 'AWAC 4.5m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_awac-4.5m.ncml' %(prefix, prefix)
-            elif gaugenumber [6, 'adop-3.5m', 'aquadopp 3.5m']:
+                fname = 'awac-4.5m/awac-4.5m.ncml'
+            elif gaugenumber in [6, 'adop-3.5m', 'aquadopp 3.5m']:
                 gname = 'Aquadopp 3.5m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_adop-3.5m.ncml' %(prefix, prefix)
+                fname = 'adop-3.5m/adop-3.5m.ncml'
             elif gaugenumber in [8, 'xp200m', 'xp200']:
                 gname = 'Paros xp200m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_xp200m.ncml' %(prefix, prefix)
+                fname = 'xp200m/xp200m.ncml'
             elif gaugenumber in [9, 'xp150m', 'xp150']:
                 gname = 'Paros xp150m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_xp150m.ncml' %(prefix, prefix)
+                fname = 'xp150m/xp150m.ncml'
             elif gaugenumber == 10 or gaugenumber == 'xp125m':
                 gname = 'Paros xp125m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_xp125m.ncml' %(prefix, prefix)
+                fname = 'xp125m/xp125m.ncml'
             elif gaugenumber == 11 or gaugenumber == 'xp100m':
                 gname = 'Paros xp100m'
-                self.dataloc = '%s_data/FRF_CMTB_%s_xp100m.ncml' %(prefix, prefix)
+                fname = 'xp100m/xp100m.ncml'
             else:
                 gname = 'There Are no Gauge numbers here'
                 raise NameError('Bad Gauge name, specify proper gauge name/number')
             # parsing out data of interest in time
+            self.dataloc = urlFront +'/'+ fname
             try:
                 self.wavedataindex = self.gettime()
                 assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
 
                 if np.size(self.wavedataindex) >= 1:
-                    wavespec = {'time': nc.num2date(self.ncfile['time'], self.ncfile['time'].units),
+                    wavespec = {'epochtime': self.ncfile['time'][self.wavedataindex],
+                                'time': nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units),
                                 'name': nc.chartostring(self.ncfile['station_name'][:]),
                                 'wavefreqbin': self.ncfile['waveFrequency'][:],
-                                'lat': self.ncfile['lat'][:],
-                                'lon': self.ncfile['lon'][:],
+                                #'lat': self.ncfile['lat'][:],
+                                #'lon': self.ncfile['lon'][:],
                                 'Hs': self.ncfile['waveHs'][self.wavedataindex],
-                                'peakf': self.ncfile['wavePeakFrequency'][self.wavedataindex],
+                                'peakf': self.ncfile['waveTp'][self.wavedataindex],
                                 'wavedirbin': self.ncfile['waveDirectionBins'][:],
                                 'dWED': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :],
-                                'waveDp': self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex],  # 'waveDp'][self.wavedataindex]
-                                'waveDm': self.ncfile['waveMeanDirection'][self.wavedataindex],
-                                'WED': self.ncfile['waveEnergyDensity'][self.wavedataindex, :],}
+                                # 'waveDp': self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex],  # 'waveDp'][self.wavedataindex]
+                                'waveDm': self.ncfile['waveDm'][self.wavedataindex],
+                                'waveTm': self.ncfile['waveTm'][self.wavedataindex],
+                                'waveTp': self.ncfile['waveTp'][self.wavedataindex],
+                                'WL': self.ncfile['waterLevel'][self.wavedataindex],
+                                'Umag': self.ncfile['Umag'][self.wavedataindex],
+                                'Udir': self.ncfile['Udir'][self.wavedataindex],
+                                'fspec': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :,:].sum(axis=2),
+                                'qcFlag': self.ncfile['qcFlag'][self.wavedataindex]}
 
             except (RuntimeError, AssertionError):
                 print '<<ERROR>> Retrieving data from %s\n in this time period start: %s  End: %s' % (
