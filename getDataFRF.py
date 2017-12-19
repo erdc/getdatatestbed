@@ -915,8 +915,10 @@ class getObs:
                       'fB': np.ma.array(self.ncfile['fB'][self.cbidx, ys, xs, :],  mask=(self.ncfile['fB'][self.cbidx, ys, xs, :] <= fillValue)),
                       'k': np.ma.array(self.ncfile['k'][self.cbidx, ys, xs, :], mask=(self.ncfile['k'][self.cbidx, ys, xs, :] <= fillValue)),
                       'P': np.ma.array(self.ncfile['PKF'][self.cbidx, ys, xs], mask=(self.ncfile['PKF'][self.cbidx, ys, xs] <= fillValue))}  # may need to be masked
+            assert ~cbdata['depthKF'].mask.all(), 'all Cbathy kalman filtered data retrieved are masked '
             print 'Grabbed cBathy Data, successfully'
-        except IndexError:  # there's no data in the Cbathy
+
+        except (IndexError, AssertionError):  # there's no data in the Cbathy
             cbdata = None
 
         return cbdata
