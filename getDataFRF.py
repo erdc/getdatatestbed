@@ -32,10 +32,10 @@ class getObs:
     def __init__(self, d1, d2):
         """
         Initialization description here
-        Data are returned in self.datainex are inclusive at d1,d2
-        Data comes from waverider 632 (26m?)
+        Data are returned in self.datainex are inclusive at d1,
+         exclusive at d2
         """
-        
+        # this is active wave gauge list for doing wave rider
         self.gaugelist = [
             'waverider-17m', 
             'awac-11m', 
@@ -978,8 +978,7 @@ class getObs:
 
         return loc_dict
 
-    def get_sensor_locations(self, datafile='frf_sensor_locations.pkl', 
-                             window_days=14):
+    def get_sensor_locations(self, datafile='frf_sensor_locations.pkl', window_days=14):
         """
         Retrieve sensor coordinate dictionary from file if there is an entry
         within window_days of the specified timestampstr. Otherwise query the 
@@ -1005,7 +1004,19 @@ class getObs:
 
         Updates datafile when new information is retrieved.
         """
-        loc_dict = pickle.load(open(datafile, 'rb'))
+        try:
+            with open(datafile, 'rb') as fid:  # this will close a file when done loading it
+                loc_dict = pickle.load(fid)
+        except IOError:
+            loc_dict = {}
+            # now create pickle if one's not around
+            # this should be date of searching( or date of gauge placement more acccureately)
+            timestamp = self.d1 # DT.strptime(timestampstr, '%Y%m%d_%H%M')
+            loc_dict[timestamp] = [self.get_sensor_locations_from_thredds()] #timestamp)
+            with open(datafile, 'wb') as fid:
+                pickle.dump(loc_dict, fid)
+
+        # loc_dict = pickle.load(open(datafile, 'rb'))
         available_timestamps = np.array(loc_dict.keys()) 
         idx = np.abs(self.d1 - available_timestamps).argmin()
         nearest_timestamp = available_timestamps[idx]
@@ -1024,7 +1035,8 @@ class getObs:
         else:
             sensor_locations = self.get_sensor_locations_from_thredds()
             loc_dict[self.d1] = sensor_locations
-            pickle.dump(loc_dict, open(datafile, 'wb'))
+            with open(datafile, 'wb') as fid:
+                pickle.dump(loc_dict, fid)
 
         return sensor_locations
 
