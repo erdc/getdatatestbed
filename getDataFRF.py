@@ -12,6 +12,7 @@ This is a class definition designed to get data from the FRF thredds server
 import datetime as DT
 import sys
 from subprocess import check_output
+import collections
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
@@ -1024,7 +1025,7 @@ class getObs:
             archived_sensor_locations = loc_dict[nearest_timestamp]
             # MPG: only use locations specified in self.gaugelist (for the case 
             # that there are archived locations that should not be used).
-            sensor_locations = {}
+            sensor_locations = collections.OrderedDict()
             for g in self.gaugelist:
                 if g in archived_sensor_locations:
                     sensor_locations[g] = archived_sensor_locations[g]
