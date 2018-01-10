@@ -49,6 +49,8 @@ class getObs:
             'xp125m', 
             'waverider-26m'
             ]
+        self.directional = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
+                            'adop-3.5m']
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.d1 = d1  # start date for data grab
@@ -288,15 +290,14 @@ class getObs:
 
                 except IndexError:
                     # this should throw when gauge is non directional
-
                     wavespec['wavedirbin'] = np.arange(0, 360, 90)  # 90 degree bins
-                    wavespec['dWED'] = np.ones(
-                        [np.size(self.wavedataindex), np.size(wavespec['wavefreqbin']), np.size(wavespec['wavedirbin'])])  # * 1e-8
-                    wavespec['waveDp'] = np.zeros(np.size(self.wavedataindex))
+                    wavespec['waveDp'] = np.zeros(np.size(self.wavedataindex)) * -999
                     wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
                     if wavespec['fspec'].ndim < 2:
                         wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
                     # multiply the freq spectra for all directions
+                    wavespec['dWED'] = np.ones(
+                         [np.size(self.wavedataindex), np.size(wavespec['wavefreqbin']), np.size(wavespec['wavedirbin'])])  # *
                     wavespec['dWED'] = wavespec['dWED'] * wavespec['fspec'][:, :, np.newaxis]/len(wavespec['wavedirbin'])
                     wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
 
