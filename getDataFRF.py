@@ -288,10 +288,12 @@ class getObs:
             gname, self.d1, self.d2)
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
-                            'lon': self.ncfile['longitude'][:],}
+                            'lon': self.ncfile['longitude'][:],
+                            'name': str(self.ncfile.title),}
             except:
                 wavespec = {'lat': self.ncfile['lat'][:],
-                            'lon': self.ncfile['lon'][:]}
+                            'lon': self.ncfile['lon'][:],
+                            'name': str(self.ncfile.title),}
             return wavespec
 
     def getCurrents(self, gaugenumber=5, roundto=1):
@@ -1373,6 +1375,7 @@ class getDataTestBed:
 
             self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc) #loads all of the netCDF file
             #            try:
+
             self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
             # now find the boolean!
             mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
@@ -1416,6 +1419,9 @@ class getDataTestBed:
             except IOError:  # this occors when thredds is down
                 print ' Trouble Connecteing to data on CHL Thredds'
                 idx = None
+
+        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
+        # switch us back to the local THREDDS if it moved us to CHL
 
         return idx
 
@@ -1523,6 +1529,7 @@ class getDataTestBed:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
             self.bathydataindex = []  # when a server is not available
+
         if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
             idx = self.bathydataindex.squeeze()
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
@@ -1532,13 +1539,13 @@ class getDataTestBed:
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             print 'Bathymetry is taken as closest in HISTORY - operational'
         elif (self.bathydataindex == None or np.size(self.bathydataindex) < 1) and method == 0:
-            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
         elif self.bathydataindex != None and len(self.bathydataindex) > 1:
-            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
-            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
 
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.ncfile['time'][idx],
                                                                                     self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
             raise Exception
@@ -1566,7 +1573,13 @@ class getDataTestBed:
             self.d2 = oldD2
             self.epochd2 = oldD2epoch
             self.epochd1 = oldD1epoch
-        bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
+
+        # this commented out section will work once the times on the CHL THREDDS are fixed.
+        # Until then, it will error because self.allEpoch was obtained
+        # from the CHL THREDDS times, and they are screwed all up!
+        # bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
+        bathyT = nc.num2date(self.ncfile['time'][idx], 'seconds since 1970-01-01')
+
         print '  Measured Bathy is %s old' % (self.d2 - bathyT)
 
         gridDict = {'xFRF': xCoord,
