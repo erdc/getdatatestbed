@@ -1534,9 +1534,6 @@ class getDataTestBed:
                 emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
                 idx = np.argwhere(emask).squeeze()
 
-                # this will block it from going to the CHL THREDDS
-                idx = []
-
                 # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
                 #                            self.ncfile['time'].calendar)
                 # for i, date in enumerate(self.alltime):
