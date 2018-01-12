@@ -401,7 +401,10 @@ class getObs:
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
             self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
-
+            if np.size(self.winddataindex) == 0:
+                # return None is he wind direction is associated with the wind is no good!
+                windpacket = None
+                return windpacket
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
             windspeed = self.ncfile['windSpeed'][self.winddataindex]  # wind speed
             winddir = self.ncfile['windDirection'][self.winddataindex]  # wind direction
