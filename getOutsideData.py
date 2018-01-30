@@ -2,6 +2,7 @@ import datetime as DT
 import netCDF4 as nc
 import os
 import numpy as np
+import sys
 
 class forecastData:
     def __init__(self, d1):
@@ -23,14 +24,28 @@ class forecastData:
 
     def getWW3(self, forecastHour, buoyNumber=44100):
         """
-        This funcion will get spectral forecasts from the NCEP nomads server and parse it out
-        to geographic coordinate system
+        This funcion will get spectral forecasts from the NCEP nomads server and 
+        parse it out to geographic coordinate system. Currently, the data is 
+        transformed from oceanographic to meteorological coordinates and from 
+        units of m^2 s rad^-1 to m^2 s deg^-1 to maintain FRF gauge data 
+        conventions. Spectra are also sorted in ascending order by frequency and
+        direction. The functionality associated with transforming the data may be 
+        more appropriately located in cmtb/PrepData.
+        
         :param forecastHour:
         :param buoyNumber:
-        :return:
+        :return: A dictionary with wave directions, frequencies, directional wave
+            :key 'wavedirbin':
+            :key 'wavefreqbin':
+            :key 'dWED': 2dimensional wave spectra [t, freq, dir]
+            :key 'lat': latitude
+            :key 'lon': longitude
+            :key 'time': date time
+            spectra, and the timestamps for each spectrum.
         """
         import urllib
         assert type(forecastHour) is str, 'Forecast hour variable must be a string'
+        forecastHour = forecastHour.zfill(2)
         urlBack = '/bulls.t%sz/' %forecastHour +'multi_1.%d.spec' %buoyNumber
         ftpURL = self.dataLocNCEP + 'multi_1.' + self.d1.strftime('%Y%m%d') + urlBack
         ftpstream = urllib.urlopen(ftpURL)  # open url
@@ -49,31 +64,68 @@ class forecastData:
             elif (len(split) == 7 or nDir - len(directions) == len(split)) and len(directions) != nDir:  # this is directions
                 directions.extend(split)
             elif len(split[0]) == 8  and len(split) == 2: ## this is the date line for the beggining of a spectra
-                forcastDates.append(DT.datetime.strptime(split[0], '%Y%m%d'))
+                # MPG: Include time component (second entry in date line).
+                timestampstr = split[0] + split[1] 
+                timestamp = DT.datetime.strptime(timestampstr, '%Y%m%d%H%M%S')
+                forcastDates.append(timestamp)
                 forcastDateLines.append(ii)
+        
+        # MPG: convert directions and frequencies from list(string) to 
+        # np.array(float).
+        directions = np.array(directions).astype('float')
+        frequencies = np.array(frequencies).astype('float')
+
+        # MPG: convert directions from radians to degrees.
+        directions = np.rad2deg(directions)
+
+        # MPG: convert directions from oceanographic to meteorological 
+        # convention to be consistent w/ FRF wave gauge data.
+        small_angle = directions < 180.0
+        directions[small_angle] = 180.0 + directions[small_angle]
+        directions[~small_angle] = directions[~small_angle] - 180.0
+
+        # MPG: sort directions and frequencies.
+        didx = directions.argsort()
+        fidx = frequencies.argsort()
+        directions = directions[didx]
+        frequencies = frequencies[fidx]
+        
         ## now go back through 'lines' and parse spectra
         spectra = np.ones((len(forcastDateLines), nFreq, nDir), dtype=float) * 1e-8
-        buoyStats = []
+        buoyNum, lon, lat, Depth, Hm0, Dp, b, c = [], [], [], [], [], [], [], []
         for ll in forcastDateLines:
             numLinesPerSpec = np.ceil(nFreq*float(nDir)/len(lines[ll+2].split())).astype(int)
-            buoyStats.append(
-                lines[ll+1].split())            # these are the buoy number and stats
+            buoyStats = lines[ll+1].split()
+            if ll == forcastDateLines[0]:  # if its not going to change only grab it once
+                buoyNum = int(buoyStats[0].strip("'"))
+                lon = float(buoyStats[2])
+                lat = float(buoyStats[3])
+                Depth = float(buoyStats[4])
+            # Hm0.append(float(buoyStats[5])) # these need to be converted to meters ... is this actually wind?
+            # Dp.append(float(buoyStats[6])) # these are not exported   ... are these wind?
+            # b.append(float(buoyStats[7]))  # not sure what this field is .... wind speed?
+            # c.append(float(buoyStats[8]))  # not sure what this field is  ... wind dir?
+
             tt = np.floor(float(ll) / (numLinesPerSpec - 1)).astype(int)  # time index
             linear = []
             for ss in range(numLinesPerSpec):
                 # data =
                 linear.extend(lines[ss + ll + 2].split())
-                # linear.extend(lines[ss+ll+2].split())
-                # ff = np.floor(ss/float(nDir)) * len(data) # freq index
-                # dd = slice(ss * len(data), ss * len(data) + len(data))
-                # spectra[tt, ff, dd] = data
             spectra[tt] = np.array(linear, dtype=float).reshape(nDir, nFreq).T
+            spectra[tt] = spectra[tt][fidx][:,didx]
 
-
-        out = {'wavedirbin': np.array(np.rad2deg(directions), dtype=float),
-               'wavefreqbin': np.array(frequencies, dtype=float),
-               'dWED':spectra ,
-               'time': forcastDates}
+        # MPG: convert dWED from rad^-1 to deg^-1 to be consistent w/
+        # FRF wave gauge data.
+        spectra = spectra*2*np.pi / 180.0
+        
+        out = {'wavedirbin': directions,
+               'wavefreqbin': frequencies,
+               'buoyNum': buoyNum,
+               'dWED': spectra,
+               'lat': lat,
+               'lon': lon,
+               'Depth': Depth,
+               'time': np.array(forcastDates)}
 
         return out
 
