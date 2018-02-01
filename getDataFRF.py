@@ -61,7 +61,7 @@ def gettime(dataLoc, THREDDS, callingClass, epochd1, epochd2, dtRound=60):
             pass
     elif callingClass == 'getDataTestBed':
         if THREDDS == 'FRF':
-            pName = 'CMTB'
+            pName = 'cmtb'
         elif THREDDS == 'CHL':
             pName = 'cmtb'
         else:
