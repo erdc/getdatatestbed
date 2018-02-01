@@ -23,6 +23,62 @@ from sblib import geoprocess as gp
 # MPG: import cPickle for file i/o. 
 import cPickle as pickle
 
+
+def gettime(dataLoc, THREDDS, callingClass, epochd1, epochd2, dtRound=60):
+    """
+    this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
+    from the THREDDS (data loc) server based on d1,d2, and data location
+    it returns the indicies in the NCML file of the dates d1>=time>d2
+    INPUTS:
+
+         :param dtRound: the time delta of the data out of interest, default minute (60 second)
+
+    """
+    # TODO find a way to pull only hourly data or regular interval of desired time
+    # todo this use date2index and create a list of dates see help(nc.date2index)
+
+    # toggle my data location
+    threddsList = np.array(['CHL', 'FRF'])
+
+    FRFdataloc = u'http://134.164.129.55/thredds/dodsC/'
+    chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/'
+
+    assert (THREDDS == threddsList).any(), "Please enter a valid THREDDS data location\n Location assigned = %s must be in List %s" % (THREDDS, threddsList)
+
+    if THREDDS == 'FRF':
+        THREDDSloc = FRFdataloc
+    elif THREDDS == 'CHL':
+        THREDDSloc = chlDataLoc
+    else:
+        pass
+
+    if callingClass == 'getObs':
+        if THREDDS == 'FRF':
+            pName = 'FRF'
+        elif THREDDS == 'CHL':
+            pName = 'frf'
+        else:
+            pass
+    elif callingClass == 'getDataTestBed':
+        if THREDDS == 'FRF':
+            pName = 'CMTB'
+        elif THREDDS == 'CHL':
+            pName = 'cmtb'
+        else:
+            pass
+
+    ncFile = nc.Dataset(THREDDSloc + pName + '/' + dataLoc) # get the netCDF file
+    allEpoch = sb.myround(ncFile['time'][:], base=dtRound) # round to nearest minute
+    mask = (allEpoch >= epochd1) & (allEpoch < epochd2)
+    idx = np.argwhere(mask).squeeze()
+
+    if np.size(idx) > 0:
+        pass
+    else:
+        idx = None
+
+    return idx, ncFile, allEpoch
+
 class getObs:
     """
     Note d1 and d2 have to be in date-time formats
@@ -31,7 +87,7 @@ class getObs:
 
     """
 
-    def __init__(self, d1, d2):
+    def __init__(self, d1, d2, THREDDS):
         """
         Initialization description here
         Data are returned in self.datainex are inclusive at d1,
@@ -59,10 +115,12 @@ class getObs:
         self.timeunits = 'seconds since 1970-01-01 00:00:00'
         self.epochd1 = nc.date2num(self.d1, self.timeunits)
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
-        self.comp_time()
+        self.THREDDS = THREDDS
+        self.callingClass = 'getObs'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.62:8080/thredds/dodsC/CMTB'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
+        self.comp_time()
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
 
@@ -89,68 +147,6 @@ class getObs:
         # // is a floor division, not a comment on following line:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
-
-    def gettime(self, dtRound=60):
-        """
-        this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
-        from the THREDDS (data loc) server based on d1,d2, and data location
-        it returns the indicies in the NCML file of the dates d1>=time>d2
-        INPUTS:
-
-             :param dtRound: the time delta of the data out of interest IN SECONDS, default minute (60 second)
-
-        """
-        # TODO find a way to pull only hourly data or regular interval of desired time
-        # todo this use date2index and create a list of dates see help(nc.date2index)
-        try:
-
-            self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc) #loads all of the netCDF file
-            #            try:
-            self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
-            # now find the boolean!
-            mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
-            idx = np.argwhere(mask).squeeze()
-            # old slow way of doing time!
-            # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-            #                            self.ncfile['time'].calendar) # converts all epoch time to datetime objects
-            # for i, date in enumerate(self.alltime):  # rounds time to nearest
-            #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-            #
-            # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            # if (np.argwhere(mask).squeeze() == idx).all():
-            #     print '.... old Times match New Times' % np.argwhere(mask).squeeze()
-            assert np.size(idx) > 0, 'no data locally, check CHLthredds'
-            print "Data Gathered From Local Thredds Server"
-
-        except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
-            try:
-                self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-                self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
-                # now find the boolean !
-                emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
-                idx = np.argwhere(emask).squeeze()
-
-                # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                #                            self.ncfile['time'].calendar)
-                # for i, date in enumerate(self.alltime):
-                #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-                # # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
-                #
-                # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-                #
-                # idx = np.argwhere(mask).squeeze()
-
-
-                try:
-                    assert np.size(idx) > 0, ' There are no data within the search parameters for this gauge'
-                    print "Data Gathered from CHL thredds Server"
-                except AssertionError:
-                    idx = None
-            except IOError:  # this occors when thredds is down
-                print ' Trouble Connecteing to data on CHL Thredds'
-                idx = None
-
-        return idx
 
     def getWaveSpec(self, gaugenumber=0, roundto=30):
         """
@@ -231,7 +227,7 @@ class getObs:
             raise NameError('Bad Gauge name, specify proper gauge name/number')
         # parsing out data of interest in time
         try:
-            self.wavedataindex = self.gettime(dtRound=roundto * 60)
+            self.wavedataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=roundto * 60)
             assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
             if np.size(self.wavedataindex) >= 1:
                 # consistant for all wave gauges
@@ -353,7 +349,7 @@ class getObs:
             gname = 'Aquadopp 3.5m'
             self.dataloc = 'oceanography/currents/adop-3.5m/adop-3.5m.ncml'
 
-        currdataindex = self.gettime(dtRound=roundto * 60)
+        currdataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=roundto * 60)
         # _______________________________________
         # get the actual current data
         if np.size(currdataindex) > 1:
@@ -418,7 +414,7 @@ class getObs:
             self.winddataindex = []
             print '<EE>ERROR Specifiy proper Gauge number'
 
-        self.winddataindex = self.gettime(dtRound=collectionlength * 60)
+        self.winddataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=collectionlength * 60)
         # remove nan's that shouldn't be there
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
@@ -486,7 +482,7 @@ class getObs:
             data is rounded to the nearst [collectionlength] (default 6 min)
         """
         self.dataloc = 'oceanography/waterlevel/eopNoaaTide/eopNoaaTide.ncml'  # this is the back end of the url for waterlevel
-        self.WLdataindex = self.gettime(dtRound=collectionlength * 60)
+        self.WLdataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=collectionlength * 60)
 
         if np.size(self.WLdataindex) > 1:
             # self.WL = self.ncfile['waterLevel'][self.WLdataindex]
@@ -588,7 +584,7 @@ class getObs:
         self.dataloc = u'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location of the gridded surveys
 
         try:
-            self.bathydataindex = self.gettime()
+            self.bathydataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2)
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
 
@@ -601,13 +597,6 @@ class getObs:
         if len(self.bathydataindex) == 1:
             idx = self.bathydataindex
         elif len(self.bathydataindex) < 1 & method == 1:
-
-            try:
-                # switch back to the FRF ncfile?
-                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            except:
-                pass
-
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
@@ -615,21 +604,9 @@ class getObs:
             print 'Bathymetry is taken as closest in HISTORY - operational'
         elif len(self.bathydataindex) < 1 and method == 0:
 
-            try:
-                # switch back to the FRF ncfile?
-                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            except:
-                pass
-
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
         elif len(self.bathydataindex) > 1:
-
-            try:
-                # switch back to the FRF ncfile?
-                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            except:
-                pass
 
             # DLY Note - this section of the script does NOT work
             # (i.e., if you DO have a survey during your date range!!!)
@@ -710,7 +687,7 @@ class getObs:
         self.dataloc = u'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location of the gridded surveys
 
         try:
-            self.bathydataindex = self.gettime()
+            self.bathydataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2)
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = []
 
@@ -723,13 +700,6 @@ class getObs:
         if len(self.bathydataindex) == 1:
             idx = self.bathydataindex
         elif len(self.bathydataindex) < 1 & method == 1:
-
-            try:
-                # switch back to the FRF ncfile?
-                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            except:
-                pass
-
             # there's no exact bathy match so find the max negative number where the negative
             # numbers are historical and the max would be the closest historical
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
@@ -737,24 +707,10 @@ class getObs:
             print 'Bathymetry is taken as closest in HISTORY - operational'
 
         elif len(self.bathydataindex) < 1 and method == 0:
-
-            try:
-                # switch back to the FRF ncfile?
-                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            except:
-                pass
-
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
 
         elif len(self.bathydataindex) > 1:
-
-            try:
-                # switch back to the FRF ncfile?
-                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            except:
-                pass
-
             # DLY Note - this section of the script does NOT work
             # (i.e., if you DO have a survey during your date range!!!)
             timeunits = 'seconds since 1970-01-01 00:00:00'
@@ -783,7 +739,7 @@ class getObs:
         """
         self.dataloc = u'survey/gridded/gridded.ncml'  # location of the gridded surveys
         try:
-            self.bathydataindex = self.gettime()  # getting the index of the grid
+            self.bathydataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2)  # getting the index of the grid
         except IOError:
             self.bathydataindex = []
         if self.bathydataindex != None and len(self.bathydataindex) == 1:
@@ -1072,7 +1028,7 @@ class getObs:
         fillValue = -999  # assumed fill value from the rest of the files taken as less than or equal to
 
         self.dataloc = u'projects/bathyduck/data/cbathy_old/cbathy.ncml'
-        self.cbidx = self.gettime(dtRound=30*60)
+        self.cbidx, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=30*60)
 
         self.cbtime = nc.num2date(self.allEpoch[self.cbidx], 'seconds since 1970-01-01')
         # mask = (time > d1) & (time < d2)
@@ -1165,7 +1121,7 @@ class getObs:
         """
 
         self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
-        self.lidarIndex = self.gettime(dtRound=60)
+        self.lidarIndex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=60)
 
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
@@ -1293,7 +1249,7 @@ class getObs:
         elif gagename == 'Alt03':
             self.dataloc = u'geomorphology/altimeter/Alt03-altimeter/Alt03-altimeter.ncml'
 
-        altdataindex = self.gettime(dtRound=1 * 60)
+        altdataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=60)
 
         # get the actual current data
         if np.size(altdataindex) > 1:
@@ -1355,7 +1311,7 @@ class getObs:
         :return:
         """
         self.dataloc = 'oceanography/waves/lidarHydrodynamics/lidarHydrodynamics.ncml'
-        self.lidarIndex = self.gettime(dtRound=60)
+        self.lidarIndex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=60)
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
             out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
@@ -1456,7 +1412,7 @@ class getObs:
 
 class getDataTestBed:
 
-    def __init__(self, d1, d2):
+    def __init__(self, d1, d2, THREDDS):
         """
         Initialization description here
         Data are returned in self.datainex are inclusive at d1,d2
@@ -1471,9 +1427,11 @@ class getDataTestBed:
         self.epochd1 = nc.date2num(self.d1, self.timeunits)
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.comp_time()
+        self.THREDDS = THREDDS
+        self.callingClass = 'getDataTestBed'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
-        self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/cmtb/' #'http://10.200.23.50/thredds/dodsC/frf/'
+        self.crunchDataLoc = u'http://134.164.129.62:8080/thredds/dodsC/CMTB/'
+        self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
 
@@ -1501,73 +1459,6 @@ class getDataTestBed:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
 
-    def gettime(self, dtRound=60):
-        """
-        this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
-        from the THREDDS (data loc) server based on d1,d2, and data location
-        it returns the indicies in the NCML file of the dates d1>=time>d2
-        INPUTS:
-
-             :param dtRound: the time delta of the data out of interest, default minute (60 second)
-
-        """
-        # TODO find a way to pull only hourly data or regular interval of desired time
-        # todo this use date2index and create a list of dates see help(nc.date2index)
-        try:
-
-            self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc) #loads all of the netCDF file
-            #            try:
-
-            self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
-            # now find the boolean!
-            mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
-            idx = np.argwhere(mask).squeeze()
-            # old slow way of doing time!
-            # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-            #                            self.ncfile['time'].calendar) # converts all epoch time to datetime objects
-            # for i, date in enumerate(self.alltime):  # rounds time to nearest
-            #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-            #
-            # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-            # if (np.argwhere(mask).squeeze() == idx).all():
-            #     print '.... old Times match New Times' % np.argwhere(mask).squeeze()
-            assert np.size(idx) > 0, 'no data locally, check CHLthredds'
-            print "Data Gathered From Local Thredds Server"
-
-        except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
-            try:
-                # MPG: Use self.chlDataLoc with 'frf/' removed from string for correct url.
-                self.ncfile = nc.Dataset(self.chlDataLoc.replace('frf/', 'cmtb/') + self.dataloc)
-                self.allEpoch = sb.myround(self.ncfile['time'][:], base=dtRound) # round to nearest minute
-                # now find the boolean !
-                emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
-                idx = np.argwhere(emask).squeeze()
-
-                # self.alltime = nc.num2date(self.ncfile['time'][:], self.ncfile['time'].units,
-                #                            self.ncfile['time'].calendar)
-                # for i, date in enumerate(self.alltime):
-                #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
-                # # mask = (sb.roundtime(self.ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.ncfile['time'][:]) < self.epochd2)\
-                #
-                # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
-                #
-                # idx = np.argwhere(mask).squeeze()
-
-
-                try:
-                    assert np.size(idx) > 0, ' There are no data within the search parameters for this gauge'
-                    print "Data Gathered from CHL thredds Server"
-                except AssertionError:
-                    idx = None
-            except IOError:  # this occors when thredds is down
-                print ' Trouble Connecteing to data on CHL Thredds'
-                idx = None
-
-        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
-        # switch us back to the local THREDDS if it moved us to CHL
-
-        return idx
-
     def getGridCMS(self, method):
         """
 
@@ -1577,7 +1468,7 @@ class getDataTestBed:
         """
         self.dataloc = 'grids/CMSwave_v1/CMSwave_v1.ncml'
         try:
-            self.bathydataindex = self.gettime()  # getting the index of the grid
+            self.bathydataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2)  # getting the index of the grid
         except IOError:
             self.bathydataindex = None
         if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
@@ -1669,7 +1560,7 @@ class getDataTestBed:
 
         self.dataloc = 'integratedBathyProduct/survey/survey.ncml'
         try:
-            self.bathydataindex = self.gettime()  # getting the index of the grid
+            self.bathydataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2)  # getting the index of the grid
         except IOError:
             self.bathydataindex = []  # when a server is not available
         if np.size(self.bathydataindex) == 1 and self.bathydataindex != None:
@@ -1908,7 +1799,7 @@ class getDataTestBed:
             # parsing out data of interest in time
             self.dataloc = urlFront +'/'+ fname
             try:
-                self.wavedataindex = self.gettime()
+                self.wavedataindex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2)
                 assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
 
                 if np.size(self.wavedataindex) >= 1:
@@ -1944,7 +1835,7 @@ class getDataTestBed:
         :return:
         """
         self.dataloc = u'projects/tucker/runup/test.ncml'
-        self.lidarIndex = self.gettime(dtRound=60)
+        self.lidarIndex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=60)
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
             out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
@@ -1994,7 +1885,7 @@ class getDataTestBed:
         """
 
         self.dataloc = u'projects/tucker/waveprofile/test.ncml'
-        self.lidarIndex = self.gettime(dtRound=60)
+        self.lidarIndex, self.ncfile, self.allEpoch = gettime(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, epochd1=self.epochd1, epochd2=self.epochd2, dtRound=60)
 
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
