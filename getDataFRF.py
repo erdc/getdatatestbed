@@ -12,6 +12,7 @@ This is a class definition designed to get data from the FRF thredds server
 import datetime as DT
 import sys
 from subprocess import check_output
+import warnings
 import collections
 import netCDF4 as nc
 import numpy as np
@@ -308,10 +309,12 @@ class getObs:
             gname, self.d1, self.d2)
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
-                            'lon': self.ncfile['longitude'][:],}
+                            'lon': self.ncfile['longitude'][:],
+                            'name': str(self.ncfile.title),}
             except:
                 wavespec = {'lat': self.ncfile['lat'][:],
-                            'lon': self.ncfile['lon'][:]}
+                            'lon': self.ncfile['lon'][:],
+                            'name': str(self.ncfile.title),}
             return wavespec
 
     def getCurrents(self, gaugenumber=5, roundto=1):
@@ -419,8 +422,14 @@ class getObs:
         # remove nan's that shouldn't be there
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
+            self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
+            if np.size(self.winddataindex) == 0:
+                # return None is he wind direction is associated with the wind is no good!
+                windpacket = None
+                return windpacket
             # MPG: moved inside if statement b/c call to gettime possibly returns None.
             self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
+
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
             windspeed = self.ncfile['windSpeed'][self.winddataindex]  # wind speed
             winddir = self.ncfile['windDirection'][self.winddataindex]  # wind direction
@@ -1141,8 +1150,10 @@ class getObs:
                       'fB': np.ma.array(self.ncfile['fB'][self.cbidx, ys, xs, :],  mask=(self.ncfile['fB'][self.cbidx, ys, xs, :] <= fillValue)),
                       'k': np.ma.array(self.ncfile['k'][self.cbidx, ys, xs, :], mask=(self.ncfile['k'][self.cbidx, ys, xs, :] <= fillValue)),
                       'P': np.ma.array(self.ncfile['PKF'][self.cbidx, ys, xs], mask=(self.ncfile['PKF'][self.cbidx, ys, xs] <= fillValue))}  # may need to be masked
+            assert ~cbdata['depthKF'].mask.all(), 'all Cbathy kalman filtered data retrieved are masked '
             print 'Grabbed cBathy Data, successfully'
-        except IndexError:  # there's no data in the Cbathy
+
+        except (IndexError, AssertionError):  # there's no data in the Cbathy
             cbdata = None
 
         return cbdata
@@ -1506,6 +1517,7 @@ class getDataTestBed:
             self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc) #loads all of the netCDF file
             #            try:
             self.allEpoch = sb.baseRound(self.ncfile['time'][:], base=dtRound) # round to nearest minute
+
             # now find the boolean!
             mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
             idx = np.argwhere(mask).squeeze()
@@ -1549,6 +1561,9 @@ class getDataTestBed:
             except IOError:  # this occors when thredds is down
                 print ' Trouble Connecteing to data on CHL Thredds'
                 idx = None
+
+        self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
+        # switch us back to the local THREDDS if it moved us to CHL
 
         return idx
 
@@ -1656,8 +1671,17 @@ class getDataTestBed:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
             self.bathydataindex = []  # when a server is not available
-        if self.bathydataindex != None and np.size(self.bathydataindex) == 1:
+        if np.size(self.bathydataindex) == 1 and self.bathydataindex != None:
             idx = self.bathydataindex.squeeze()
+        elif np.size(self.bathydataindex) > 1:
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            # idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
+            warnings.warn('Pulled multiple bathymetries')
+            print '   The nearest bathy to your simulation start date is %s' % nc.num2date(self.allEpoch[idx],
+                                                                                    self.ncfile['time'].units)
+            print '   Please End new simulation with the date above, so it does not pull multiple bathymetries'
+            raise NotImplementedError
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
@@ -1665,13 +1689,13 @@ class getDataTestBed:
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             print 'Bathymetry is taken as closest in HISTORY - operational'
         elif (self.bathydataindex == None or np.size(self.bathydataindex) < 1) and method == 0:
-            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
         elif self.bathydataindex != None and len(self.bathydataindex) > 1:
-            val = (max([n for n in (self.ncfile['time'][:] - self.d1) if n < 0]))
-            idx = np.where((self.ncfile['time'] - self.d1) == val)[0][0]
+            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
+            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
 
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],
+            print 'The closest in history to your start date is %s\n' % nc.num2date(self.ncfile['time'][idx],
                                                                                     self.ncfile['time'].units)
             print 'Please End new simulation with the date above'
             raise Exception
@@ -1699,7 +1723,13 @@ class getDataTestBed:
             self.d2 = oldD2
             self.epochd2 = oldD2epoch
             self.epochd1 = oldD1epoch
-        bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
+
+        # this commented out section will work once the times on the CHL THREDDS are fixed.
+        # Until then, it will error because self.allEpoch was obtained
+        # from the CHL THREDDS times, and they are screwed all up!
+        # bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
+        bathyT = nc.num2date(self.ncfile['time'][idx], 'seconds since 1970-01-01')
+
         print '  Measured Bathy is %s old' % (self.d2 - bathyT)
 
         gridDict = {'xFRF': xCoord,
