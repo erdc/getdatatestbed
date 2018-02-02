@@ -87,7 +87,7 @@ class getObs:
 
     """
 
-    def __init__(self, d1, d2, THREDDS):
+    def __init__(self, d1, d2, THREDDS='FRF'):
         """
         Initialization description here
         Data are returned in self.datainex are inclusive at d1,
@@ -1412,7 +1412,7 @@ class getObs:
 
 class getDataTestBed:
 
-    def __init__(self, d1, d2, THREDDS):
+    def __init__(self, d1, d2, THREDDS='FRF'):
         """
         Initialization description here
         Data are returned in self.datainex are inclusive at d1,d2
