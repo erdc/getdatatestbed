@@ -361,24 +361,25 @@ class getObs:
             curr_aveV = self.ncfile['aveV'][currdataindex]  # pulling depth averaged Northward current
             curr_spd = self.ncfile['currentSpeed'][currdataindex]  # currents speed [m/s]
             curr_dir = self.ncfile['currentDirection'][currdataindex]  # current from direction [deg]
-            self.curr_time = nc.num2date(self.ncfile['time'][currdataindex], self.ncfile['time'].units,
-                                    self.ncfile['time'].calendar)
-            for num in range(0, len(self.curr_time)):
-                self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
+            self.curr_time = nc.num2date(self.allEpoch[currdataindex], self.ncfile['time'].units,
+                                          self.ncfile['time'].calendar)
+            # for num in range(0, len(self.curr_time)):
+            #     self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
 
             curr_coords = gp.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
 
             self.curpacket = {
                 'name': str(self.ncfile.title),
                 'time': self.curr_time,
+                'epochtime': self.allEpoch[currdataindex],
                 'aveU': curr_aveU,
                 'aveV': curr_aveV,
                 'speed': curr_spd,
                 'dir': curr_dir,
                 'lat': self.ncfile['lat'][0],
                 'lon': self.ncfile['lon'][0],
-                'FRF_X': curr_coords['xFRF'],
-                'FRF_Y': curr_coords['yFRF'],
+                'xFRF': curr_coords['xFRF'],
+                'yFRF': curr_coords['yFRF'],
                 'depth': self.ncfile['depth'][:],
                 # Depth is calculated by: depth = -xducerD + blank + (binSize/2) + (numBins * binSize)
                 'meanP': self.ncfile['meanPressure'][currdataindex]}
@@ -699,10 +700,10 @@ class getObs:
     def getBathyTransectProfNum(self, method=1):
         """
         This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
-        method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
-        :param
-        :return:
+
+        :param method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+                       method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+        :return: Dictionary with bathymetric data
 
         """
         # do check here on profile numbers
@@ -852,8 +853,8 @@ class getObs:
     def getBathyDuckLoc(self, gaugenumber):
         """
         this function pulls the stateplane location (if desired) from the surveyed
-        FRF coords
-        :param gaugenumber:
+        FRF coords from deployed ADV's
+        :param gaugenumber: a gauge number with associated daat from
         :return:
         """
         if type(gaugenumber) != str:
@@ -1316,7 +1317,7 @@ class getObs:
             if removeMasked:
                 altpacket = {'name': str(self.ncfile.title),
                              'time': np.array(self.alt_time[~alt_be.mask]),
-                             'epochtime': np.array(self.allEpoch[altdataindex]),
+                             'epochtime': np.array(self.allEpoch[altdataindex][~alt_be.mask]),
                              'lat': alt_lat,
                              'PKF': np.array(alt_pkf[~alt_be.mask]),
                              'lon': alt_lon,
@@ -1416,6 +1417,61 @@ class getObs:
             print 'There is no LIDAR data during this time period'
             out = None
         return out
+
+    def getLidarDEM(self, **kwargs):
+        """
+                This function accepts kwargs
+            xbound = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
+            ybound = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
+
+        :return: dictionary with lidar beach topography
+        """
+
+        self.dataloc = u'geomorphology/DEMs/duneLidarDEM/duneLidarDEM.ncml'
+        self.idxDEM = self.gettime(dtRound=30*60)
+        self.DEMtime = nc.num2date(self.allEpoch[self.idxDEM], 'seconds since 1970-01-01')
+
+
+        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
+            if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
+                kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
+            # first min of x
+            if (kwargs['xbounds'][0] < self.ncfile['xm'][:]).all():
+                # then set xmin to 0
+                removeMinX = 0
+            else:# <= used here to handle inclusive initial index inherant in python
+                removeMinX = np.argwhere(self.ncfile['xFRF'][:] <= kwargs['xbounds'][0]).squeeze().max()
+            # now max of x
+            if (kwargs['xbounds'][1] > self.ncfile['xFRF'][:]).all():
+                removeMaxX = None
+            else:
+                removeMaxX = np.argwhere(self.ncfile['xFRF'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1 # python indexing
+            xs = slice(removeMinX, removeMaxX)
+        else:
+            xs = slice(None)
+
+        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
+            if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
+                kwargs['ybounds'] = np.flip(kwargs['ybounds'],axis=0)
+            # first min of y
+            if (kwargs['ybounds'][0] < self.ncfile['yFRF'][:]).all():
+                # then set the ymin to first index [0]
+                removeMinY = 0  # ie get all data
+            else:
+                removeMinY = np.argwhere(self.ncfile['yFRF'][:] <= kwargs['ybounds'][0]).squeeze().max()
+            ## now max of y
+            if (kwargs['ybounds'][1] > self.ncfile['yFRF'][:]).all():
+                removeMaxY = None
+            else:
+                removeMaxY = np.argwhere(self.ncfile['yFRF'][:] >= kwargs['ybounds'][1]).squeeze().min()+1  # python indexing
+            ys = slice(removeMinY, removeMaxY)
+        else:
+            ys = slice(None)
+        DEMdata = {}
+
+        return DEMdata
+
+
 
     def getBathyRegionalDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
 
