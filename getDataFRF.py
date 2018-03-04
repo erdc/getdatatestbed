@@ -20,22 +20,18 @@ import pandas as pd
 from sblib import sblib as sb
 from sblib import geoprocess as gp
 
-# MPG: import cPickle for file i/o. 
+# MPG: import cPickle for file bb/o.
 import cPickle as pickle
 
 class getObs:
     """
     Note d1 and d2 have to be in date-time formats
-    are all data set times in UTC?
-    need to write error handling, what to do if there's no data ??
 
     """
 
     def __init__(self, d1, d2):
         """
-        Initialization description here
-        Data are returned in self.datainex are inclusive at d1,
-         exclusive at d2
+        Data are returned in self.datainex are inclusive at d1, exclusive at d2
         """
         # this is active wave gauge list for doing wave rider
         self.gaugelist = [
@@ -113,8 +109,8 @@ class getObs:
             # old slow way of doing time!
             # self.alltime = nc.num2date(self.cshore_ncfile['time'][:], self.cshore_ncfile['time'].units,
             #                            self.cshore_ncfile['time'].calendar) # converts all epoch time to datetime objects
-            # for i, date in enumerate(self.alltime):  # rounds time to nearest
-            #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+            # for bb, date in enumerate(self.alltime):  # rounds time to nearest
+            #     self.alltime[bb] = self.roundtime(dt=date, roundto=dtRound)
             #
             # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
             # if (np.argwhere(mask).squeeze() == idx).all():
@@ -132,8 +128,8 @@ class getObs:
 
                 # self.alltime = nc.num2date(self.cshore_ncfile['time'][:], self.cshore_ncfile['time'].units,
                 #                            self.cshore_ncfile['time'].calendar)
-                # for i, date in enumerate(self.alltime):
-                #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+                # for bb, date in enumerate(self.alltime):
+                #     self.alltime[bb] = self.roundtime(dt=date, roundto=dtRound)
                 # # mask = (sb.roundtime(self.cshore_ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.cshore_ncfile['time'][:]) < self.epochd2)\
                 #
                 # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
@@ -158,8 +154,8 @@ class getObs:
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
 
-        TO DO:
-        Set optional date input from function arguments
+        TODO:
+           Set optional date input from function arguments to change self.d1 self.d2
 
         :param gaugenumber:
             gaugenumber = 0, 26m wave rider
@@ -258,7 +254,7 @@ class getObs:
                             'depth': depth,
                             'Hs': self.ncfile['waveHs'][self.wavedataindex],}
                 try:
-                    wavespec['peakf'] =  1/self.ncfile['waveTp'][self.wavedataindex]
+                    wavespec['peakf'] = 1/self.ncfile['waveTp'][self.wavedataindex]
                 except:
                     wavespec['peakf'] = 1/self.ncfile['waveTpPeak'][self.wavedataindex]
                     # except IndexError:
@@ -757,7 +753,7 @@ class getObs:
                 pass
 
             # DLY Note - this section of the script does NOT work
-            # (i.e., if you DO have a survey during your date range!!!)
+            # (bb.e., if you DO have a survey during your date range!!!)
             timeunits = 'seconds since 1970-01-01 00:00:00'
             d1Epoch = nc.date2num(self.d1, timeunits)
             val = (max([n for n in (self.ncfile['time'][:] - d1Epoch) if n < 0]))
@@ -941,17 +937,19 @@ class getObs:
         return out
 
     def get_sensor_locations_from_thredds(self):
-
-        """ 
+        """
         Retrieves lat/lon coordinates for each gauge in gauge_list, converts 
         to state plane and frf coordinates and creates a dictionary containing 
         all three coordinates types with gaugenumbers as keys.
-
-        Returns
-        -------
-        loc_dict : dict
-            Dictionary containing lat/lon, state plane, and frf coordinates
-            for each available gaugenumber with gaugenumbers as keys.
+        :return loc_dict: dict
+          Dictionary containing lat/lon, state plane, and frf coordinates
+          for each available gaugenumber with gaugenumbers as keys.
+          :key 'lat': latitude
+          :key 'lon': longitude
+          :key 'spE': North Carolina StatePlane easting
+          :key 'spN': North Carolina StatePlane Northing
+          :key 'xFRF': FRF local coordinate system - cross-shore
+          :key 'yFRF': FRF local coordinate system - alongshore
         """
 
         loc_dict = {}
@@ -996,25 +994,18 @@ class getObs:
         within window_days of the specified timestampstr. Otherwise query the 
         Thredds server for location information and update archived data 
         accordingly.
-
-        Parameters
-        ----------
-        timestamp : datetime.datetime
-            timestamp for which coordinates are desired.
-        datafile : str
+        :param datafile : str
             Name of file containing archived sensor location data.
-        window_days : int
+        :param window_days : int
             Maximum interval between desired timestamp and closest timestamp
-            in datafile to use archived data. If this interval is larger than 
+            in datafile to use archived data. If this interval is larger than
             window_days days, query the Thredds server.
-
-        Returns
-        -------
-        sensor_locations : dict
-            Coordinates in lat/lon, stateplane, and frf for each available 
+        :return:
+            :param ensor_locations : dict
+            Coordinates in lat/lon, stateplane, and frf for each available
             gaugenumber (gauges 0 to 12).
 
-        Updates datafile when new information is retrieved.
+            Updates datafile when new information is retrieved.
         """
         try:
             with open(datafile, 'rb') as fid:  # this will close a file when done loading it
@@ -1302,7 +1293,7 @@ class getObs:
             alt_lat = self.ncfile['Latitude'][0]  # pulling latitude
             alt_lon = self.ncfile['Longitude'][0]  # pulling longitude
             alt_be = self.ncfile['bottomElevation'][altdataindex]  # pulling bottom elevation
-            alt_pkf = self.ncfile['PKF'][altdataindex]  # i have no idea what this stands for...
+            alt_pkf = self.ncfile['PKF'][altdataindex]  # ...
             alt_stationname = self.ncfile['station_name'][0]  # name of the station
             self.alt_timestart = nc.num2date(self.ncfile['timestart'][altdataindex], self.ncfile['timestart'].units, self.ncfile['time'].calendar)
             self.alt_timeend = nc.num2date(self.ncfile['timeend'][altdataindex], self.ncfile['timeend'].units, self.ncfile['time'].calendar)
@@ -1580,8 +1571,8 @@ class getDataTestBed:
             # old slow way of doing time!
             # self.alltime = nc.num2date(self.cshore_ncfile['time'][:], self.cshore_ncfile['time'].units,
             #                            self.cshore_ncfile['time'].calendar) # converts all epoch time to datetime objects
-            # for i, date in enumerate(self.alltime):  # rounds time to nearest
-            #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+            # for bb, date in enumerate(self.alltime):  # rounds time to nearest
+            #     self.alltime[bb] = self.roundtime(dt=date, roundto=dtRound)
             #
             # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
             # if (np.argwhere(mask).squeeze() == idx).all():
@@ -1600,8 +1591,8 @@ class getDataTestBed:
 
                 # self.alltime = nc.num2date(self.cshore_ncfile['time'][:], self.cshore_ncfile['time'].units,
                 #                            self.cshore_ncfile['time'].calendar)
-                # for i, date in enumerate(self.alltime):
-                #     self.alltime[i] = self.roundtime(dt=date, roundto=dtRound)
+                # for bb, date in enumerate(self.alltime):
+                #     self.alltime[bb] = self.roundtime(dt=date, roundto=dtRound)
                 # # mask = (sb.roundtime(self.cshore_ncfile['time'][:]) >= self.epochd1) & (sb.roundtime(self.cshore_ncfile['time'][:]) < self.epochd2)\
                 #
                 # mask = (self.alltime >= self.d1) & (self.alltime < self.d2)  # boolean true/false of time
@@ -1935,7 +1926,7 @@ class getDataTestBed:
             elif gaugenumber in [3, 'awac-8m', 'AWAC-8m', 'Awac-8m', 'awac 8m',
                                  '8m-Array', '8m Array', '8m array', '8m-array']:
                 gname = 'AWAC 8m'
-                fname = 'wac-8m/awac-8m.ncml'
+                fname = '8m-array/8m-array.ncml'
             elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
                 gname = 'AWAC 6m'
                 fname = 'awac-6m/awac-6m.ncml'
@@ -1984,7 +1975,7 @@ class getDataTestBed:
                                 'WL': self.ncfile['waterLevel'][self.wavedataindex],
                                 'Umag': self.ncfile['Umag'][self.wavedataindex],
                                 'Udir': self.ncfile['Udir'][self.wavedataindex],
-                                'fspec': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :,:].sum(axis=2),
+                                'fspec': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :,:].sum(axis=2) * np.median(np.diff(self.ncfile['waveDirectionBins'][:])),
                                 'qcFlag': self.ncfile['qcFlag'][self.wavedataindex]}
 
             except (RuntimeError, AssertionError):
