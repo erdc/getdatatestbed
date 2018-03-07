@@ -1152,10 +1152,24 @@ class getObs:
 
     def getLidarRunup(self, removeMasked=True):
         """
-        :param: removeMasked will toggle the removing of data points from the tsTime series based on the flag status
-        :return:
+        This function will get the runup measurements from the lidar mounted in the dune
+        :param removeMasked: if data come back as masked, remove from the arrays
+                removeMasked will toggle the removing of data points from the tsTime series based on the flag status
+        :return: dictionary with collected data.  keys listed below (for more info see the netCDF file metadata)
+            :key 'name': gauge name
+            :key 'lat': latitude for points
+            :key 'lon': longitude for points
+            :key 'lidarX': the x coordinate of the lidar (making the measurement)
+            :key 'lidarY': the y coordinate of the lidar (making the measurement)
+            :key 'time': time stamp for data in datetime object
+            :key 'totalWaterLevel': total elevation of water dimensioned by time
+            :key 'elevation': 1D array of swash elevation at times listed in tsTime.
+            :key 'samplingTime': time stamp for time series data
+            :key 'xFRF': x location of the data points
+            :key 'yFRF': y location of the data points
+            :key 'totalWaterLevelQCflag': qc flag following quartod standards for total water level
+            :key 'percentMissing': perrcent of missing data can be used as a confidence factor for measurement
         """
-
         self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
         self.lidarIndex = self.gettime(dtRound=60*60) # hourly data
 
@@ -1173,13 +1187,11 @@ class getObs:
                    'xFRF': self.ncfile[u'xFRF'][self.lidarIndex, :],
                    'yFRF': self.ncfile[u'yFRF'][self.lidarIndex, :],
                    'samplingTime': self.ncfile['tsTime'][:],
-                   'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex, :],
                    'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
                    'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
                    }
 
             if removeMasked:
-
                 if isinstance(out['elevation'], np.ma.MaskedArray):
                     out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
                 else:
@@ -1213,15 +1225,13 @@ class getObs:
         return out
 
     def getCTD(self):
-        
+        """
         #THIS FUNCTION IS CURRENTLY BROKEN - THE PROBLEM IS THAT self.cshore_ncfile does not have any keys?
-
-        """
+        TODO fix this function
         This function gets the CTD data from the thredds server
-        :param
-        :return:
-        """
 
+        :return: ctd datta
+        """
         # do check here on profile numbers
         # acceptableProfileNumbers = [None, ]
         self.dataloc = u'oceanography/ctd/eop-ctd/eop-ctd.ncml'  # location of the gridded surveys
@@ -1265,26 +1275,64 @@ class getObs:
 
         return ctd_Dict
 
-    def getALT(self, gagename, removeMasked=True):
-
+    def getALT(self, gaugeName=None, removeMasked=True):
         """
         This function gets the Altimeter data from the thredds server
-        :param:
-        gagename - 'Alt03, Alt04, Alt05'  This is just the name of the altimeter we want to use
-        :return:
+        
+        :param gaugeName - 'Alt03, Alt04, Alt05'  This is just the name of the altimeter we want to use
+            available gauge names listed below
+                ['Alt03', 'Alt04', 'Alt05',
+                'Alt769-150', 'Alt769-200', 'Alt769-250', 'Alt769-300','Alt769-350',
+                'Alt861-150', 'Alt861-200', 'Alt861-250', 'Alt861-300', 'Alt861-350']
+        :return: a dictionary with below keys with selected data, for more info see netCDF files on server
+            :key 'name': file title
+            :key 'time': date time objects
+            :key 'epochtime': time in epoch, seconds since 1970
+            :key 'lat': latitude of location of data
+            :key 'PKF': kalman filtered elevation data [NAVD88]
+            :key 'lon': longitude location of data
+            :key 'xFRF': x location of data
+            :key 'yFRF': y location of data
+            :key 'stationName: station name variable
+            :key 'gageName':
+            :key 'timeStart':
+            :key 'timeEnd':
+            :key 'bottomElev':
         """
         # location of the data
-        gage_list = ['Alt03', 'Alt04', 'Alt05']
-        assert gagename in gage_list, 'Input string is not a valid gage name'
-        if gagename == 'Alt05':
-            a = 1
-            b = 0
+        gauge_list = ['Alt03', 'Alt04', 'Alt05',
+                      'Alt769-150', 'Alt769-200', 'Alt769-250', 'Alt769-300','Alt769-350',
+                      'Alt861-150', 'Alt861-200', 'Alt861-250', 'Alt861-300', 'Alt861-350']
+        if gaugeName not in gauge_list:
+            raise NotImplementedError('Input string is not a valid gage name, please check')
+        if gaugeName in ['Alt05']:
             self.dataloc = u'geomorphology/altimeter/Alt05-altimeter/Alt05-altimeter.ncml'
-        elif gagename == 'Alt04':
+        elif gaugeName in ['Alt04']:
             self.dataloc = u'geomorphology/altimeter/Alt04-altimeter/Alt04-altimeter.ncml'
-        elif gagename == 'Alt03':
+        elif gaugeName in ['Alt03']:
             self.dataloc = u'geomorphology/altimeter/Alt03-altimeter/Alt03-altimeter.ncml'
-
+        elif gaugeName in ['Alt769-150']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-150-altimeter/Alt769-150-altimeter.ncml'
+        elif gaugeName in ['Alt769-200']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-200-altimeter/Alt769-200-altimeter.ncml'
+        elif gaugeName in ['Alt769-250']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-250-altimeter/Alt769-250-altimeter.ncml'
+        elif gaugeName in ['Alt769-300']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-300-altimeter/Alt769-300-altimeter.ncml'
+        elif gaugeName in ['Alt769-350']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-350-altimeter/Alt769-350-altimeter.ncml'
+        elif gaugeName in ['Alt861-150']:
+            self.dataloc = u'geomorphology/altimeter/Alt861-150-altimeter/Alt861-150-altimeter.ncml'
+        elif gaugeName in ['Alt861-200']:
+            self.dataloc = u'geomorphology/altimeter/Alt861-200-altimeter/Alt861-200-altimeter.ncml'
+        elif gaugeName in ['Alt861-250']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-250-altimeter/Alt769-250-altimeter.ncml'
+        elif gaugeName in ['Alt861-300']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-300-altimeter/Alt769-300-altimeter.ncml'
+        elif gaugeName in ['Alt861-350']:
+            self.dataloc = u'geomorphology/altimeter/Alt769-350-altimeter/Alt769-350-altimeter.ncml'
+        else:
+            raise NotImplementedError('Please use one of the following keys\n'.format(gauge_list))
         altdataindex = self.gettime(dtRound=1 * 60)
 
         # get the actual current data
@@ -1294,7 +1342,7 @@ class getObs:
             alt_lon = self.ncfile['Longitude'][0]  # pulling longitude
             alt_be = self.ncfile['bottomElevation'][altdataindex]  # pulling bottom elevation
             alt_pkf = self.ncfile['PKF'][altdataindex]  # ...
-            alt_stationname = self.ncfile['station_name'][0]  # name of the station
+            alt_stationname = nc.chartostring(self.ncfile['station_name'][:])  # name of the station
             self.alt_timestart = nc.num2date(self.ncfile['timestart'][altdataindex], self.ncfile['timestart'].units, self.ncfile['time'].calendar)
             self.alt_timeend = nc.num2date(self.ncfile['timeend'][altdataindex], self.ncfile['timeend'].units, self.ncfile['time'].calendar)
             self.alt_time = nc.num2date(self.ncfile['time'][altdataindex], self.ncfile['time'].units, self.ncfile['time'].calendar)
@@ -1315,7 +1363,6 @@ class getObs:
                              'xFRF': alt_coords['xFRF'],
                              'yFRF': alt_coords['yFRF'],
                              'stationName': alt_stationname,
-                             'gageName': gagename,
                              'timeStart': np.array(self.alt_timestart[~alt_be.mask]),
                              'timeEnd': np.array(self.alt_timeend[~alt_be.mask]),
                              'bottomElev': np.array(alt_be[~alt_be.mask])}
@@ -1328,19 +1375,17 @@ class getObs:
                              'xFRF': alt_coords['xFRF'],
                              'yFRF': alt_coords['yFRF'],
                              'stationName': alt_stationname,
-                             'gageName': gagename,
                              'timeStart': self.alt_timestart,
                              'timeEnd': self.alt_timeend,
                              'bottomElev': alt_be}
 
             return altpacket
         else:
-            print 'No %s data found for this period' %(gagename)
+            print 'No %s data found for this period' %(gaugeName)
             self.altpacket = None
             return self.altpacket
 
     def getLidarWaveProf(self, removeMasked=True):
-
         """
         :param: removeMasked will toggle the removing of data points from the tsTime series based on the flag status
         :return:
@@ -1461,8 +1506,6 @@ class getObs:
         DEMdata = {}
 
         return DEMdata
-
-
 
     def getBathyRegionalDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
 
@@ -1647,14 +1690,14 @@ class getDataTestBed:
         # elif self.bathydataindex is not None and len(self.bathydataindex) < 1 and method in [1, 'historical', 'history']:
         #     # there's no exact bathy match so find the max negative number where the negitive
         #     # numbers are historical and the max would be the closest historical
-        #     val = (max([n for n in (self.cshore_ncfile['time'][:] - self.epochd1) if n < 0]))
+        #     val = (max([nHs for nHs in (self.cshore_ncfile['time'][:] - self.epochd1) if nHs < 0]))
         #     idx = np.where((self.cshore_ncfile['time'][:] - self.epochd1) == val)[0][0]
         #     print 'Bathymetry is taken as closest in HISTORY - operational'
         # elif self.bathydataindex is not None and len(self.bathydataindex) < 1 and method == 0:
         #     idx = np.argmin(np.abs(self.cshore_ncfile['time'][:] - self.d1))  # closest in time
         #     print 'Bathymetry is taken as closest in TIME - NON-operational'
         # elif self.bathydataindex is not None and len(self.bathydataindex) > 1:
-        #     val = (max([n for n in (self.cshore_ncfile['time'][:] - self.d1) if n < 0]))
+        #     val = (max([nHs for nHs in (self.cshore_ncfile['time'][:] - self.d1) if nHs < 0]))
         #     idx = np.where((self.cshore_ncfile['time'] - self.d1) == val)[0][0]
 
 
@@ -1863,7 +1906,7 @@ class getDataTestBed:
         # package for output
         field = {'time': time,
                  'epochtime': ncfile['time'][idx], # pulling down epoch time of interest
-                 var: bathy,
+                  var: bathy,
                  'xFRF': xFRF,
                  'yFRF': yFRF,
                  }
@@ -1876,31 +1919,44 @@ class getDataTestBed:
         return field
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True):
-            """
-            This function pulls down the data from the thredds server and puts the data into proper places
-            to be read for STwave Scripts
-            this will return the wavespec with dir/freq bin and directional wave energy
+        """
+        This function pulls down the data from the thredds server and puts the data into proper places
+        to be read for STwave Scripts
+        this will return the wavespec with dir/freq bin and directional wave energy
 
-            :param gaugenumber:
-                gaugenumber = 0, 26m wave rider
-                gaugenumber = 1, 17m waverider
-                gaugenumber = 2, awac4 - 11m
-                gaugenumber = 3, awac3 - 8m
-                gaugenumber = 4, awac2 - 6m
-                gaugenumber = 5, awac1 - 5m
-                gaugenumber = 6, adopp2 - 3m
-                gaugenumber = 7, adopp1 - 2m
-                gaugenumber = 8,  Paros xp200m
-                gaugenumber = 9,  Paros xp150m
-                gaugenumber = 10, Paros xp125m
-                gaugenumber = 11, Paros xp100m
-                gaugenumber = 12, 8 m array
-            :param collectionlength:
-                s the time over which the wind record exists
-                ie data is collected in 10 minute increments time is rounded
-                to nearest 10min increment
-                data is rounded to the nearst [collectionlength] (default 30 min)
-            """
+        :param prefix: a 'key' to select which version of the simulations to pull data from
+                    available values are listed in the table below
+                    ['CB', 'HP', 'CBHP', 'FP', 'S%s' %any date string, 'CBThresh_0']
+        :param local: this denotes whether the waves are pulled from the nested domian or
+        :param gaugenumber: keys associated with data
+            26m waverider can be [0, 'waverider-26m', 'Waverider-26m', '26m']
+            17m waverider can be [1, 'Waverider-17m', 'waverider-17m']
+            11m AWAC      can be [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']
+            8m array      can be [3, '8m-Array', '8m Array', '8m array', '8m-array']
+            6m AWAC       can be [4, 'awac-6m', 'AWAC-6m']
+            4.5m AWAC     can be [5, 'awac-4.5m', 'Awac-4.5m']
+            3.5m aquadopp can be [6, 'adop-3.5m', 'aquadopp 3.5m']
+            200m pressure can be [8, 'xp200m', 'xp200']
+            150m pressure can be [9, 'xp150m', 'xp150']
+            125m pressure can be [10, 'xp125m', 'xp125']
+        :return dictionary with packaged data following keys
+                :key 'epochtime': time in epoch ('second since 1970-01-01
+                :key 'time': time in date time object
+                :key 'name': name
+                :key 'wavefreqbin': wave frequency bins
+                :key 'Hs': wave Height
+                :key 'peakf': peak frequencies or 1/waveTp
+                :key 'wavedirbin': wave direction bins for dwed
+                :key 'dWED': directional wave energy density - 2d spectra [t, freq, dir]
+                :key 'waveDm': wave mean direction
+                :key 'waveTm': wave mean period
+                :key 'waveTp': wave peak period
+                :key 'WL': water level
+                :key 'Umag': wind speed [m/s]
+                :key 'Udir': wind direction [True north]
+                :key 'fspec': frequency spectra [t, nfreq]
+                :key 'qcFlag': qc flags
+        """
             # Making gauges flexible
             if prefix in ['CB', 'HP', 'CBHP', 'FP']:
                 model = 'STWAVE'
@@ -1923,8 +1979,7 @@ class getDataTestBed:
             elif gaugenumber in [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']:
                 gname = 'AWAC04 - 11m'
                 fname = 'awac11m/awac11m.ncml'
-            elif gaugenumber in [3, 'awac-8m', 'AWAC-8m', 'Awac-8m', 'awac 8m',
-                                 '8m-Array', '8m Array', '8m array', '8m-array']:
+            elif gaugenumber in [3, '8m-Array', '8m Array', '8m array', '8m-array']:
                 gname = 'AWAC 8m'
                 fname = '8m-array/8m-array.ncml'
             elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
@@ -1942,14 +1997,10 @@ class getDataTestBed:
             elif gaugenumber in [9, 'xp150m', 'xp150']:
                 gname = 'Paros xp150m'
                 fname = 'xp150m/xp150m.ncml'
-            elif gaugenumber == 10 or gaugenumber == 'xp125m':
+            elif gaugenumber in [10, 'xp125m', 'xp125']:
                 gname = 'Paros xp125m'
                 fname = 'xp125m/xp125m.ncml'
-            elif gaugenumber == 11 or gaugenumber == 'xp100m':
-                gname = 'Paros xp100m'
-                fname = 'xp100m/xp100m.ncml'
             else:
-                gname = 'There Are no Gauge numbers here'
                 raise NameError('Bad Gauge name, specify proper gauge name/number')
             # parsing out data of interest in time
             self.dataloc = urlFront +'/'+ fname
@@ -1962,13 +2013,12 @@ class getDataTestBed:
                                 'time': nc.num2date(self.ncfile['time'][self.wavedataindex], self.ncfile['time'].units),
                                 'name': nc.chartostring(self.ncfile['station_name'][:]),
                                 'wavefreqbin': self.ncfile['waveFrequency'][:],
-                                #'lat': self.cshore_ncfile['lat'][:],
-                                #'lon': self.cshore_ncfile['lon'][:],
+                                'xFRF': self.ncfile['xFRF'][:],
+                                'yFRF': self.ncfile['yFRF'][:],
                                 'Hs': self.ncfile['waveHs'][self.wavedataindex],
                                 'peakf': self.ncfile['waveTp'][self.wavedataindex],
                                 'wavedirbin': self.ncfile['waveDirectionBins'][:],
                                 'dWED': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :],
-                                # 'waveDp': self.cshore_ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex],  # 'waveDp'][self.wavedataindex]
                                 'waveDm': self.ncfile['waveDm'][self.wavedataindex],
                                 'waveTm': self.ncfile['waveTm'][self.wavedataindex],
                                 'waveTp': self.ncfile['waveTp'][self.wavedataindex],
@@ -1986,102 +2036,23 @@ class getDataTestBed:
 
     def getLidarRunup(self, removeMasked=True):
         """
+        This function will get the runup measurements from the lidar mounted in the dune
+        :param removeMasked: if data come back as masked, remove from the arrays
 
+        :return: dictionary with collected data.  keys listed below
+            :key 'name': nc.chartostring(
+            :key 'lat': self.ncfile[u'lid
+            :key 'lon': self.ncfile[u'lid
+            :key 'lidarX': self.ncfile[u'
+            :key 'lidarY': self.ncfile[u'
+            :key 'time': self.ncfile[u'ti
+            :key 'totalWaterLevel': self.
+            :key 'elevation': self.ncfile
+            :key 'samplingTime': self.ncf
+            :key 'frfX': self.ncfile[u'xF
+            :key 'frfY': self.ncfile[u'yF
+            :key 'runupDownLine':
+            :key 'totalWaterLevelQCflag': qc flag following quartod standards
+            :key 'percentMissing': perrcent of missing data can be used as a confidence factor for measurement
         :return:
         """
-        self.dataloc = u'projects/tucker/runup/test.ncml'
-        self.lidarIndex = self.gettime(dtRound=60)
-        if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
-
-            out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
-                   'lat': self.ncfile[u'lidarLatitude'][:],  # Coordintes
-                   'lon': self.ncfile[u'lidarLongitude'][:],
-                   'lidarX': self.ncfile[u'lidarX'][:],
-                   'lidarY': self.ncfile[u'lidarY'][:],
-                   'time': self.ncfile[u'time'][self.lidarIndex],
-                   'totalWaterLevel': self.ncfile['totalWaterLevel'][self.lidarIndex],
-                   'elevation': self.ncfile['elevation'][self.lidarIndex],
-
-                   'samplingTime': self.ncfile['tsTime'][self.lidarIndex, :], # this will need to be changed once Tucker uploads the new ncml file, will not be dimensioned in time!
-                   # 'samplingTime': self.cshore_ncfile['tsTime'][:],
-
-                   'frfX': self.ncfile[u'xFRF'][self.lidarIndex],
-                   'frfY': self.ncfile[u'yFRF'][self.lidarIndex],
-                   'runupDownLine': self.ncfile['downLineDistance'][self.lidarIndex],
-                   'totalWaterLevelQCflag': self.ncfile['totalWaterLevelQCFlag'][self.lidarIndex],
-                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
-                   }
-
-
-            if removeMasked:
-                # copy mask over to the sampling time!
-                mask = np.ma.getmask(out['elevation'])
-                out['samplingTime'] = np.ma.masked_array(out['samplingTime'], mask)
-
-                out['elevation'] = np.ma.compress_cols(out['elevation'])
-                out['samplingTime'] = np.ma.compress_cols(out['samplingTime'])
-                out['frfX'] = np.ma.compress_cols(out['frfX'])
-                out['frfY'] = np.ma.compress_cols(out['frfY'])
-                out['runupDownLine'] = np.ma.compress_cols(out['runupDownLine'])
-
-
-            else:
-                pass
-
-        else:
-            print 'There is no LIDAR data during this time period'
-            out = None
-        return out
-
-    def getLidarWaveProf(self, removeMasked=True):
-
-        """
-        :return:
-        """
-
-        self.dataloc = u'projects/tucker/waveprofile/test.ncml'
-        self.lidarIndex = self.gettime(dtRound=60)
-
-        if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
-
-            out = {'name': nc.chartostring(self.ncfile[u'station_name'][:]),
-                   'lat': self.ncfile[u'lidarLatitude'][:],
-                   'lon': self.ncfile[u'lidarLongitude'][:],
-                   'lidarX': self.ncfile[u'lidarX'][:],
-                   'lidarY': self.ncfile[u'lidarY'][:],
-                   'frfX': self.ncfile[u'xFRF'][:],
-                   'frfY': self.ncfile[u'yFRF'][:],
-                   'runupDownLine': self.ncfile['downLineDistance'][:],
-                   'waveFreq': self.ncfile['waveFrequency'][:],
-                   'time': self.ncfile[u'time'][self.lidarIndex],
-                   'WaterLevel': self.ncfile['waterLevel'][self.lidarIndex],
-                   'waveHs': self.ncfile['waveHs'][self.lidarIndex],
-                   'waveHsIG': self.ncfile['waveHsIG'][self.lidarIndex],
-                   'waveHsTot': self.ncfile['waveHsTotal'][self.lidarIndex],
-                   'waveSkewness': self.ncfile['waveSkewness'][self.lidarIndex],
-                   'waveAsymmetry': self.ncfile['waveAsymmetry'][self.lidarIndex],
-                   'waveEnergyDens': self.ncfile['waveEnergyDensity'][self.lidarIndex],
-                   'hydroFlag': self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
-                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
-                   }
-
-
-            if removeMasked:
-                # copy mask over to the sampling time!
-                mask = np.ma.getmask(out['elevation'])
-                out['samplingTime'] = np.ma.masked_array(out['samplingTime'], mask)
-
-                out['elevation'] = np.ma.compress_cols(out['elevation'])
-                out['samplingTime'] = np.ma.compress_cols(out['samplingTime'])
-                out['frfX'] = np.ma.compress_cols(out['frfX'])
-                out['frfY'] = np.ma.compress_cols(out['frfY'])
-                out['runupDownLine'] = np.ma.compress_cols(out['runupDownLine'])
-
-
-            else:
-                pass
-
-        else:
-            print 'There is no LIDAR data during this time period'
-            out = None
-        return out
