@@ -83,7 +83,7 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
             pass
 
     ncFile = nc.Dataset(THREDDSloc + pName + '/' + dataLoc)  # get the netCDF file
-    allEpoch = sb.myround(ncFile['time'][:], base=dtRound)  # round to nearest minute
+    allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
 
     return ncFile, allEpoch
 
@@ -581,7 +581,6 @@ class getObs:
             print ' There Are Multiple Surveys between %s and %s\nPlease Break Simulation up into Multiple Parts.' % (
             self.d1, self.d2)
             print 'The latest survey is %s' % grid_fname_list[maskids[0]]
-            raise
         #
         # download the file name and the ID
         #
