@@ -1565,8 +1565,8 @@ class getDataTestBed:
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.62:8080/thredds/dodsC/CMTB/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
-        assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
-        assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
+        assert type(self.end) == DT.datetime, 'end dates need to be in python "Datetime" data types'
+        assert type(self.start) == DT.datetime, 'start dates need to be in python "Datetime" data types'
 
     def comp_time(self):
         """Test if times are backwards"""
