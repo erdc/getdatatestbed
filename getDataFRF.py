@@ -259,7 +259,7 @@ class getObs:
                 return wavespec
 
         except (RuntimeError, AssertionError):
-            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (gname, self.d1, self.d2)
+            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (gaugenumber, self.d1, self.d2)
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
