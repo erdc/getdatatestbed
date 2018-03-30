@@ -519,8 +519,7 @@ class getObs:
         return grid_fname  # file name returned w/o prefix simply the name
 
     def getBathyTransectFromNC(self, profilenumbers=None, method=1, timewindow=None):
-        """This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
-
+        """This function gets the bathymetric data from the thredds server,
 
         :param profilenumbers: Default value = None)
         :param method: Default value = 1)
@@ -559,9 +558,7 @@ class getObs:
         if len(self.bathydataindex) == 1:
             idx = self.bathydataindex
         elif len(self.bathydataindex) < 1 & method == 1:
-
             try:
-                # switch back to the FRF cshore_ncfile?
                 self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
             except:
                 pass
@@ -569,7 +566,8 @@ class getObs:
             # numbers are historical and the max would be the closest historical
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
-            print 'Bathymetry is taken as closest in HISTORY - operational'
+            # print 'Bathymetry is taken as closest in HISTORY - operational'
+
         elif len(self.bathydataindex) < 1 and method == 0:
 
             try:
@@ -580,22 +578,11 @@ class getObs:
 
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             print 'Bathymetry is taken as closest in TIME - NON-operational'
-        elif len(self.bathydataindex) > 1:
 
-            try:
-                # switch back to the FRF cshore_ncfile?
-                self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
-            except:
-                pass
+        elif len(self.bathydataindex) > 1:  # if dates fall into d1,d2 bounds,
+            idx= self.bathydataindex[0] # return a single index. this means there was a survey between d1,d2
 
-            # DLY Note - this section of the script does NOT work
-            # (i.e., if you DO have a survey during your date range!!!)
-            timeunits = 'seconds since 1970-01-01 00:00:00'
-            d1Epoch = nc.date2num(self.d1, timeunits)
-            val = (max([n for n in (self.ncfile['time'][:] - d1Epoch) if n < 0]))
-            idx = np.where((self.ncfile['time'][:] - d1Epoch) == val)[0][0]
-
-        # returning whole survey
+        # find the whole survey (via surveyNumber) and assign idx to return the whole survey
         idxSingle = idx
         idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
 
@@ -608,7 +595,6 @@ class getObs:
         #     mask = (self.alltime >= self.start) & (self.alltime < self.end) & np.in1d(self.cshore_ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
 
         if np.size(idx) == 0:
-
             print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],self.ncfile['time'].units)
             raise NotImplementedError('Please End new simulation with the date above')
             idx = self.bathydataindex
