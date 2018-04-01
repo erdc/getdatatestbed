@@ -8,7 +8,7 @@ class forecastData:
     def __init__(self, d1):
         """
         Initialization description here
-        Data are returned in self.datainex are inclusive at d1,d2
+        Data are returned in self.datainex are inclusive at start,end
         """
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
@@ -20,7 +20,7 @@ class forecastData:
         self.dataLocCHL = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
         self.dataLocNCEP = u'http://nomads.ncep.noaa.gov/pub/data/nccf/com/wave/prod/'#ftpprd.ncep.noaa.gov/pub/data/nccf/com/wave/prod/multi_1.'
         self.dataLocECWMF = u'ftp://data-portal.ecmwf.int/20170808120000/'  # ECMWF forecasts
-        assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
+        assert type(self.d1) == DT.datetime, 'end need to be in python "Datetime" data types'
 
     def getWW3(self, forecastHour, buoyNumber=44100):
         """
