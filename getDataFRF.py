@@ -518,14 +518,14 @@ class getObs:
         DGD.download_survey(gridID, grid_fname, output_location)  # , grid_data)
         return grid_fname  # file name returned w/o prefix simply the name
 
-    def getBathyTransectFromNC(self, profilenumbers=None, method=1, timewindow=None):
+    def getBathyTransectFromNC(self, profilenumbers=None, method=1):
         """This function gets the bathymetric data from the thredds server,
 
         :param profilenumbers: Default value = None)
         :param method: Default value = 1)
                 method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
                 method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
-        :param timewindow: Default value = None)
+
         :returns: dictionary with keys
             :key 'xFRF': x coordinate in frf
             :key 'yFRF': y coordiante in Frf
@@ -551,8 +551,6 @@ class getObs:
 
         if self.bathydataindex is None:
             self.bathydataindex = []
-        else:
-            pass
 
         # logic to handle no transects in date range
         if len(self.bathydataindex) == 1:
@@ -569,9 +567,8 @@ class getObs:
             # print 'Bathymetry is taken as closest in HISTORY - operational'
 
         elif len(self.bathydataindex) < 1 and method == 0:
-
             try:
-                # switch back to the FRF cshore_ncfile?
+                # switch back to the FRF data loc
                 self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
             except:
                 pass
@@ -617,6 +614,7 @@ class getObs:
             profileDict = {'xFRF': xCoord,
                            'yFRF': yCoord,
                            'elevation': elevation_points,
+                           'epochtime': self.allEpoch[idx],
                            'time': time,
                            'lat': lat,
                            'lon': lon,
@@ -624,8 +622,7 @@ class getObs:
                            'easting': easting,
                            'profileNumber': profileNum,
                            'surveyNumber': surveyNum,
-                           'Ellipsoid': Ellipsoid,
-                            }
+                           'Ellipsoid': Ellipsoid,}
         else:
             profileDict = None
 
