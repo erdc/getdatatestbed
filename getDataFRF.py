@@ -518,14 +518,16 @@ class getObs:
         DGD.download_survey(gridID, grid_fname, output_location)  # , grid_data)
         return grid_fname  # file name returned w/o prefix simply the name
 
-    def getBathyTransectFromNC(self, profilenumbers=None, method=1):
-        """This function gets the bathymetric data from the thredds server,
+    def getBathyTransectFromNC(self, profilenumbers=None, method=1, forceReturnAll=False):
+        """This function gets the bathymetric data from the thredds server, will by default return only one survey
+            unless
 
         :param profilenumbers: Default value = None)
         :param method: Default value = 1)
                 method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
                 method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
-
+        :param forceReturnAll: Default Value = False)
+                This will force the survey to take and return all indices between start and end, not the single
         :returns: dictionary with keys
             :key 'xFRF': x coordinate in frf
             :key 'yFRF': y coordiante in Frf
@@ -553,8 +555,11 @@ class getObs:
             self.bathydataindex = []
 
         # logic to handle no transects in date range
-        if len(self.bathydataindex) == 1:
+        if forceReturnAll == True:
             idx = self.bathydataindex
+        elif len(self.bathydataindex) == 1:
+            idx = self.bathydataindex
+
         elif len(self.bathydataindex) < 1 & method == 1:
             try:
                 self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
@@ -579,9 +584,10 @@ class getObs:
         elif len(self.bathydataindex) > 1:  # if dates fall into d1,d2 bounds,
             idx= self.bathydataindex[0] # return a single index. this means there was a survey between d1,d2
 
+        if forceReturnAll is not True:
         # find the whole survey (via surveyNumber) and assign idx to return the whole survey
-        idxSingle = idx
-        idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
+            idxSingle = idx
+            idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
 
         if profilenumbers != None:
             assert pd.Series(profilenumbers).isin(np.unique(self.ncfile['profileNumber'][idx])).all(), 'given profiles don''t Match profiles in database'  # if all of the profile numbers match
@@ -1520,7 +1526,6 @@ class getDataTestBed:
     def __init__(self, start, end):
         """Initialization description here
                 Data are returned in self.datainex are inclusive at start,end
-
         """
 
         self.rawdataloc_wave = []
