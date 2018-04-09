@@ -603,7 +603,6 @@ class getObs:
             idx = self.bathydataindex
 
         if len(idx) > 0 and idx is not None:
-
             # now retrieve data with idx
             elevation_points = self.ncfile['elevation'][idx]
             xCoord = self.ncfile['xFRF'][idx]
@@ -691,7 +690,7 @@ class getObs:
                 self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
             except:
                 pass
-
+            raise NotImplementedError('DLY NOTE')
             # DLY Note - this section of the script does NOT work
             # (bb.e., if you DO have a survey during your date range!!!)
             timeunits = 'seconds since 1970-01-01 00:00:00'
@@ -895,7 +894,6 @@ class getObs:
             :key lat: latitude
             :key lon: longitude
 
-
         """
         self.dataloc = self.waveGaugeURLlookup(gaugenumber)
         try:
@@ -920,9 +918,7 @@ class getObs:
           :key 'xFRF': FRF local coordinate system - cross-shore
           :key 'yFRF': FRF local coordinate system - alongshore
 
-
         """
-
         loc_dict = {}
 
         for g in self.gaugelist:
@@ -1016,23 +1012,26 @@ class getObs:
         return sensor_locations
 
     def getBathyGridcBathy(self, **kwargs):
-        """this functin gets the cbathy data from the below address, assumes fill value of -999
+        """
+        this function gets the cbathy data from the below address, assumes fill value of -999
 
-        :param **kwargs:
-            'xbounds' will truncate bounds with
-        :returns: dictionary with keys:
-                    'time': time
-                    'xm':  frf xoordinate x's
-                    'ym': frf ycoordinates
-                    'depth': raw cbathy depths
-                    'depthKF':  kalman filtered hourly depth
-                    'depthKFError': errors associated with the kalman filter
-                    'fB':  ?
-                    'k':  ??
+        This function accepts kwargs
+        :keyword xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
+        :keyword ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
+
+        :return:  dictionary with keys:
+            :key 'time': time
+            :key 'xm':  frf xoordinate x's
+            :key 'ym': frf ycoordinates
+            :key 'depth': raw cbathy depths
+            :key 'depthfC: same as depth
+            :key 'depthKF':  kalman filtered hourly depth
+            :key 'depthKFError': errors associated with the kalman filter
+            :key 'fB':  ?
+            :key 'k':  ??
 
         """
         fillValue = -999  # assumed fill value from the rest of the files taken as less than or equal to
-
         self.dataloc = u'projects/bathyduck/data/cbathy_old/cbathy.ncml'
         self.cbidx = self.gettime(dtRound=30*60)
 
@@ -1201,7 +1200,6 @@ class getObs:
         This function gets the CTD data from the thredds server
         
         :return: ctd datta
-
 
         """
         # do check here on profile numbers
@@ -1699,12 +1697,16 @@ class getDataTestBed:
                         }
             return gridDict
 
-    def getBathyIntegratedTransect(self, method=1, ForcedSurveyDate=None):
+    def getBathyIntegratedTransect(self, method=1, ForcedSurveyDate=None, **kwargs):
         """This function gets the integraated bathy, using the plant (2009) method.
 
         :param method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
                        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational' (Default value = 1)
         :param ForcedSurveyDate: This is to force a date of survey gathering (Default value = None)
+
+        :keyword 'cBKF': if true will get cBathy original Kalman Filter
+        :keyword 'cBKF_T: if true will get wave height thresholded Kalman filter
+
         :returns: dictionary
             :key 'xFRF': x coordinate in FRF
             :key 'yFRF': y coorindate in FRF
@@ -1715,7 +1717,6 @@ class getDataTestBed:
             :key 'northing': NC stateplane northing
             :key 'easting': NC stateplane Easting
             :key 'surveyNumber': FRF survey number (metadata)
-
         """
         if ForcedSurveyDate != None:
             # start is used in the gettime function,
@@ -1731,8 +1732,18 @@ class getDataTestBed:
             self.epochd1 = nc.date2num(self.start, 'seconds since 1970-01-01')
             self.epochd2 = nc.date2num(self.end, 'seconds since 1970-01-01')
             print '!!!Forced bathy date %s' % ForcedSurveyDate
-
-        self.dataloc = 'integratedBathyProduct/survey/survey.ncml'
+        ####################################################################
+        #  Set URL based on Keyword, Default to surveyed bathymetry        #
+        ####################################################################
+        if 'cBKF_T' in kwargs and kwargs['cBKF_T'] == True:
+            self.dataloc = u'integratedBathyProduct/cBKF-T/cBKF-T.ncml'
+        elif 'cBKF' in kwargs and kwargs['cBKF'] == True:
+            self.dataloc = u'integratedBathyProduct/cBKF/cBKF.ncml'
+        else:
+            self.dataloc = u'integratedBathyProduct/survey/survey.ncml'
+        ####################################################################
+        #   go get the index and return based on method chosen             #
+        ####################################################################
         try:
             self.bathydataindex = self.gettime()  # getting the index of the grid
         except IOError:
@@ -1782,7 +1793,6 @@ class getDataTestBed:
             northing = None
             easting = None
 
-
         # putting dates and times back for all the other instances that use get time
         if ForcedSurveyDate != None:
             self.start = oldD1
@@ -1806,8 +1816,10 @@ class getDataTestBed:
                     'lon': lon,
                     'northing': northing,
                     'easting': easting,
-                    'surveyNumber': self.ncfile['surveyNumber'][idx]
                     }
+        if ('cBKF_T' not in kwargs) and ('cBKF' not in kwargs): # then its a survey, get the survey number
+            gridDict['surveyNumber'] = self.ncfile['surveyNumber'][idx]
+
         return gridDict
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
@@ -1831,7 +1843,7 @@ class getDataTestBed:
             grid = 'Local'
         elif local == False:
             grid = 'Regional'
-        ############## setting up the cshore_ncfile ############################
+        ############## setting up the ncfile ############################
         if prefix == 'CBHPStatic' and local == True:  # this is needed because projects are stored in weird place
             ncfile = nc.Dataset('http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml')
         elif prefix =='CBHPStatic' and local == False:
