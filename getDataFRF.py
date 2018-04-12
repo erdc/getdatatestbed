@@ -31,18 +31,16 @@ class getObs:
         Data are returned in self.datainex are inclusive at start, exclusive at end
         """
         # this is active wave gauge list for doing wave rider
-        self.gaugelist = [
-            'waverider-17m', 
-            'awac-11m', 
-            '8m-array', 
-            'awac-6m', 
-            'awac-4.5m', 
-            'adop-3.5m', 
-            'xp200m', 
-            'xp150m', 
-            'xp125m', 
-            'waverider-26m'
-            ]
+        self.gaugelist = ['waverider-26m',
+                          'waverider-17m',
+                          'awac-11m',
+                          '8m-array',
+                          'awac-6m',
+                          'awac-4.5m',
+                          'adop-3.5m',
+                          'xp200m',
+                          'xp150m',
+                          'xp125m',]
         self.directional = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
                             'adop-3.5m']
         self.rawdataloc_wave = []
@@ -228,7 +226,7 @@ class getObs:
                 return wavespec
 
         except (RuntimeError, AssertionError):
-            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (gname, self.d1, self.d2)
+            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (self.ncfile.title, self.d1, self.d2)
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
