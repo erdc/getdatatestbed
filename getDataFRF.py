@@ -869,8 +869,8 @@ class getObs:
         except:
             loc = str(self.chlDataLoc + u'projects/bathyduck/data/BathyDuck-ocean_waves_p%s_201510.nc' % gaugenumber)
             ncfile = nc.Dataset(loc)
-            xloc = ncfile['xFRF'][:]
-            yloc = ncfile['yFRF'][:]
+            xloc = ncfile['xloc'][:]
+            yloc = ncfile['yloc'][:]
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
         assert len(np.unique(yloc)) == 1, "There are different Y locations in the NetCDF file"
         locDict = gp.FRFcoord(xloc[0], yloc[0])
@@ -889,7 +889,7 @@ class getObs:
             :key lon: longitude
 
         """
-        self.dataloc = self.waveGaugeURLlookup(gaugenumber)
+        self.waveGaugeURLlookup(gaugenumber)
         try:
             ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
         except IOError:
