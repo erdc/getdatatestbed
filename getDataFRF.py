@@ -119,7 +119,7 @@ class getObs:
         self.THREDDS = THREDDS
         self.callingClass = 'getObs'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.62:8080/thredds/dodsC/CMTB'
+        self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
         self.comp_time()
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
@@ -1513,13 +1513,13 @@ class getObs:
         :returns: dictionary comprising a smaller rectangular piece of the DEM data, bounded by inputs above
             :key 'utmEasting': UTM Easting [meters]
             :key 'utmNorthing': UTM  Northing [meters]
-            :key 'latitude': self explanitory
-            :key 'longitude': self explanitory
+            :key 'latitude': self explanatory
+            :key 'longitude': self explanatory
             :key 'bottomElevation': elevation NAVD88
 
         """
 
-        self.dataloc = u'grids/RegionalBackgroundDEM/backgroundDEM.nc'
+        self.dataloc = u'integratedBathyProduct/RegionalBackgroundDEM/backgroundDEM.nc'
         self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
 
         # get a 1D ARRAY of the utmE and utmN of the rectangular grid (NOT the full grid!!!)
