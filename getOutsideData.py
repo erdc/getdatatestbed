@@ -6,14 +6,15 @@ import sys
 
 class forecastData:
     def __init__(self, d1):
-    """Initialization description here
-        Data are returned in self.datainex are inclusive at start,end
+        """Initialization description here
+            Data are returned in self.datainex are inclusive at start,end
 
-    Args:
+        Args:
+          d1: datetime object start time of forecast data
 
-    Returns:
-
-    """
+        Returns:
+          instance of forecastData
+        """
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.d1 = d1  # start date for data grab
@@ -144,15 +145,14 @@ class forecastData:
         # written by Ty Hesser
         # modified by Spicer Bak
         
-        dlist: a list of  datetime dataList for cbathy data to be collected
-        path: directory to put the cbathy file(s)
 
         Args:
-          dlist: 
-          path: 
-          timex:  (Default value = True)
+            dlist(list, np.array): a list of  datetime dataList for cbathy data to be collected
+            path (str): directory to put the cbathy file(s)
+            timex:  (Default value = True)
 
         Returns:
+            oflist (list): list of strings of files to be downloaded
 
         """
 
