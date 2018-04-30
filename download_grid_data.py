@@ -20,12 +20,16 @@ __author__ = 'k5opjakk'
 
 
 def download_survey(objectid, survey_filename, save_path):
-    """
-    Downloads the survey data extracts file to specified folder location
-    :param objectid: objectid of survey to download
-    :param survey_filename: filename of survey
-    :param save_path: folder path to save file
-    :return: path to downloaded survey file
+    """Downloads the survey data extracts file to specified folder location
+
+    Args:
+      objectid: objectid of survey to download
+      survey_filename: filename of survey
+      save_path: folder path to save file
+
+    Returns:
+      path to downloaded survey file
+
     """
     task_url = "http://gis.sam.usace.army.mil/server/rest/services/FRF/DownloadSourceData/" \
                "GPServer/Download%20Source%20Data"
@@ -88,10 +92,15 @@ def download_survey(objectid, survey_filename, save_path):
 
 
 def query_survey_data(service_url, grid_data=True):
-    """
-    Returns the objectid, survey_filename of the most recent survey GRID
-    :param service_url: url to the service to query
-    :return: type: number, objectid; type: string, filename
+    """Returns the objectid, survey_filename of the most recent survey GRID
+
+    Args:
+      service_url: url to the service to query
+      grid_data:  (Default value = True)
+
+    Returns:
+      type: number, objectid; type: string, filename
+
     """
     try:
         urllib2.urlopen(service_url)

@@ -6,10 +6,14 @@ import sys
 
 class forecastData:
     def __init__(self, d1):
-        """
-        Initialization description here
+    """Initialization description here
         Data are returned in self.datainex are inclusive at start,end
-        """
+
+    Args:
+
+    Returns:
+
+    """
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.d1 = d1  # start date for data grab
@@ -23,25 +27,28 @@ class forecastData:
         assert type(self.d1) == DT.datetime, 'end need to be in python "Datetime" data types'
 
     def getWW3(self, forecastHour, buoyNumber=44100):
-        """
-        This funcion will get spectral forecasts from the NCEP nomads server and 
-        parse it out to geographic coordinate system. Currently, the data is 
-        transformed from oceanographic to meteorological coordinates and from 
-        units of m^2 s rad^-1 to m^2 s deg^-1 to maintain FRF gauge data 
+        """This funcion will get spectral forecasts from the NCEP nomads server and
+        parse it out to geographic coordinate system. Currently, the data is
+        transformed from oceanographic to meteorological coordinates and from
+        units of m^2 s rad^-1 to m^2 s deg^-1 to maintain FRF gauge data
         conventions. Spectra are also sorted in ascending order by frequency and
-        direction. The functionality associated with transforming the data may be 
+        direction. The functionality associated with transforming the data may be
         more appropriately located in cmtb/PrepData.
-        
-        :param forecastHour:
-        :param buoyNumber:
-        :return: A dictionary with wave directions, frequencies, directional wave
-            :key 'wavedirbin':
-            :key 'wavefreqbin':
-            :key 'dWED': 2dimensional wave spectra [t, freq, dir]
-            :key 'lat': latitude
-            :key 'lon': longitude
-            :key 'time': date time
-            spectra, and the timestamps for each spectrum.
+
+        Args:
+          forecastHour: param buoyNumber:
+          buoyNumber:  (Default value = 44100)
+
+        Returns:
+          A dictionary with wave directions, frequencies, directional wave
+          :key 'wavedirbin':
+          :key 'wavefreqbin':
+          :key 'dWED': 2dimensional wave spectra [t, freq, dir]
+          :key 'lat': latitude
+          :key 'lon': longitude
+          :key 'time': date time
+          spectra, and the timestamps for each spectrum.
+
         """
         import urllib
         assert type(forecastHour) is str, 'Forecast hour variable must be a string'
@@ -130,16 +137,23 @@ class forecastData:
         return out
 
     def get_CbathyFromFTP(self, dlist, path, timex=True):
-        """
-        this function downloads argus cbathy bathy data from the argus ftp server
+        """this function downloads argus cbathy bathy data from the argus ftp server
         times must be on the hour or half hour, it will return dates from a list
         provided as dlist.  dlist can be a single point (not in list) in time or
         a list of datetimes
         # written by Ty Hesser
         # modified by Spicer Bak
-
+        
         dlist: a list of  datetime dataList for cbathy data to be collected
         path: directory to put the cbathy file(s)
+
+        Args:
+          dlist: 
+          path: 
+          timex:  (Default value = True)
+
+        Returns:
+
         """
 
         curdir = os.getcwd()  # remembering where i am now

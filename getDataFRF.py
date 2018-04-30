@@ -65,9 +65,13 @@ class getObs:
         """Round a datetime object to any time laps in seconds
         Author: Thierry Husson 2012 - Use it as you want but don't blame me.
 
-        :param dt: datetime.datetime object, default now.
-        :param roundto: Closest number of SECONDS to round to, default 1 minute
+        Args:
+          dt: datetime.datetime object, default now.
+          roundto: Closest number of SECONDS to round to, default 1 minute
         :return datetime object that is rounded
+
+        Returns:
+
         """
         if dt is None:
             dt = DT.datetime.now()
@@ -82,8 +86,12 @@ class getObs:
         it returns the indicies in the NCML file of the dates start>=time>end
         INPUTS:
 
-        :param dtRound: the time delta of the data out of interest, default minute (60 second)
+        Args:
+          dtRound: the time delta of the data out of interest, default minute (60 second)
         :return index: indicies for time of interest
+
+        Returns:
+
         """
         # TODO find a way to pull only hourly data or regular interval of desired time
         # TODO this use date2index and create a list of dates see help(nc.date2index)
@@ -118,46 +126,30 @@ class getObs:
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
-        TODO:
-           Set optional date input from function arguments to change self.start self.end
+        TODO: Set optional date input from function arguments to change self.start self.end
 
-        :param roundto: a value that will round time to appropriately for this gauge set to a default of 30 mintues
-        :param gaugenumber: wave gauge numbers
-            pulled from self.waveGaugeURLlookup
-            see help on self.waveGaugeURLlookup for possible gauge names (Default value = 0)
-        :param roundto: this is duration in minutes which data are expected.  times are rounded to nearest
-            30 minute increment (data on server are not even times) (Default value = 30)
-        :returns: dictionary with following keys for all gauges
-            :key 'time': time in datetime objects
-            :key 'epochtime': time in epoch time
-            :key 'name': gauge name
-            :key 'wavefreqbin': wave frequencys assoicated with 2D spectra
-            :key 'xFRF': x location in FRF coordinates
-            :key 'yFRF': y location in FRF coordinates
-            :key 'lat': latitude
-            :key 'lon': longitude
-            :key 'depth': nominal water dept
-            :key 'Hs': wave height
-            :key 'peakf': wave peak frequency
-        :returns: the following keys for directional gauges
-            :key 'wavedirbin':
-            :key 'waveDp':
-            :key 'fspec':
-            :key 'waveDm': wave mean direction (see wis docuemntation)
-            :key 'qcFlagE': qc flag for energy
-            :key 'qcFlagD': qc flag for direction
-            :key 'a1': 1st fourier coefficient
-            :key 'a2': 1st fourier coefficient
-            :key 'b1': 2nd fourier coefficient
-            :key 'b2': 2nd fourier coefficient
-            :key 'dWED': directional wave energy density or the 2d spectra [t, freq, directions]
+        Args:
+          roundto: a value that will round time to appropriately for this gauge set to a default of 30 mintues
+          gaugenumber: wave gauge numbers
+        pulled from self.waveGaugeURLlookup
+        see help on self.waveGaugeURLlookup for possible gauge names (Default value = 0)
+          roundto: this is duration in minutes which data are expected.  times are rounded to nearest
+        30 minute increment (data on server are not even times) (Default value = 30)
 
-        :returns: the following keys for non-directional gauges
-            :key 'wavedirbin': 4 bins [0, 90, 180, 270]
-            :key 'waveDp': fill values of -999
-            :key 'fspec':  frequency specturm [time, frequency]
-            :key 'dWED': the freqency spectrum evenly distributed across the 4 directions [time, frequency, directions]
-            :key 'qcFlagE': qc flag for energy
+        Returns:
+          dictionary with following keys for all gauges
+          :key 'time': time in datetime objects
+          :key 'epochtime': time in epoch time
+          :key 'name': gauge name
+          :key 'wavefreqbin': wave frequencys assoicated with 2D spectra
+          :key 'xFRF': x location in FRF coordinates
+          :key 'yFRF': y location in FRF coordinates
+          :key 'lat': latitude
+          :key 'lon': longitude
+          :key 'depth': nominal water dept
+          :key 'Hs': wave height
+          :key 'peakf': wave peak frequency
+
         """
         # Making gauges flexible
         self.waveGaugeURLlookup(gaugenumber)
@@ -240,17 +232,19 @@ class getObs:
     def getCurrents(self, gaugenumber=5, roundto=1):
         """This function pulls down the currents data from the Thredds Server
 
-        :param gaugenumber: a string or number to get ocean currents from look up table
+        Args:
+          gaugenumber: a string or number to get ocean currents from look up table
+        
+        gaugenumber = [2, 'awac-11m']
+        gaugenumber = [3, 'awac-8m']
+        gaugenumber = [4, 'awac-6m']
+        gaugenumber = [5, 'awac-4.5m']
+        gaugenumber = [6, 'adop-3.5m'] (Default value = 5)
+          roundto: the time over which the wind record exists
+        ie data is collected in 10 minute increments
+        data is rounded to the nearst [roundto] (default 1 min)
 
-            gaugenumber = [2, 'awac-11m']
-            gaugenumber = [3, 'awac-8m']
-            gaugenumber = [4, 'awac-6m']
-            gaugenumber = [5, 'awac-4.5m']
-            gaugenumber = [6, 'adop-3.5m']
-
-        :param roundto: the time over which the wind record exists
-            ie data is collected in 10 minute increments
-            data is rounded to the nearst [roundto] (default 1 min)
+        Returns:
 
         """
         assert gaugenumber in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m', 'adop-3.5m'], 'Input string/number is not a valid gage name/number'
@@ -314,16 +308,19 @@ class getObs:
     def getWind(self, gaugenumber=0, collectionlength=10):
         """this function retrieves the wind data from the FDIF server
         collection length is the time over which the wind record exists
-            ie data is collected in 10 minute increments
-            data is rounded to the nearst [collectionlength] (default 10 min)
+        ie data is collected in 10 minute increments
+        data is rounded to the nearst [collectionlength] (default 10 min)
 
+        Args:
+          collectionlength: Default value = 10)
+          gaugenumber: Default value = 0)
+        gauge number in ['derived', 'Derived', 0]
+        '932 wind gauge' in [1]
+        '832 wind gauge' in [2]
+        '732 wind gauge' in [3]
 
-        :param collectionlength: Default value = 10)
-        :param gaugenumber: Default value = 0)
-            gauge number in ['derived', 'Derived', 0]
-            '932 wind gauge' in [1]
-            '832 wind gauge' in [2]
-            '732 wind gauge' in [3]
+        Returns:
+
         """
         # Making gauges flexible
         # different Gauges
@@ -408,16 +405,19 @@ class getObs:
             ie data is collected in 10 minute increments
             data is rounded to the nearst [collectionlength] (default 6 min)
 
-        :param collectionlength: Default value = 6)
-        :returns: dictionary with keys
-            :key 'name': gauge name - taken from title
-            :key 'WL': measured water level (NAVD88) [m]
-            :key 'time': datetime object
-            :key 'lat': latitude
-            :key 'lon':  longitude
-            :key 'residual': water level residual
-            :key 'predictedWL': predicted tide
-            :key 'gapNum': ???
+        Args:
+          collectionlength: Default value = 6)
+
+        Returns:
+          dictionary with keys
+          :key 'name': gauge name - taken from title
+          :key 'WL': measured water level (NAVD88) [m]
+          :key 'time': datetime object
+          :key 'lat': latitude
+          :key 'lon':  longitude
+          :key 'residual': water level residual
+          :key 'predictedWL': predicted tide
+          :key 'gapNum': ???
 
         """
         self.dataloc = 'oceanography/waterlevel/eopNoaaTide/eopNoaaTide.ncml'  # this is the back end of the url for waterlevel
@@ -450,15 +450,17 @@ class getObs:
         """This function is designed to pull the raw gridded text file from the Mobile, AL geospatial data server between
         the times of interest (start, end) or the most recent file there in
 
-
-        :param output_location: param grid_data:
-        :param method: Default value = 1
-              method = 0 uses the nearest in time to start
-              method = 1 uses the most recent historical survey but not future to start
-        :param grid_data: boolean True/False defines which grid data to get
-              True returns gridded data file
-              False returns transect data
+        Args:
+          output_location: param grid_data:
+          method: Default value = 1
+        method = 0 uses the nearest in time to start
+        method = 1 uses the most recent historical survey but not future to start
+          grid_data: boolean True/False defines which grid data to get
+        True returns gridded data file
+        False returns transect data
         :return grid_fname: grid file name from Arc-server
+
+        Returns:
 
         """
         from getdatatestbed import download_grid_data as DGD
@@ -519,23 +521,26 @@ class getObs:
     def getBathyTransectFromNC(self, profilenumbers=None, method=1, timewindow=None):
         """This function gets the bathymetric data from the thredds server,
 
-        :param profilenumbers: Default value = None)
-        :param method: Default value = 1)
-                method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-                method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
-        :param timewindow: Default value = None)
-        :returns: dictionary with keys
-            :key 'xFRF': x coordinate in frf
-            :key 'yFRF': y coordiante in Frf
-            :key 'elevation': bathy elevation
-            :key 'time': time in date time object
-            :key 'lat': lat,
-            :key 'lon': lon,
-            :key 'northing': NC northing
-            :key 'easting': NC easting
-            :key 'profileNumber': FRF profile number
-            :key 'surveyNumber': FRF survey Number
-            :key 'Ellipsoid': which ellipsoid is used
+        Args:
+          profilenumbers: Default value = None)
+          method: Default value = 1)
+        method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+          timewindow: Default value = None)
+
+        Returns:
+          dictionary with keys
+          :key 'xFRF': x coordinate in frf
+          :key 'yFRF': y coordiante in Frf
+          :key 'elevation': bathy elevation
+          :key 'time': time in date time object
+          :key 'lat': lat,
+          :key 'lon': lon,
+          :key 'northing': NC northing
+          :key 'easting': NC easting
+          :key 'profileNumber': FRF profile number
+          :key 'surveyNumber': FRF survey Number
+          :key 'Ellipsoid': which ellipsoid is used
 
         """
         # do check here on profile numbers
@@ -630,9 +635,12 @@ class getObs:
     def getBathyTransectProfNum(self, method=1):
         """This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
 
-        :param method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-                       method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational' (Default value = 1)
-        :returns: Dictionary with bathymetric data
+        Args:
+          method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational' (Default value = 1)
+
+        Returns:
+          Dictionary with bathymetric data
 
         """
         # do check here on profile numbers
@@ -705,10 +713,13 @@ class getObs:
         """This function gets the frf krigged grid product, it will currently break with the present link
         bathymetric data from the thredds server
 
-        :param method: defines which choice method to use
-            method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-            method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
-        :param removeMask: Default value = True)
+        Args:
+          method: defines which choice method to use
+        method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
+          removeMask: Default value = True)
+
+        Returns:
 
         """
         self.dataloc = u'survey/gridded/gridded.ncml'  # location of the gridded surveys
@@ -782,22 +793,25 @@ class getObs:
     def waveGaugeURLlookup(self, gaugenumber):
         """A lookup table function that sets the URL backend for get wave spec and get wave gauge loc
 
-        :param gaugenumber: a string or number that refers to a specific gauge and will set a url
-               Available values inclue:
-                   26m waverider    can be [0, 'waverider-26m', 'Waverider-26m', '26m']
-                   17m waverider    can be [1, 'Waverider-17m', 'waverider-17m']
-                   11m AWAC         can be [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']
-                   8m AWAC          can be [3, 'awac-8m', 'AWAC-8m']
-                   6m AWAC          can be [4, 'awac-6m', 'AWAC-6m']
-                   4.5m AWAC        can be [5, 'awac-4.5m', 'Awac-4.5m']
-                   3.5m aquadopp    can be [6, 'adop-3.5m', 'aquadopp 3.5m']
-                   200m pressure    can be [8, 'xp200m', 'xp200']
-                   150m pressure    can be [9, 'xp150m', 'xp150']
-                   125m pressure    can be [10, 'xp125m', 'xp125']
-                   100m pressure    can be [11, 'xp100m']
-                   8m array         can be [8, '8m-Array', '8m Array', '8m array', '8m-array']
-                   oregon inlet WR  can be ['oregonInlet', 'OI', 'oi']
-        :returns: Nothing, this just sets the self.dataloc data member
+        Args:
+          gaugenumber: a string or number that refers to a specific gauge and will set a url
+        Available values inclue:
+        26m waverider    can be [0, 'waverider-26m', 'Waverider-26m', '26m']
+        17m waverider    can be [1, 'Waverider-17m', 'waverider-17m']
+        11m AWAC         can be [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']
+        8m AWAC          can be [3, 'awac-8m', 'AWAC-8m']
+        6m AWAC          can be [4, 'awac-6m', 'AWAC-6m']
+        4.5m AWAC        can be [5, 'awac-4.5m', 'Awac-4.5m']
+        3.5m aquadopp    can be [6, 'adop-3.5m', 'aquadopp 3.5m']
+        200m pressure    can be [8, 'xp200m', 'xp200']
+        150m pressure    can be [9, 'xp150m', 'xp150']
+        125m pressure    can be [10, 'xp125m', 'xp125']
+        100m pressure    can be [11, 'xp100m']
+        8m array         can be [8, '8m-Array', '8m Array', '8m array', '8m-array']
+        oregon inlet WR  can be ['oregonInlet', 'OI', 'oi']
+
+        Returns:
+          Nothing, this just sets the self.dataloc data member
 
         """
         if gaugenumber in [0, 'waverider-26m', 'Waverider-26m', '26m']:
@@ -852,8 +866,11 @@ class getObs:
         """this function pulls the stateplane location (if desired) from the surveyed
         FRF coords from deployed ADV's, These are data owned by WHOI and kept on private server
 
-        :param gaugenumber: a gauge number with associated data from bathyduck experiment
-        :returns: location dictionary
+        Args:
+          gaugenumber: a gauge number with associated data from bathyduck experiment
+
+        Returns:
+          location dictionary
 
         """
         if type(gaugenumber) != str:
@@ -880,13 +897,16 @@ class getObs:
     def getWaveGaugeLoc(self, gaugenumber):
         """This function gets gauge location data quickly, faster than getwavespec
 
-        :param gaugenumber: wave gauge numbers
-            pulled from self.waveGaugeURLlookup
+        Args:
+          gaugenumber: wave gauge numbers
+        pulled from self.waveGaugeURLlookup
         
-            see help on self.waveGaugeURLlookup for possible gauge names
-        :returns: dictionary with keys
-            :key lat: latitude
-            :key lon: longitude
+        see help on self.waveGaugeURLlookup for possible gauge names
+
+        Returns:
+          dictionary with keys
+          :key lat: latitude
+          :key lon: longitude
 
         """
         self.waveGaugeURLlookup(gaugenumber)
@@ -903,14 +923,18 @@ class getObs:
         to state plane and frf coordinates and creates a dictionary containing
         all three coordinates types with gaugenumbers as keys.
         :return loc_dict: dict
-          Dictionary containing lat/lon, state plane, and frf coordinates
-          for each available gaugenumber with gaugenumbers as keys.
-          :key 'lat': latitude
-          :key 'lon': longitude
-          :key 'spE': North Carolina StatePlane easting
-          :key 'spN': North Carolina StatePlane Northing
-          :key 'xFRF': FRF local coordinate system - cross-shore
-          :key 'yFRF': FRF local coordinate system - alongshore
+            Dictionary containing lat/lon, state plane, and frf coordinates
+            for each available gaugenumber with gaugenumbers as keys.
+            :key 'lat': latitude
+            :key 'lon': longitude
+            :key 'spE': North Carolina StatePlane easting
+            :key 'spN': North Carolina StatePlane Northing
+            :key 'xFRF': FRF local coordinate system - cross-shore
+            :key 'yFRF': FRF local coordinate system - alongshore
+
+        Args:
+
+        Returns:
 
         """
         loc_dict = {}
@@ -955,18 +979,21 @@ class getObs:
         Thredds server for location information and update archived data
         accordingly.
 
-        :param datafile: str
-            Name of file containing archived sensor location data. (Default value = 'frf_sensor_locations.pkl')
-            Updates datafile when new information is retrieved.
-        :param window_days: int
-            Maximum interval between desired timestamp and closest timestamp
-            in datafile to use archived data. If this interval is larger than
-            window_days days, query the Thredds server. (Default value = 14)
-        :returns: param sensor_locations : dict
-            Coordinates in lat/lon, stateplane, and frf for each available
-            gaugenumber (gauges 0 to 12).
-        
-            Updates datafile when new information is retrieved.
+        Args:
+          datafile: str
+        Name of file containing archived sensor location data. (Default value = 'frf_sensor_locations.pkl')
+        Updates datafile when new information is retrieved.
+          window_days: int
+        Maximum interval between desired timestamp and closest timestamp
+        in datafile to use archived data. If this interval is larger than
+        window_days days, query the Thredds server. (Default value = 14)
+
+        Returns:
+          param sensor_locations : dict
+          Coordinates in lat/lon, stateplane, and frf for each available
+          gaugenumber (gauges 0 to 12).
+          
+          Updates datafile when new information is retrieved.
 
         """
         try:
@@ -1006,13 +1033,12 @@ class getObs:
         return sensor_locations
 
     def getBathyGridcBathy(self, **kwargs):
-        """
-        this function gets the cbathy data from the below address, assumes fill value of -999
-
+        """this function gets the cbathy data from the below address, assumes fill value of -999
+        
         This function accepts kwargs
         :keyword xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
         :keyword ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
-
+        
         :return:  dictionary with keys:
             :key 'time': time
             :key 'xm':  frf xoordinate x's
@@ -1023,6 +1049,11 @@ class getObs:
             :key 'depthKFError': errors associated with the kalman filter
             :key 'fB':  ?
             :key 'k':  ??
+
+        Args:
+          **kwargs: 
+
+        Returns:
 
         """
         fillValue = -999  # assumed fill value from the rest of the files taken as less than or equal to
@@ -1116,22 +1147,25 @@ class getObs:
     def getLidarRunup(self, removeMasked=True):
         """This function will get the runup measurements from the lidar mounted in the dune
 
-        :param removeMasked: if data come back as masked, remove from the arrays
-                removeMasked will toggle the removing of data points from the tsTime series based on the flag status (Default value = True)
-        :returns: dictionary with collected data.  keys listed below (for more info see the netCDF file metadata)
-            :key 'name': gauge name
-            :key 'lat': latitude for points
-            :key 'lon': longitude for points
-            :key 'lidarX': the x coordinate of the lidar (making the measurement)
-            :key 'lidarY': the y coordinate of the lidar (making the measurement)
-            :key 'time': time stamp for data in datetime object
-            :key 'totalWaterLevel': total elevation of water dimensioned by time
-            :key 'elevation': 1D array of swash elevation at times listed in tsTime.
-            :key 'samplingTime': time stamp for time series data
-            :key 'xFRF': x location of the data points
-            :key 'yFRF': y location of the data points
-            :key 'totalWaterLevelQCflag': qc flag following quartod standards for total water level
-            :key 'percentMissing': percent of missing data can be used as a confidence factor for measurement
+        Args:
+          removeMasked: if data come back as masked, remove from the arrays
+        removeMasked will toggle the removing of data points from the tsTime series based on the flag status (Default value = True)
+
+        Returns:
+          dictionary with collected data.  keys listed below (for more info see the netCDF file metadata)
+          :key 'name': gauge name
+          :key 'lat': latitude for points
+          :key 'lon': longitude for points
+          :key 'lidarX': the x coordinate of the lidar (making the measurement)
+          :key 'lidarY': the y coordinate of the lidar (making the measurement)
+          :key 'time': time stamp for data in datetime object
+          :key 'totalWaterLevel': total elevation of water dimensioned by time
+          :key 'elevation': 1D array of swash elevation at times listed in tsTime.
+          :key 'samplingTime': time stamp for time series data
+          :key 'xFRF': x location of the data points
+          :key 'yFRF': y location of the data points
+          :key 'totalWaterLevelQCflag': qc flag following quartod standards for total water level
+          :key 'percentMissing': percent of missing data can be used as a confidence factor for measurement
 
         """
         self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
@@ -1195,6 +1229,10 @@ class getObs:
         
         :return: ctd datta
 
+        Args:
+
+        Returns:
+
         """
         # do check here on profile numbers
         # acceptableProfileNumbers = [None, ]
@@ -1242,25 +1280,28 @@ class getObs:
     def getALT(self, gaugeName=None, removeMasked=True):
         """This function gets the Altimeter data from the thredds server
 
-        :param gaugeName: Alt03, Alt04, Alt05'  This is just the name of the altimeter we want to use
-            available gauge names listed below
-                ['Alt03', 'Alt04', 'Alt05',
-                'Alt769-150', 'Alt769-200', 'Alt769-250', 'Alt769-300','Alt769-350',
-                'Alt861-150', 'Alt861-200', 'Alt861-250', 'Alt861-300', 'Alt861-350'] (Default value = None)
-        :param removeMasked: Default value = True)
-        :returns: a dictionary with below keys with selected data, for more info see netCDF files on server
-            :key 'name': file title
-            :key 'time': date time objects
-            :key 'epochtime': time in epoch, seconds since 1970
-            :key 'lat': latitude of location of data
-            :key 'PKF': Kalman Filtered Error covariance estimate
-            :key 'lon': longitude location of data
-            :key 'xFRF': x location of data
-            :key 'yFRF': y location of data
-            :key 'stationName: station name variable
-            :key 'timeStart': start time of the sample
-            :key 'timeEnd': end time of the sample
-            :key 'bottomElev': kalman filtered elevation
+        Args:
+          gaugeName: Alt03, Alt04, Alt05'  This is just the name of the altimeter we want to use
+        available gauge names listed below (Default value = None)
+        'Alt03', 'Alt04', 'Alt05',
+        'Alt769-150', 'Alt769-200', 'Alt769-250', 'Alt769-300', 'Alt769-350',
+        'Alt861-150', 'Alt861-200', 'Alt861-250', 'Alt861-300', 'Alt861-350'
+          removeMasked: Default value = True)
+
+        Returns:
+          a dictionary with below keys with selected data, for more info see netCDF files on server
+          :key 'name': file title
+          :key 'time': date time objects
+          :key 'epochtime': time in epoch, seconds since 1970
+          :key 'lat': latitude of location of data
+          :key 'PKF': Kalman Filtered Error covariance estimate
+          :key 'lon': longitude location of data
+          :key 'xFRF': x location of data
+          :key 'yFRF': y location of data
+          :key 'stationName: station name variable
+          :key 'timeStart': start time of the sample
+          :key 'timeEnd': end time of the sample
+          :key 'bottomElev': kalman filtered elevation
 
         """
         # location of the data
@@ -1352,8 +1393,11 @@ class getObs:
     def getLidarWaveProf(self, removeMasked=True):
         """Grabs wave profile data from Lidar gauge
 
-        :param removeMasked: Default value = True)
-        :returns: returns: returns None if there's no data or an error
+        Args:
+          removeMasked: Default value = True)
+
+        Returns:
+          returns: returns: returns None if there's no data or an error
 
         """
         self.dataloc = 'oceanography/waves/lidarHydrodynamics/lidarHydrodynamics.ncml'
@@ -1422,10 +1466,12 @@ class getObs:
     def getLidarDEM(self, **kwargs):
         """this function will get the lidar DEM data, beach topography data
 
-        :param **kwargs:
-            'xbounds' will create sectioned data in FRF coordinate system
-            'ybounds' will only return sectioned data in FRF coordinate system
-        :returns: dictionary with lidar beach topography
+        Args:
+          **kwargs: 'xbounds': frf cross-shore bounds
+          **kwargs: 'ybounds': frf alongshore bounds
+
+        Returns:
+          dictionary with lidar beach topography
 
         """
 
@@ -1476,16 +1522,19 @@ class getObs:
     def getBathyRegionalDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
         """grabs bathymery from the regional background grid
 
-        :param utmEmin: left side of DEM bounding box in UTM
-        :param utmEmax: right side of DEM bounding box in UTM
-        :param utmNmin: bottom of DEM bounding box in UTM
-        :param utmNmax: top of DEM bounding box in UTM
-        :returns: dictionary comprising a smaller rectangular piece of the DEM data, bounded by inputs above
-            :key 'utmEasting': UTM Easting [meters]
-            :key 'utmNorthing': UTM  Northing [meters]
-            :key 'latitude': self explanitory
-            :key 'longitude': self explanitory
-            :key 'bottomElevation': elevation NAVD88
+        Args:
+          utmEmin: left side of DEM bounding box in UTM
+          utmEmax: right side of DEM bounding box in UTM
+          utmNmin: bottom of DEM bounding box in UTM
+          utmNmax: top of DEM bounding box in UTM
+
+        Returns:
+          dictionary comprising a smaller rectangular piece of the DEM data, bounded by inputs above
+          :key 'utmEasting': UTM Easting [meters]
+          :key 'utmNorthing': UTM  Northing [meters]
+          :key 'latitude': self explanitory
+          :key 'longitude': self explanitory
+          :key 'bottomElevation': elevation NAVD88
 
         """
 
@@ -1516,10 +1565,14 @@ class getObs:
 class getDataTestBed:
 
     def __init__(self, start, end):
-        """Initialization description here
+    """Initialization description here
                 Data are returned in self.datainex are inclusive at start,end
 
-        """
+    Args:
+
+    Returns:
+
+    """
 
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
@@ -1544,8 +1597,11 @@ class getDataTestBed:
         from the THREDDS (data loc) server based on start,end, and data location
         it returns the indicies in the NCML file of the dates start>=time>end
 
-        :param dtRound: the time delta of the data out of interest, default minute (60 second)
+        Args:
+          dtRound: the time delta of the data out of interest, default minute (60 second)
         :return index: indicies for time of interest
+
+        Returns:
 
         """
         # TODO find a way to pull only hourly data or regular interval of desired time
@@ -1610,19 +1666,22 @@ class getDataTestBed:
         
         This Function is depricated
 
-        :param method: can be [1, historical, history]  for historical
-                     can be [0, 'time'] for non oporational consideration
-        :returns: key 'xCoord': x in FRF
-            :key 'yCoord': y in FRF
-            :key 'elevation': elevation NAVD 88
-            :key 'time': time in date time object
-            :key 'lat': latitude
-            :key 'lon': longitude
-            :key 'northing': NC stateplane Northing
-            :key 'easting': NC stateplane Easting
-            :key 'x0': origin in x (stateplane easting)
-            :key 'azimuth': grid orientation
-            :key 'y0': origin in y (stateplane northing)
+        Args:
+          method: can be [1, historical, history]  for historical
+        can be [0, 'time'] for non oporational consideration
+
+        Returns:
+          key 'xCoord': x in FRF
+          :key 'yCoord': y in FRF
+          :key 'elevation': elevation NAVD 88
+          :key 'time': time in date time object
+          :key 'lat': latitude
+          :key 'lon': longitude
+          :key 'northing': NC stateplane Northing
+          :key 'easting': NC stateplane Easting
+          :key 'x0': origin in x (stateplane easting)
+          :key 'azimuth': grid orientation
+          :key 'y0': origin in y (stateplane northing)
 
         """
         self.dataloc = 'grids/CMSwave_v1/CMSwave_v1.ncml'
@@ -1695,23 +1754,27 @@ class getDataTestBed:
     def getBathyIntegratedTransect(self, method=1, ForcedSurveyDate=None, **kwargs):
         """This function gets the integraated bathy, using the plant (2009) method.
 
-        :param method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
-                       method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational' (Default value = 1)
-        :param ForcedSurveyDate: This is to force a date of survey gathering (Default value = None)
-
+        Args:
+          method: method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
+        method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational' (Default value = 1)
+          ForcedSurveyDate: This is to force a date of survey gathering (Default value = None)
+        
         :keyword 'cBKF': if true will get cBathy original Kalman Filter
         :keyword 'cBKF_T: if true will get wave height thresholded Kalman filter
+          **kwargs: 
 
-        :returns: dictionary
-            :key 'xFRF': x coordinate in FRF
-            :key 'yFRF': y coorindate in FRF
-            :key 'elevation': bathymetry
-            :key 'time': time in Datetime objects
-            :key 'lat': latitude
-            :key 'lon': longitude
-            :key 'northing': NC stateplane northing
-            :key 'easting': NC stateplane Easting
-            :key 'surveyNumber': FRF survey number (metadata)
+        Returns:
+          dictionary
+          :key 'xFRF': x coordinate in FRF
+          :key 'yFRF': y coorindate in FRF
+          :key 'elevation': bathymetry
+          :key 'time': time in Datetime objects
+          :key 'lat': latitude
+          :key 'lon': longitude
+          :key 'northing': NC stateplane northing
+          :key 'easting': NC stateplane Easting
+          :key 'surveyNumber': FRF survey number (metadata)
+
         """
         if ForcedSurveyDate != None:
             # start is used in the gettime function,
@@ -1820,18 +1883,21 @@ class getDataTestBed:
     def getStwaveField(self, var, prefix, local=True, ijLoc=None):
         """retrives data from spatial data STWAVE model
 
-        :param local: defines whether the data is from the nested simulation or the regional simulation (Default value = True)
-        :param ijLoc: x or y or (x,y) tuple of location of interest in FRF Coordinates
-                if None, will grab everything (expensive) (Default value = None)
-        :param var: which variable to get from the spatial data
-        :param prefix: this dictates which model run data are retrieved from
-        :param local: Default value = True)
-        :returns: a dictionary with keys below, see netCDF file for more metadata
-            :key 'time':  date time
-            :key 'epochtime': epoch time
-            :key var: variable of interest as put in to the function
-            :key 'xFRF': x location of data
-            :key 'yFRF': y location of data
+        Args:
+          local: defines whether the data is from the nested simulation or the regional simulation (Default value = True)
+          ijLoc: x or y or (x,y) tuple of location of interest in FRF Coordinates
+        if None, will grab everything (expensive) (Default value = None)
+          var: which variable to get from the spatial data
+          prefix: this dictates which model run data are retrieved from
+          local: pull from the nested grid or the regional grid (Default value = True)
+
+        Returns:
+          a dictionary with keys below, see netCDF file for more metadata
+          :key 'time':  date time
+          :key 'epochtime': epoch time
+          :key var: variable of interest as put in to the function
+          :key 'xFRF': x location of data
+          :key 'yFRF': y location of data
 
         """
         if local == True:
@@ -1916,38 +1982,41 @@ class getDataTestBed:
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
 
-        :param prefix: a 'key' to select which version of the simulations to pull data from
-                    available values are listed in the table below
-                    ['CB', 'HP', 'CBHP', 'FP', 'S%s' %any date string, 'CBThresh_0']
-        :param local: this denotes whether the waves are pulled from the nested domian or (Default value = True)
-        :param gaugenumber: keys associated with data
-            26m waverider can be [0, 'waverider-26m', 'Waverider-26m', '26m']
-            17m waverider can be [1, 'Waverider-17m', 'waverider-17m']
-            11m AWAC      can be [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']
-            8m array      can be [3, '8m-Array', '8m Array', '8m array', '8m-array']
-            6m AWAC       can be [4, 'awac-6m', 'AWAC-6m']
-            4.5m AWAC     can be [5, 'awac-4.5m', 'Awac-4.5m']
-            3.5m aquadopp can be [6, 'adop-3.5m', 'aquadopp 3.5m']
-            200m pressure can be [8, 'xp200m', 'xp200']
-            150m pressure can be [9, 'xp150m', 'xp150']
-            125m pressure can be [10, 'xp125m', 'xp125']
+        Args:
+          prefix: a 'key' to select which version of the simulations to pull data from
+        available values are listed in the table below
+        ['CB', 'HP', 'CBHP', 'FP', 'S' %any date string, 'CBThresh_0']
+          local: this denotes whether the waves are pulled from the nested domian or (Default value = True)
+          gaugenumber: keys associated with data
+        26m waverider can be [0, 'waverider-26m', 'Waverider-26m', '26m']
+        17m waverider can be [1, 'Waverider-17m', 'waverider-17m']
+        11m AWAC      can be [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']
+        8m array      can be [3, '8m-Array', '8m Array', '8m array', '8m-array']
+        6m AWAC       can be [4, 'awac-6m', 'AWAC-6m']
+        4.5m AWAC     can be [5, 'awac-4.5m', 'Awac-4.5m']
+        3.5m aquadopp can be [6, 'adop-3.5m', 'aquadopp 3.5m']
+        200m pressure can be [8, 'xp200m', 'xp200']
+        150m pressure can be [9, 'xp150m', 'xp150']
+        125m pressure can be [10, 'xp125m', 'xp125']
         :return dictionary with packaged data following keys
-                :key 'epochtime': time in epoch ('second since 1970-01-01
-                :key 'time': time in date time object
-                :key 'name': name
-                :key 'wavefreqbin': wave frequency bins
-                :key 'Hs': wave Height
-                :key 'peakf': peak frequencies or 1/waveTp
-                :key 'wavedirbin': wave direction bins for dwed
-                :key 'dWED': directional wave energy density - 2d spectra [t, freq, dir]
-                :key 'waveDm': wave mean direction
-                :key 'waveTm': wave mean period
-                :key 'waveTp': wave peak period
-                :key 'WL': water level
-                :key 'Umag': wind speed [m/s]
-                :key 'Udir': wind direction [True north]
-                :key 'fspec': frequency spectra [t, nfreq]
-                :key 'qcFlag': qc flags
+        :key 'epochtime': time in epoch ('second since 1970-01-01
+        :key 'time': time in date time object
+        :key 'name': name
+        :key 'wavefreqbin': wave frequency bins
+        :key 'Hs': wave Height
+        :key 'peakf': peak frequencies or 1/waveTp
+        :key 'wavedirbin': wave direction bins for dwed
+        :key 'dWED': directional wave energy density - 2d spectra [t, freq, dir]
+        :key 'waveDm': wave mean direction
+        :key 'waveTm': wave mean period
+        :key 'waveTp': wave peak period
+        :key 'WL': water level
+        :key 'Umag': wind speed [m/s]
+        :key 'Udir': wind direction [True north]
+        :key 'fspec': frequency spectra [t, nfreq]
+        :key 'qcFlag': qc flags
+
+        Returns:
 
         """
         # Making gauges flexible
