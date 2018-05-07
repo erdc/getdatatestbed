@@ -511,7 +511,6 @@ class getObs:
             print ' There Are Multiple Surveys between %s and %s\nPlease Break Simulation up into Multiple Parts.' % (
             self.d1, self.d2)
             print 'The latest survey is %s' % grid_fname_list[maskids[0]]
-            raise
         #
         # download the file name and the ID
         #
