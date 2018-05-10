@@ -2,6 +2,8 @@ from getDataFRF import getObs
 from sblib.anglesLib import vectorRotation
 import datetime as DT
 import numpy as np
+from sblib.gridTools import findNearestUnstructNode
+import sblib.sblib as sb
 
 def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
 
@@ -156,3 +158,39 @@ def lidar_PlotData(time, THREDDS='FRF'):
         dict['TS_toggle'] = False
 
     return dict
+
+def CMSF_velData(cmsfDict, station, dThresh=None):
+
+    """
+    write stuff here
+    :param cmsfDict:
+    :param station:
+    :return:
+    """
+    # get my obs_dict
+    obsV = getObs.getCurrents(station)
+    aveUobs = obsV['aveU']
+    aveVobs = obsV['aveV']
+    obsTime = obsV['time']
+    xFRFobs = obsV['xFRF']
+    yFRFobs = obsV['yFRF']
+
+    # find the closest node and pull that data
+    ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
+    if dThresh is None:
+        pass
+    else:
+        assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
+
+    modTime = cmsfDict['time']
+    aveUmod = cmsfDict['aveE'][:][ind]
+    aveVmod = cmsfDict['aveN'][:][ind]
+
+    # run the time matching.
+    out = {}
+    out['time'], out['aveEobs'], out['aveEmod'] = sb.timeMatch(obsTime, aveUobs, modTime, aveUmod)
+    time, out['aveNobs'], out['aveNmod'] = sb.timeMatch(obsTime, aveVobs, modTime, aveVmod)
+
+    return out
+
+
