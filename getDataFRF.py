@@ -705,6 +705,7 @@ class getObs:
     def getBathyTransectProfNum(self, method=1):
         """This function gets the bathymetric data from the thredds server, currently designed for the bathy duck experiment
             just gets profile numbers only
+
         Args:
             method (int): approach to select which method of how to select bathymetry
                 method == 1  - > 'Bathymetry is taken as closest in HISTORY - operational'
@@ -1037,6 +1038,7 @@ class getObs:
         Returns:
             loc_dict (dict): Dictionary containing lat/lon, state plane, and frf coordinates
                 for each available gaugenumber with gaugenumbers as keys.
+
               'lat': latitude
 
               'lon': longitude
