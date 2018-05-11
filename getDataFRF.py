@@ -439,7 +439,7 @@ class getObs:
             windpacket = None
             return windpacket
 
-    def getWL(self, collectionlength=6):
+    def getPierWL(self, collectionlength=6):
         """This function retrieves the water level data from the server
         WL data on server is NAVD88
         
@@ -486,6 +486,67 @@ class getObs:
             print 'ERROR: there is no WATER level Data for this time period!!!'
             self.WLpacket = None
         return self.WLpacket
+
+    def getGageWL(self, gaugenumber=5, roundto=1):
+        """
+        This function pulls down the water level data at a particular gage from the Thredds Server
+        :param gaugenumber:
+        :param roundto: the time over which the wind record exists
+                        ie data is collected in 10 minute increments
+                        data is rounded to the nearst [roundto] (default 1 min)
+        :return: wlpacket
+                 keys:
+                'name': gagename
+                'time': datetime of the measurements
+                'epochtime': epochtime of the measurements
+                'wl': water level at the gage (NAVD88?)
+                'lat': latitude of the gage
+                'lon': longitude of the gage
+                'xFRF': xFRF position of the gage
+                'yFRF': yFRF position of the gage
+        """
+
+        # Making gauges flexible
+        self.wlGageURLlookup(gaugenumber)
+        # parsing out data of interest in time
+
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass, dtRound=roundto * 60)
+
+        try:
+            self.wldataindex = gettime(allEpoch=self.allEpoch, epochd1=self.epochd1, epochd2=self.epochd2)
+            assert np.array(self.wldataindex).all() != None, 'there''s no data in your time period'
+            if np.size(self.wldataindex) >= 1:
+                # consistant for all wl gauges
+                if np.size(self.wldataindex) == 1:
+                    self.wldataindex = np.expand_dims(self.wldataindex, axis=0)
+                self.snaptime = nc.num2date(self.allEpoch[self.wldataindex], self.ncfile['time'].units)
+                try:
+                    wl_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
+                except IndexError:
+                    wl_coords = gp.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
+
+                wlpacket = {'time': self.snaptime,  # note this is new variable names??
+                            'epochtime': self.allEpoch[self.wldataindex],
+                            'name': str(self.ncfile.title),
+                            'xFRF': wl_coords['xFRF'],
+                            'yFRF': wl_coords['yFRF'],
+                            'lat': self.ncfile['latitude'][:],
+                            'lon': self.ncfile['longitude'][:],
+                            'wl': self.ncfile['waterLevel'][self.wldataindex], }
+                return wlpacket
+
+        except (RuntimeError, AssertionError):
+            print '     ---- Problem Retrieving water level data from %s\n    - in this time period start: %s  End: %s' % (
+            gaugenumber, self.d1, self.d2)
+            try:
+                wlpacket = {'lat': self.ncfile['latitude'][:],
+                            'lon': self.ncfile['longitude'][:],
+                            'name': str(self.ncfile.title), }
+            except:
+                wlpacket = {'lat': self.ncfile['lat'][:],
+                            'lon': self.ncfile['lon'][:],
+                            'name': str(self.ncfile.title), }
+            return wlpacket
 
     def getBathyFromArcServer(self, output_location, grid_data, method=1):
         """This function is designed to pull the raw gridded text file from the Mobile, AL geospatial data server between
@@ -864,6 +925,62 @@ class getObs:
         elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
             gname = 'Oregon Inlet'
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
+        else:
+            gname = 'There Are no Gauge numbers here'
+            raise NameError('Bad Gauge name, specify proper gauge name/number')
+
+    def wlGageURLlookup(self, gaugenumber):
+        """
+        A lookup table function that sets the URL backend for getGageWL
+
+        :param gaugenumber: a string or number that refers to a specific gauge and will set a url
+               Available values inclue:
+                   11m AWAC         can be [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']
+                   8m AWAC          can be [3, 'awac-8m', 'AWAC-8m']
+                   6m AWAC          can be [4, 'awac-6m', 'AWAC-6m']
+                   4.5m AWAC        can be [5, 'awac-4.5m', 'Awac-4.5m']
+                   3.5m aquadopp    can be [6, 'adop-3.5m', 'aquadopp 3.5m']
+                   200m pressure    can be [8, 'xp200m', 'xp200']
+                   150m pressure    can be [9, 'xp150m', 'xp150']
+                   125m pressure    can be [10, 'xp125m', 'xp125']
+                   100m pressure    can be [11, 'xp100m']
+                   8m array         can be [8, '8m-Array', '8m Array', '8m array', '8m-array']
+        :returns: Nothing, this just sets the self.dataloc data member
+
+        """
+        if gaugenumber in [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']:
+            gname = 'AWAC 11m'
+            self.dataloc = 'oceanography/waves/awac-11m/awac-11m.ncml'
+        elif gaugenumber in [3, 'awac-8m', 'AWAC-8m']:
+            gname = 'AWAC 8m'
+            self.dataloc = 'oceanography/waves/awac-8m/awac-8m.ncml'
+        elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
+            gname = 'AWAC 6m'
+            self.dataloc = 'oceanography/waves/awac-6m/awac-6m.ncml'
+        elif gaugenumber in [5, 'awac-4.5m', 'Awac-4.5m', 'awac_4.5m']:
+            gname = 'AWAC 4.5m'
+            self.dataloc = 'oceanography/waves/awac-4.5m/awac-4.5m.ncml'
+        elif gaugenumber in [6, 'adop-3.5m', 'aquadopp 3.5m']:
+            gname = 'Aquadopp 3.5m'
+            self.dataloc = 'oceanography/waves/adop-3.5m/adop-3.5m.ncml'
+        elif gaugenumber in [7, 'adop-2m']:
+            gname = 'Aquadopp01 - 2m'
+            self.dataloc = 'oceanography/waves/adop01/adop01.ncml'
+        elif gaugenumber in [8, 'xp200m', 'xp200']:
+            gname = 'Paros xp200m'
+            self.dataloc = 'oceanography/waves/xp200m/xp200m.ncml'
+        elif gaugenumber in [9, 'xp150m', 'xp150']:
+            gname = 'Paros xp150m'
+            self.dataloc = 'oceanography/waves/xp150m/xp150m.ncml'
+        elif gaugenumber in [10, 'xp125m', 'xp125']:
+            gname = 'Paros xp125m'
+            self.dataloc = 'oceanography/waves/xp125m/xp125m.ncml'
+        elif gaugenumber in [11, 'xp100m']:
+            gname = 'Paros xp100m'
+            self.dataloc = 'oceanography/waves/xp100m/xp100m.ncml'
+        elif gaugenumber in [12, '8m-Array', '8m Array', '8m array', '8m-array']:
+            gname = "8m array"
+            self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
         else:
             gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number')
