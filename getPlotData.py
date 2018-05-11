@@ -4,6 +4,7 @@ import datetime as DT
 import numpy as np
 from sblib.gridTools import findNearestUnstructNode
 import sblib.sblib as sb
+import netCDF4 as nc
 
 def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
 
@@ -162,13 +163,28 @@ def lidar_PlotData(time, THREDDS='FRF'):
 def CMSF_velData(cmsfDict, station, dThresh=None):
 
     """
-    write stuff here
-    :param cmsfDict:
-    :param station:
-    :return:
+    this is a little function I wrote that will do the heavy lifting of pulling the current data from a particular gage,
+    finds the closest model node to that gage, time matches the data, and returns the variables that need to be
+    handed to obsVmod_TS to make pretty plots.
+    :param cmsfDict: keys (that are used...):
+                    'time' - this needs to be in epochtime
+                    'aveE' - average eastward velocity
+                    'aveN' - average northward velocity
+    :param station: this is the stationname that will get handed to getCurrents, a gagenumber would (should?) also work
+    :return: dictionary with keys:
+             'time' - epochtimes of the matched data
+             'aveEobs' - time-matched observed eastward velocity
+             'aveNobs' - time-matched observed northward velocity
+             'aveEmod' - time-matched model eastward velocity
+             'aveNmod' - time-matched model northward velocity
     """
+    # initialize this class
+    timeunits = 'seconds since 1970-01-01 00:00:00'
+    modTime = nc.num2date(cmsfDict['time'], timeunits)
+    go = getObs(modTime[0] - DT.timedelta(minutes=3), modTime[-1] + DT.timedelta(minutes=3))
+
     # get my obs_dict
-    obsV = getObs.getCurrents(station)
+    obsV = go.getCurrents(station)
     aveUobs = obsV['aveU']
     aveVobs = obsV['aveV']
     obsTime = obsV['time']
@@ -193,4 +209,45 @@ def CMSF_velData(cmsfDict, station, dThresh=None):
 
     return out
 
+def CMSF_wlData(cmsfDict, station, dThresh=None):
+    """
+    this is a little function I wrote that will do the heavy lifting of pulling the wl data from a particular gage,
+    finds the closest model node to that gage, time matches the data, and returns the variables that need to be
+    handed to obsVmod_TS to make pretty plots.
+    :param cmsfDict: keys (that are used...):
+                    'time' - this needs to be in epochtime
+                    'waterLevel' - water level from the CSMF model
+    :param station: this is the stationname that will get handed to getGageWL, a gagenumber would (should?) also work
+    :return: dictionary with keys:
+             'time' - epochtimes of the matched data
+             'obsWL' - time-matched observed eastward velocity
+             'modWL' - time-matched model northward velocity
+    """
+    # initialize this class
+    timeunits = 'seconds since 1970-01-01 00:00:00'
+    modTime = nc.num2date(cmsfDict['time'], timeunits)
+    go = getObs(modTime[0] - DT.timedelta(minutes=3), modTime[-1] + DT.timedelta(minutes=3))
+
+    # get my obs_dict
+    obsWLdict = go.getGageWL(station)
+    obsWL = obsWLdict['wl']
+    obsTime = obsWLdict['time']
+    xFRFobs = obsWLdict['xFRF']
+    yFRFobs = obsWLdict['yFRF']
+
+    # find the closest node and pull that data
+    ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
+    if dThresh is None:
+        pass
+    else:
+        assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
+
+    modTime = cmsfDict['time']
+    modWL = cmsfDict['waterLevel'][:][ind]
+
+    # run the time matching.
+    out = {}
+    out['time'], out['obsWL'], out['modWL'] = sb.timeMatch(obsTime, obsWL, modTime, modWL)
+
+    return out
 
