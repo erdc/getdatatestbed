@@ -549,10 +549,10 @@ class getObs:
         try:
             self.bathydataindex = self.gettime()
         except IOError:  # when data are not on CHL thredds
-            self.bathydataindex = []
-
-        if self.bathydataindex is None:
-            self.bathydataindex = []
+            self.bathydataindex = None
+        # returning None object is convention and must be followed/handled down the line
+        # if self.bathydataindex is None:
+        #     self.bathydataindex = []
 
         # logic to handle no transects in date range
         if forceReturnAll == True:
@@ -588,6 +588,10 @@ class getObs:
         # find the whole survey (via surveyNumber) and assign idx to return the whole survey
             idxSingle = idx
             idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
+            if np.size(idx) == 0:
+                print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],self.ncfile['time'].units)
+                raise NotImplementedError('Please End new simulation with the date above')
+                idx = self.bathydataindex
 
         if profilenumbers != None:
             assert pd.Series(profilenumbers).isin(np.unique(self.ncfile['profileNumber'][idx])).all(), 'given profiles don''t Match profiles in database'  # if all of the profile numbers match
@@ -597,12 +601,9 @@ class getObs:
         #     print 'One or more input profile numbers do not match those in the FRF transects!  Fetching data for those that do.'
         #     mask = (self.alltime >= self.start) & (self.alltime < self.end) & np.in1d(self.cshore_ncfile['profileNumber'][:],profileNumbers)  # boolean true/false of time and profile number
 
-        if np.size(idx) == 0:
-            print 'The closest in history to your start date is %s\n' % nc.num2date(self.gridTime[idx],self.ncfile['time'].units)
-            raise NotImplementedError('Please End new simulation with the date above')
-            idx = self.bathydataindex
 
-        if len(idx) > 0 and idx is not None:
+
+        if np.size(idx) > 0 and idx is not None:
             # now retrieve data with idx
             elevation_points = self.ncfile['elevation'][idx]
             xCoord = self.ncfile['xFRF'][idx]
@@ -1103,14 +1104,13 @@ class getObs:
                       'epochtime': self.allEpoch[self.cbidx],
                       'xm': self.ncfile['xm'][xs],
                       'ym': self.ncfile['ym'][ys],
-                      # 'depth': np.ma.array(self.ncfile['depthfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthfC'][self.cbidx, ys, xs] <= fillValue)), # has different fill value
-                      'depthKF': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue)),
-                      'depthKFError': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue)),
-                      'depthfC': np.ma.array(self.ncfile['depthfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthfC'][self.cbidx, ys, xs] <= fillValue)),
-                      'depthfCError': np.ma.array(self.ncfile['depthErrorfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthErrorfC'][self.cbidx, ys, xs] <= fillValue)),
-                      'fB': np.ma.array(self.ncfile['fB'][self.cbidx, ys, xs, :],  mask=(self.ncfile['fB'][self.cbidx, ys, xs, :] <= fillValue)),
-                      'k': np.ma.array(self.ncfile['k'][self.cbidx, ys, xs, :], mask=(self.ncfile['k'][self.cbidx, ys, xs, :] <= fillValue)),
-                      'P': np.ma.array(self.ncfile['PKF'][self.cbidx, ys, xs], mask=(self.ncfile['PKF'][self.cbidx, ys, xs] <= fillValue))}  # may need to be masked
+                      'depthKF': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'depthKFError': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'depthfC': np.ma.array(self.ncfile['depthfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthfC'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'depthfCError': np.ma.array(self.ncfile['depthErrorfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthErrorfC'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'fB': np.ma.array(self.ncfile['fB'][self.cbidx, ys, xs, :],  mask=(self.ncfile['fB'][self.cbidx, ys, xs, :] <= fillValue), fill_value=np.nan),
+                      'k': np.ma.array(self.ncfile['k'][self.cbidx, ys, xs, :], mask=(self.ncfile['k'][self.cbidx, ys, xs, :] <= fillValue), fill_value=np.nan),
+                      'P': np.ma.array(self.ncfile['PKF'][self.cbidx, ys, xs], mask=(self.ncfile['PKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan)}  # may need to be masked
             assert ~cbdata['depthKF'].mask.all(), 'all Cbathy kalman filtered data retrieved are masked '
             print 'Grabbed cBathy Data, successfully'
 
@@ -1756,7 +1756,7 @@ class getDataTestBed:
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
             warnings.warn('Pulled multiple bathymetries')
             print '   The nearest bathy to your simulation start date is %s' % nc.num2date(self.allEpoch[idx],
-                                                                                    self.ncfile['time'].units)
+                                                                                   self.ncfile['time'].units)
             print '   Please End new simulation with the date above, so it does not pull multiple bathymetries'
             raise NotImplementedError
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
