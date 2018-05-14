@@ -17,8 +17,8 @@ import collections
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
-from sblib import sblib as sb
-from sblib import geoprocess as gp
+from testbedUtils import sblib as sb
+from testbedUtils import geoprocess as gp
 
 # MPG: import cPickle for file bb/o.
 import cPickle as pickle
