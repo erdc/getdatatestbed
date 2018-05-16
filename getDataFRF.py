@@ -19,17 +19,12 @@ import numpy as np
 import pandas as pd
 from testbedutils import sblib as sb
 from testbedutils import geoprocess as gp
-
-# MPG: import cPickle for file bb/o.
 import cPickle as pickle
 
 class getObs:
-    """Note start and end have to be in date-time formats"""
 
     def __init__(self, d1, d2):
-        """
-        Data are returned in self.datainex are inclusive at start, exclusive at end
-        """
+        """Data are returned in self.datainex are inclusive at start, exclusive at end"""
         # this is active wave gauge list for doing wave rider
         self.gaugelist = ['waverider-26m',
                           'waverider-17m',
@@ -1122,22 +1117,24 @@ class getObs:
             with open(datafile, 'wb') as fid:
                 pickle.dump(loc_dict, fid)
 
-        # loc_dict = pickle.load(open(datafile, 'rb'))
-        available_timestamps = np.array(loc_dict.keys()) 
+        available_timestamps = np.array(loc_dict.keys())
         idx = np.abs(self.d1 - available_timestamps).argmin()
         nearest_timestamp = available_timestamps[idx]
         if abs(self.d1 - nearest_timestamp).days < window_days:
-            archived_sensor_locations = loc_dict[nearest_timestamp]
-            # MPG: only use locations specified in self.gaugelist (for the case 
-            # that there are archived locations that should not be used).
-            sensor_locations = collections.OrderedDict()
-            for g in self.gaugelist:
-                if g in archived_sensor_locations:
-                    sensor_locations[g] = archived_sensor_locations[g]
-                else:
-                    # MPG: use empty dict as a placeholder to indicate that no
-                    # data is available.
-                    sensor_locations[g] = {}
+            if len(loc_dict[nearest_timestamp]) <= 1:
+                archived_sensor_locations = loc_dict[nearest_timestamp][0]  # this produces a list of len 1
+                # MPG: only use locations specified in self.gaugelist (for the case
+                # that there are archived locations that should not be used).
+                sensor_locations = collections.OrderedDict()
+                for g in self.gaugelist:
+                    if g in archived_sensor_locations:
+                        sensor_locations[g] = archived_sensor_locations[g]
+                    else:
+                        # MPG: use empty dict as a placeholder to indicate that no
+                        # data is available.
+                        sensor_locations[g] = {}
+            else:
+                raise NotImplementedError('the above produces list > len 1 check, this makes an assumption')
         else:
             sensor_locations = self.get_sensor_locations_from_thredds()
             loc_dict[self.d1] = sensor_locations
