@@ -1,9 +1,9 @@
 from getDataFRF import getObs
-from sblib.anglesLib import vectorRotation
+from testbedutils.anglesLib import vectorRotation
 import datetime as DT
 import numpy as np
-from sblib.gridTools import findNearestUnstructNode
-import sblib.sblib as sb
+from testbedutils.gridTools import findNearestUnstructNode
+import testbedutils.sblib as sb
 import netCDF4 as nc
 
 def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
