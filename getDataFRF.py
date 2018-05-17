@@ -583,7 +583,7 @@ class getObs:
         DGD.download_survey(gridID, grid_fname, output_location)  # , grid_data)
         return grid_fname  # file name returned w/o prefix simply the name
 
-    def getBathyTransectFromNC(self, profilenumbers=None, method=1, forceReturnAll):
+    def getBathyTransectFromNC(self, profilenumbers=None, method=1, forceReturnAll=False):
         """This function gets the bathymetric data from the thredds server,
 
         Args:
