@@ -208,7 +208,8 @@ class getObs:
                 return wavespec
 
         except (RuntimeError, AssertionError):
-            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (self.ncfile.title, self.d1, self.d2)
+            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (self.gname, self.d1, self.d2)
+
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
@@ -929,49 +930,49 @@ class getObs:
         if gaugenumber in [0, 'waverider-26m', 'Waverider-26m', '26m']:
             # 26 m wave rider
             self.dataloc = 'oceanography/waves/waverider-26m/waverider-26m.ncml'  # 'oceanography/waves/waverider430/waverider430.ncml'  # 26m buoy
-            gname = '26m Waverider Buoy'
+            self.gname = '26m Waverider Buoy'
         elif gaugenumber in [1, 'Waverider-17m', 'waverider-17m']:
             # 2D 17m waverider
             self.dataloc = 'oceanography/waves/waverider-17m/waverider-17m.ncml'  # 17 m buoy
-            gname = '17m Waverider Buoy'
+            self.gname = '17m Waverider Buoy'
         elif gaugenumber in [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']:
-            gname = 'AWAC 11m'
+            self.gname = 'AWAC 11m'
             self.dataloc = 'oceanography/waves/awac-11m/awac-11m.ncml'
         elif gaugenumber in [3, 'awac-8m', 'AWAC-8m']:
-            gname = 'AWAC 8m'
+            self.gname = 'AWAC 8m'
             self.dataloc = 'oceanography/waves/awac-8m/awac-8m.ncml'
         elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
-            gname = 'AWAC 6m'
+            self.gname = 'AWAC 6m'
             self.dataloc = 'oceanography/waves/awac-6m/awac-6m.ncml'
         elif gaugenumber in [5, 'awac-4.5m', 'Awac-4.5m', 'awac_4.5m']:
-            gname = 'AWAC 4.5m'
+            self.gname = 'AWAC 4.5m'
             self.dataloc = 'oceanography/waves/awac-4.5m/awac-4.5m.ncml'
         elif gaugenumber in [6, 'adop-3.5m', 'aquadopp 3.5m']:
-            gname = 'Aquadopp 3.5m'
+            self.gname = 'Aquadopp 3.5m'
             self.dataloc = 'oceanography/waves/adop-3.5m/adop-3.5m.ncml'
         elif gaugenumber in [7, 'adop-2m']:
-            gname = 'Aquadopp01 - 2m'
+            self.gname = 'Aquadopp01 - 2m'
             self.dataloc = 'oceanography/waves/adop01/adop01.ncml'
         elif gaugenumber in [8, 'xp200m', 'xp200']:
-            gname = 'Paros xp200m'
+            self.gname = 'Paros xp200m'
             self.dataloc = 'oceanography/waves/xp200m/xp200m.ncml'
         elif gaugenumber in [9, 'xp150m', 'xp150']:
-            gname = 'Paros xp150m'
+            self.gname = 'Paros xp150m'
             self.dataloc = 'oceanography/waves/xp150m/xp150m.ncml'
         elif gaugenumber in [10, 'xp125m', 'xp125']:
-            gname = 'Paros xp125m'
+            self.gname = 'Paros xp125m'
             self.dataloc = 'oceanography/waves/xp125m/xp125m.ncml'
         elif gaugenumber in [11, 'xp100m']:
-            gname = 'Paros xp100m'
+            self.gname = 'Paros xp100m'
             self.dataloc = 'oceanography/waves/xp100m/xp100m.ncml'
         elif gaugenumber in [12, '8m-Array', '8m Array', '8m array', '8m-array']:
-            gname = "8m array"
+            self.gname = "8m array"
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
         elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
-            gname = 'Oregon Inlet'
+            self.gname = 'Oregon Inlet'
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
         else:
-            gname = 'There Are no Gauge numbers here'
+            self.gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number')
 
     def getBathyDuckLoc(self, gaugenumber):
@@ -1004,7 +1005,8 @@ class getObs:
         except:
             loc = str(self.chlDataLoc + u'projects/bathyduck/data/BathyDuck-ocean_waves_p%s_201510.nc' % gaugenumber)
             ncfile = nc.Dataset(loc)
-            xloc = ncfile['xloc'][:]
+
+            xloc = ncfile['xloc'][:]  # these are hard coded in these files [do not change w/o recreating the file]
             yloc = ncfile['yloc'][:]
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
         assert len(np.unique(yloc)) == 1, "There are different Y locations in the NetCDF file"
