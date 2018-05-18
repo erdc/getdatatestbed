@@ -1138,7 +1138,7 @@ class getObs:
         nearest_timestamp = available_timestamps[idx]
         if abs(self.d1 - nearest_timestamp).days < window_days:
             # if there is data, and its within the window
-            archived_sensor_locations = loc_dict[nearest_timestamp][0]  # this produces a list of len 1
+            archived_sensor_locations = loc_dict[nearest_timestamp]
             # MPG: only use locations specified in self.gaugelist (for the case
             # that there are archived locations that should not be used).
             sensor_locations = collections.OrderedDict()
