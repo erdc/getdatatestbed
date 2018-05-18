@@ -1123,11 +1123,11 @@ class getObs:
             with open(datafile, 'rb') as fid:  # this will close a file when done loading it
                 loc_dict = pickle.load(fid)
         except IOError:
-            loc_dict = {}
             # now create pickle if one's not around
-            # this should be date of searching( or date of gauge placement more acccureately)
+            loc_dict = {}
+            # this should be date of searching( or date of gauge placement more accurately)
             timestamp = self.d1 # DT.strptime(timestampstr, '%Y%m%d_%H%M')
-            loc_dict[timestamp] = [self.get_sensor_locations_from_thredds()] #timestamp)
+            loc_dict[timestamp] = self.get_sensor_locations_from_thredds() #timestamp)
             with open(datafile, 'wb') as fid:
                 pickle.dump(loc_dict, fid)
 
@@ -1135,20 +1135,18 @@ class getObs:
         idx = np.abs(self.d1 - available_timestamps).argmin()
         nearest_timestamp = available_timestamps[idx]
         if abs(self.d1 - nearest_timestamp).days < window_days:
-            if len(loc_dict[nearest_timestamp]) <= 1:
-                archived_sensor_locations = loc_dict[nearest_timestamp][0]  # this produces a list of len 1
-                # MPG: only use locations specified in self.gaugelist (for the case
-                # that there are archived locations that should not be used).
-                sensor_locations = collections.OrderedDict()
-                for g in self.gaugelist:
-                    if g in archived_sensor_locations:
-                        sensor_locations[g] = archived_sensor_locations[g]
-                    else:
-                        # MPG: use empty dict as a placeholder to indicate that no
-                        # data is available.
-                        sensor_locations[g] = {}
-            else:
-                raise NotImplementedError('the above produces list > len 1 check, this makes an assumption')
+            # if there is data, and its within the window
+            archived_sensor_locations = loc_dict[nearest_timestamp][0]  # this produces a list of len 1
+            # MPG: only use locations specified in self.gaugelist (for the case
+            # that there are archived locations that should not be used).
+            sensor_locations = collections.OrderedDict()
+            for g in self.gaugelist:
+                if g in archived_sensor_locations:
+                    sensor_locations[g] = archived_sensor_locations[g]
+                else:
+                    # MPG: use empty dict as a placeholder to indicate that no
+                    # data is available.
+                    sensor_locations[g] = {}
         else:
             sensor_locations = self.get_sensor_locations_from_thredds()
             loc_dict[self.d1] = sensor_locations
