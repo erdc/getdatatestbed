@@ -44,10 +44,9 @@ def gettime(allEpoch, epochd1, epochd2):
     return idx
 
 def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
-    """
-    This had to be moved out of gettime, so that even if getime failed the
+    """This had to be moved out of gettime, so that even if getime failed the
     rest of the functions would still have access to the nc file
-    :return:
+
     """
 
     # toggle my data location
@@ -95,7 +94,7 @@ class getObs:
         Data are returned in self.datainex are inclusive at start, exclusive at end
         """
         # this is active wave gauge list for doing wave rider
-        self.gaugelist = [
+        self.gaugelist = ['waverider-26m',
             'waverider-17m', 
             'awac-11m', 
             '8m-array', 
@@ -104,9 +103,7 @@ class getObs:
             'adop-3.5m', 
             'xp200m', 
             'xp150m', 
-            'xp125m', 
-            'waverider-26m'
-            ]
+            'xp125m',]
         self.directional = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
                             'adop-3.5m']
         self.rawdataloc_wave = []
@@ -439,7 +436,7 @@ class getObs:
             windpacket = None
             return windpacket
 
-    def getPierWL(self, collectionlength=6):
+    def getWL(self, collectionlength=6):
         """This function retrieves the water level data from the server
         WL data on server is NAVD88
         
@@ -881,49 +878,35 @@ class getObs:
         :returns: Nothing, this just sets the self.dataloc data member
 
         """
-        if gaugenumber in [0, 'waverider-26m', 'Waverider-26m', '26m']:
+        if str(gaugenumber).lower() in ['0', 'waverider-26m', '26m']:
             # 26 m wave rider
             self.dataloc = 'oceanography/waves/waverider-26m/waverider-26m.ncml'  # 'oceanography/waves/waverider430/waverider430.ncml'  # 26m buoy
-            gname = '26m Waverider Buoy'
-        elif gaugenumber in [1, 'Waverider-17m', 'waverider-17m']:
+        elif str(gaugenumber).lower() in ['1', 'waverider-17m', '17m']:
             # 2D 17m waverider
             self.dataloc = 'oceanography/waves/waverider-17m/waverider-17m.ncml'  # 17 m buoy
-            gname = '17m Waverider Buoy'
-        elif gaugenumber in [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']:
-            gname = 'AWAC 11m'
+        elif str(gaugenumber).lower() in ['2', 'awac-11m', '11m']:
             self.dataloc = 'oceanography/waves/awac-11m/awac-11m.ncml'
-        elif gaugenumber in [3, 'awac-8m', 'AWAC-8m']:
-            gname = 'AWAC 8m'
+        elif str(gaugenumber).lower() in ['3', 'awac-8m']:
             self.dataloc = 'oceanography/waves/awac-8m/awac-8m.ncml'
-        elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
-            gname = 'AWAC 6m'
+        elif str(gaugenumber).lower() in ['4', 'awac-6m', 'awac 6m']:
             self.dataloc = 'oceanography/waves/awac-6m/awac-6m.ncml'
-        elif gaugenumber in [5, 'awac-4.5m', 'Awac-4.5m', 'awac_4.5m']:
-            gname = 'AWAC 4.5m'
+        elif str(gaugenumber).lower() in ['5', 'awac-4.5m', 'awac_4.5m']:
             self.dataloc = 'oceanography/waves/awac-4.5m/awac-4.5m.ncml'
-        elif gaugenumber in [6, 'adop-3.5m', 'aquadopp 3.5m']:
-            gname = 'Aquadopp 3.5m'
+        elif str(gaugenumber).lower() in ['6', 'adop-3.5m', 'aquadopp 3.5m']:
             self.dataloc = 'oceanography/waves/adop-3.5m/adop-3.5m.ncml'
-        elif gaugenumber in [7, 'adop-2m']:
-            gname = 'Aquadopp01 - 2m'
+        elif str(gaugenumber).lower() in ['7', 'adop-2m']:
             self.dataloc = 'oceanography/waves/adop01/adop01.ncml'
-        elif gaugenumber in [8, 'xp200m', 'xp200']:
-            gname = 'Paros xp200m'
+        elif str(gaugenumber).lower() in ['8', 'xp200m', 'xp200']:
             self.dataloc = 'oceanography/waves/xp200m/xp200m.ncml'
-        elif gaugenumber in [9, 'xp150m', 'xp150']:
-            gname = 'Paros xp150m'
+        elif str(gaugenumber).lower() in ['9', 'xp150m', 'xp150']:
             self.dataloc = 'oceanography/waves/xp150m/xp150m.ncml'
-        elif gaugenumber in [10, 'xp125m', 'xp125']:
-            gname = 'Paros xp125m'
+        elif str(gaugenumber).lower() in ['10', 'xp125m', 'xp125']:
             self.dataloc = 'oceanography/waves/xp125m/xp125m.ncml'
-        elif gaugenumber in [11, 'xp100m']:
-            gname = 'Paros xp100m'
+        elif str(gaugenumber).lower() in ['11', 'xp100m']:
             self.dataloc = 'oceanography/waves/xp100m/xp100m.ncml'
-        elif gaugenumber in [12, '8m-Array', '8m Array', '8m array', '8m-array']:
-            gname = "8m array"
+        elif str(gaugenumber).lower() in ['12', '8m array', '8m-array']:
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
-        elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
-            gname = 'Oregon Inlet'
+        elif str(gaugenumber).lower() in ['oregoninlet', 'oi']:
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
         else:
             gname = 'There Are no Gauge numbers here'
@@ -1027,7 +1010,7 @@ class getObs:
 
 
         """
-        self.dataloc = self.waveGaugeURLlookup(gaugenumber)
+        self.waveGaugeURLlookup(gaugenumber)
         try:
             ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
         except IOError:
