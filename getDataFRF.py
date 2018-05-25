@@ -2471,30 +2471,7 @@ class getDataTestBed:
 
 
         """
-            This function pulls down the data from the thredds server and puts the data into proper places
-            to be read for STwave Scripts
-            this will return the wavespec with dir/freq bin and directional wave energy
 
-            :param gaugenumber:
-                gaugenumber = 0, 26m wave rider
-                gaugenumber = 1, 17m waverider
-                gaugenumber = 2, awac4 - 11m
-                gaugenumber = 3, awac3 - 8m
-                gaugenumber = 4, awac2 - 6m
-                gaugenumber = 5, awac1 - 5m
-                gaugenumber = 6, adopp2 - 3m
-                gaugenumber = 7, adopp1 - 2m
-                gaugenumber = 8,  Paros xp200m
-                gaugenumber = 9,  Paros xp150m
-                gaugenumber = 10, Paros xp125m
-                gaugenumber = 11, Paros xp100m
-                gaugenumber = 12, 8 m array
-            :param collectionlength:
-                s the time over which the wind record exists
-                ie data is collected in 10 minute increments time is rounded
-                to nearest 10min increment
-                data is rounded to the nearst [collectionlength] (default 30 min)
-            """
         # Making gauges flexible
         if prefix in ['CB', 'HP', 'CBHP', 'FP']:
             model = 'STWAVE'
@@ -2581,9 +2558,8 @@ class getDataTestBed:
         return wavespec
 
     def getLidarWaveProf(self, removeMasked=True):
+        """  This function is a place holder, it does not work
 
-        """
-        :return:
         """
 
         self.dataloc = u'projects/tucker/waveprofile/test.ncml'
