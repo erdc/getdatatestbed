@@ -145,7 +145,6 @@ class getObs:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
 
-<<<<<<< HEAD
     def gettime(self, dtRound=60):
         """this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
         from the THREDDS (data loc) server based on start,end, and data location
@@ -157,6 +156,8 @@ class getObs:
         Returns:
             indicies for time of interest
         """
+        raise NotImplementedError('please use master get time that is not a member of this class ')
+
         # TODO find a way to pull only hourly data or regular interval of desired time
         # TODO this use date2index and create a list of dates see help(nc.date2index)
         try:
@@ -1847,17 +1848,21 @@ class getObs:
             This function is not finished being developed
 
         Args:
-          \**kwargs: 'xbounds': frf cross-shore bounds
-          \**kwargs: 'ybounds': frf alongshore bounds
+
+        Keyword Args:
+           'xbounds': frf cross-shore bounds
+           'ybounds': frf alongshore bounds
 
         Returns:
           dictionary with lidar beach topography
             keys to be determined
 
         """
-
         self.dataloc = u'geomorphology/DEMs/duneLidarDEM/duneLidarDEM.ncml'
-        self.idxDEM = self.gettime(dtRound=30 * 60)
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
+                                           dtRound=1 * 60)
+        self.idxDEM = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
+                                          epochEnd=self.epochd2, dtRound=30 * 60)
         self.DEMtime = nc.num2date(self.allEpoch[self.idxDEM], 'seconds since 1970-01-01')
 
         if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
@@ -1904,7 +1909,6 @@ class getObs:
     def getBathyRegionalDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
         """grabs bathymery from the regional background grid
 
-<<<<<<< HEAD
         Args:
           utmEmin: left side of DEM bounding box in UTM
           utmEmax: right side of DEM bounding box in UTM
@@ -1990,7 +1994,6 @@ class getDataTestBed:
         """Test if times are backwards"""
         assert self.end >= self.start, 'finish time: end needs to be after start time: start'
 
-<<<<<<< HEAD
     def gettime(self, dtRound=60):
         """this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
         from the THREDDS (data loc) server based on start,end, and data location
@@ -2003,6 +2006,7 @@ class getDataTestBed:
             index (bytearray): indicies for time of interest
 
         """
+        raise NotImplementedError('please use master get time that is not a member of this class ')
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
         try:
