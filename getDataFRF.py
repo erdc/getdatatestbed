@@ -289,7 +289,7 @@ class getObs:
 
         except (RuntimeError, AssertionError):
 
-            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (self.gname, self.d1, self.d2)
+            print '     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (gaugenumber, self.d1, self.d2)
 
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
@@ -518,6 +518,7 @@ class getObs:
             windpacket = {
                 'name': str(self.ncfile.title),  # station name
                 'time': self.windtime,  # time
+                'epochtime': self.allEpoch[self.winddataindex],
                 'vecspeed': windvecspd,  # Vector Averaged Wind Speed
                 'windspeed': windspeed,  # Mean Wind Speed
                 'windspeed_corrected': windspeed_corrected,  # corrected windspeed
@@ -561,6 +562,8 @@ class getObs:
 
             'time': datetime object
 
+            'epochtime': time in seconds since 1970-01-01 (float)
+
             'lat': latitude
 
             'lon':  longitude
@@ -588,6 +591,7 @@ class getObs:
                 'name': str(self.ncfile.title),
                 'WL': self.ncfile['waterLevel'][self.WLdataindex],
                 'time': self.WLtime,
+                'epochtime': self.allEpoch[self.WLdataindex],
                 'lat': self.ncfile['latitude'][:],
                 'lon': self.ncfile['longitude'][:],
                 'residual': self.ncfile['residualWaterLevel'][self.WLdataindex],
@@ -1097,7 +1101,7 @@ class getObs:
         elif str(gaugenumber).lower() in ['oregoninlet', 'oi']:
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
         else:
-            gname = 'There Are no Gauge numbers here'
+            self.gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number')
 
     def wlGageURLlookup(self, gaugenumber):
