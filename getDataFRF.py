@@ -2490,6 +2490,9 @@ class getDataTestBed:
         elif prefix in ['CBThresh_0']:
             model = 'STWAVE'
             urlFront = 'projects/STWAVE/CBThresh_0'
+        elif prefix.lower() in ['cbthresh_0_oversmoothed']:
+            model = 'STWAVE'
+            urlFront = 'projects/STWAVE/CBThresh_0_oversmoothed'
         ############### now identify file name #################
         if gaugenumber in [0, 'waverider-26m', 'Waverider-26m', '26m']:
             # 26 m wave rider
@@ -2505,7 +2508,7 @@ class getDataTestBed:
         elif gaugenumber in [3, 'awac-8m', 'AWAC-8m', 'Awac-8m', 'awac 8m',
                              '8m-Array', '8m Array', '8m array', '8m-array']:
             gname = 'AWAC 8m'
-            fname = 'wac-8m/awac-8m.ncml'
+            fname = '8m-array/8m-array.ncml'
         elif gaugenumber in [4, 'awac-6m', 'AWAC-6m']:
             gname = 'AWAC 6m'
             fname = 'awac-6m/awac-6m.ncml'
@@ -2556,7 +2559,7 @@ class getDataTestBed:
                             'WL': self.ncfile['waterLevel'][self.wavedataindex],
                             'Umag': self.ncfile['Umag'][self.wavedataindex],
                             'Udir': self.ncfile['Udir'][self.wavedataindex],
-                            'fspec': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :].sum(axis=2),
+                            'fspec': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :].sum(axis=2) * np.median(np.diff(self.ncfile['waveDirectionBins'][:])),
                             'qcFlag': self.ncfile['qcFlag'][self.wavedataindex]}
 
         except (RuntimeError, AssertionError):
