@@ -607,20 +607,29 @@ class getObs:
     def getGageWL(self, gaugenumber=5, roundto=1):
         """
         This function pulls down the water level data at a particular gage from the Thredds Server
-        :param gaugenumber:
-        :param roundto: the time over which the wind record exists
-                        ie data is collected in 10 minute increments
+        Args:
+            gaugenumber (int/str) describing the location (default=5 End of pier)
+            roundto: the time over which the wind record exists ie data is collected in 10 minute increments
                         data is rounded to the nearst [roundto] (default 1 min)
-        :return: wlpacket
-                 keys:
+
+        Returns
+            wlpacket (dict) with keys below
                 'name': gagename
+
                 'time': datetime of the measurements
+
                 'epochtime': epochtime of the measurements
+
                 'wl': water level at the gage (NAVD88?)
+
                 'lat': latitude of the gage
+
                 'lon': longitude of the gage
+
                 'xFRF': xFRF position of the gage
+
                 'yFRF': yFRF position of the gage
+
         """
 
         # Making gauges flexible
