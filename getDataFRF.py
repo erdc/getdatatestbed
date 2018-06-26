@@ -37,7 +37,6 @@ def gettime(allEpoch, epochStart, epochEnd):
         idx = None
     return idx
 
-
 def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
     """This had to be moved out of gettime, so that even if getime failed the
     rest of the functions would still have access to the nc file
@@ -84,7 +83,6 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
     allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
 
     return ncFile, allEpoch
-
 
 class getObs:
 
