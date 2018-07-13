@@ -56,7 +56,7 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
     # toggle my data location
     threddsList = np.array(['CHL', 'FRF'])
 
-    FRFdataloc = u'http://134.164.129.55/thredds/dodsC/'
+    FRFdataloc = u'http://134.164.129.55:8080/thredds/dodsC/'
     chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/'
 
     assert (
@@ -116,7 +116,7 @@ class getObs:
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.THREDDS = THREDDS
         self.callingClass = 'getObs'
-        self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
+        self.FRFdataloc = u'http://134.164.129.55:8080/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'  # 'http://10.200.23.50/thredds/dodsC/frf/'
         self.comp_time()
@@ -1521,7 +1521,8 @@ class getObs:
 
             if removeMasked:
                 if isinstance(out['elevation'], np.ma.MaskedArray):
-                    out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
+                    # out['elevation'] = np.array(out['elevation'][~out['elevation'].mask])
+                    out['elevation'] = out['elevation'].filled(np.nan)
                 else:
                     pass
                 if isinstance(out['totalWaterLevel'], np.ma.MaskedArray):
@@ -1536,10 +1537,10 @@ class getObs:
                     out['yFRF'] = np.array(out['yFRF'][~out['yFRF'].mask])
                 else:
                     pass
-                if isinstance(out['runupDownLine'], np.ma.MaskedArray):
-                    out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
-                else:
-                    pass
+                # if isinstance(out['runupDownLine'], np.ma.MaskedArray):
+                #     out['runupDownLine'] = np.array(out['runupDownLine'][~out['runupDownLine'].mask])
+                # else:
+                #     pass
                 if isinstance(out['samplingTime'], np.ma.MaskedArray):
                     out['samplingTime'] = np.array(out['samplingTime'][~out['samplingTime'].mask])
                 else:
@@ -2633,18 +2634,27 @@ class getDataTestBed:
     def getCSHOREOutput(self, prefix):
         dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
         ncfile, allEpoch = getnc(dataLoc, self.THREDDS, self.callingClass)
-        wavedataindex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
-        assert np.array(wavedataindex).all() != None, 'there''s no data in your time period'
-        mod = {'epochtime': ncfile['time'][wavedataindex],
-               'time': nc.num2date(ncfile['time'][wavedataindex], ncfile['time'].units),
+        dataIndex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
+        if dataIndex is None:
+            print('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
+                  ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ'))
+            return {}
+        dataIndex = dataIndex[~ncfile['bottomElevation'][dataIndex, :].mask.any(1)]
+        if len(dataIndex) == 0:
+            print('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
+                  ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ'))
+            return {}
+        mod = {'epochtime': ncfile['time'][dataIndex],
+               'time': nc.num2date(ncfile['time'][dataIndex], ncfile['time'].units),
                'xFRF': ncfile['xFRF'][:],
-               'Hs': ncfile['waveHs'][wavedataindex, :],
-               'zb': ncfile['bottomElevation'][wavedataindex, :],
-               'WL': ncfile['waterLevel'][wavedataindex, :]}
-        if isinstance(mod['zb'], np.ma.MaskedArray):
-            if np.ma.is_masked(mod['zb']):
-                print('Warning: there are masked values in model bathymetry')
-            mod['zb'] = mod['zb'].data
-        else:
-            pass
+               'Hs': ncfile['waveHs'][dataIndex, :],
+               'zb': ncfile['bottomElevation'][dataIndex, :].data,
+               'WL': ncfile['waterLevel'][dataIndex, :],
+               'bathyTime': nc.num2date(ncfile['bathymetryDate'][dataIndex], 
+                                        ncfile['bathymetryDate'].units),
+               'setup': ncfile['setup'][dataIndex, :],
+               'aveN': ncfile['aveN'][dataIndex, :],
+               'stdN': ncfile['stdN'][dataIndex, :],
+               'runupMean': ncfile['runupMean'][dataIndex],
+               'runup2perc': ncfile['runup2perc'][dataIndex]}
         return mod
