@@ -2632,7 +2632,15 @@ class getDataTestBed:
         return out
 
     def getCSHOREOutput(self, prefix):
-        
+        """retrives data from spatial data STWAVE model
+            
+        Args:
+            prefix (str): a 'key' to select which version of the simulations to pull data from
+                available value is only 'MOBILE_RESET' for now but more could be 
+                added in the future
+                
+        """
+
         dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
         ncfile, allEpoch = getnc(dataLoc, self.THREDDS, self.callingClass)
         dataIndex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
