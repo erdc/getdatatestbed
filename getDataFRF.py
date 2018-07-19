@@ -116,7 +116,7 @@ class getObs:
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.THREDDS = THREDDS
         self.callingClass = 'getObs'
-        self.FRFdataloc = u'http://134.164.129.55:8080/thredds/dodsC/FRF/'
+        self.FRFdataloc = u'http://134.164.129.55:/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'  # 'http://10.200.23.50/thredds/dodsC/frf/'
         self.comp_time()
@@ -1999,7 +1999,7 @@ class getDataTestBed:
         self.THREDDS = THREDDS
         self.callingClass = 'getDataTestBed'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.55:8080/thredds/dodsC/cmtb/'
+        self.crunchDataLoc = u'http://134.164.129.55:/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'
         assert type(self.end) == DT.datetime, 'end dates need to be in python "Datetime" data types'
         assert type(self.start) == DT.datetime, 'start dates need to be in python "Datetime" data types'
@@ -2334,7 +2334,7 @@ class getDataTestBed:
 
             local (bool): pull from the nested grid or the regional grid (Default value = True)
 
-            model (str): one of: STWAVE, CMS
+            model (str): one of: STWAVE, CMS (other models can be added)
 
         Returns:
             a dictionary with keys below, see netCDF file for more metadata
@@ -2632,6 +2632,7 @@ class getDataTestBed:
         return out
 
     def getCSHOREOutput(self, prefix):
+        
         dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
         ncfile, allEpoch = getnc(dataLoc, self.THREDDS, self.callingClass)
         dataIndex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
