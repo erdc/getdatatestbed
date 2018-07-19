@@ -116,7 +116,7 @@ class getObs:
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.THREDDS = THREDDS
         self.callingClass = 'getObs'
-        self.FRFdataloc = u'http://134.164.129.55:/thredds/dodsC/FRF/'
+        self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'  # 'http://10.200.23.50/thredds/dodsC/frf/'
         self.comp_time()
@@ -1999,7 +1999,7 @@ class getDataTestBed:
         self.THREDDS = THREDDS
         self.callingClass = 'getDataTestBed'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.55:/thredds/dodsC/cmtb/'
+        self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'
         assert type(self.end) == DT.datetime, 'end dates need to be in python "Datetime" data types'
         assert type(self.start) == DT.datetime, 'start dates need to be in python "Datetime" data types'
@@ -2320,6 +2320,10 @@ class getDataTestBed:
         return gridDict
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
+        warnings.warn('Using depricated function name')
+        return self.getModelField(var, prefix, local, ijLoc, model)
+
+    def getModelField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
         """retrives data from spatial data STWAVE model
 
         Args:
@@ -2438,6 +2442,10 @@ class getDataTestBed:
         return field
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True, model='STWAVE'):
+        warnings.warn('Using depricated function name')
+        return self.getWaveSpecModel(prefix, gaugenumber, local, model)
+
+    def getWaveSpecModel(self, prefix, gaugenumber, local=True, model='STWAVE'):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
@@ -2632,13 +2640,40 @@ class getDataTestBed:
         return out
 
     def getCSHOREOutput(self, prefix):
-        """retrives data from spatial data STWAVE model
+        """retrives data from spatial data CSHORE model
             
         Args:
             prefix (str): a 'key' to select which version of the simulations to pull data from
                 available value is only 'MOBILE_RESET' for now but more could be 
                 added in the future
-                
+
+        Returns: 
+            dictionary with packaged data following keys
+
+            'epochtime' (float):  epoch time
+
+            'time' (obj): datetime of model output
+
+            'xFRF' (float): x location of data
+
+            'Hs' (float): significant wave height
+
+            'zb' (float): bed elevation
+
+            'WL' (float): water level
+
+            'bathyTime' (ojb): datetime of bathymetric survey used
+
+            'setup' (float): wave induced setup height
+
+            'aveN' (float): average northward current
+
+            'stdN' (float): standard deviation of northward current
+
+            'runupMean' (float): mean runup elevation
+
+            'runup2perc' (float): 2% runup elevation
+
         """
 
         dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
