@@ -56,7 +56,7 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
     # toggle my data location
     threddsList = np.array(['CHL', 'FRF'])
 
-    FRFdataloc = u'http://134.164.129.55:8080/thredds/dodsC/'
+    FRFdataloc = u'http://134.164.129.55/thredds/dodsC/'
     chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/'
 
     assert (
@@ -1999,7 +1999,7 @@ class getDataTestBed:
         self.THREDDS = THREDDS
         self.callingClass = 'getDataTestBed'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
+        self.crunchDataLoc = u'http://134.164.129.55:8080/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'
         assert type(self.end) == DT.datetime, 'end dates need to be in python "Datetime" data types'
         assert type(self.start) == DT.datetime, 'start dates need to be in python "Datetime" data types'
