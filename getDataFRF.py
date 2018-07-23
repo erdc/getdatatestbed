@@ -2370,11 +2370,16 @@ class getDataTestBed:
             fname = self.crunchDataLoc + u'waveModels/%s/%s/%s-Field/%s-Field.ncml' % (model, prefix, grid, grid)
         elif model == 'CMS':  # this is standard operational model url Structure
             fname = self.crunchDataLoc + u'waveModels/%s/%s/Field/Field.ncml' % (model, prefix)
-        try:
-            ncfile = nc.Dataset(fname)
-        except IOError:
-            print('Error reading {}, trying again'.format(fname))
-            ncfile = nc.Dataset(fname)
+        finished = False
+        n = 0
+        while not finished and n < 5:
+            try:
+                ncfile = nc.Dataset(fname)
+                finished = True
+            except IOError:
+                print('Error reading {}, trying again'.format(fname))
+                n+=1
+
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
         mask = (ncfile['time'][:] >= nc.date2num(self.start, ncfile['time'].units)) & (
                 ncfile['time'][:] <= nc.date2num(self.end, ncfile['time'].units))
