@@ -79,8 +79,11 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
             pName = 'cmtb'
         elif THREDDS == 'CHL':
             pName = 'cmtb'
-
-    ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+    try:
+        ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+    except IOError as err:
+        print('Error reading {}, trying again'.format(dataLoc))
+        ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))
     allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
 
     return ncFile, allEpoch
@@ -2360,17 +2363,18 @@ class getDataTestBed:
             grid = 'Regional'
         ############## setting up the ncfile ############################
         if prefix == 'CBHPStatic' and local == True:  # this is needed because projects are stored in weird place
-            ncfile = nc.Dataset(
-                'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml')
+            fname = 'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml'
         elif prefix == 'CBHPStatic' and local == False:
-            ncfile = nc.Dataset(
-                'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml')
+            fname = 'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml'
         elif model == 'STWAVE':  # this is standard operational model url Structure
-            ncfile = nc.Dataset(
-                self.crunchDataLoc + u'waveModels/%s/%s/%s-Field/%s-Field.ncml' % (model, prefix, grid, grid))
+            fname = self.crunchDataLoc + u'waveModels/%s/%s/%s-Field/%s-Field.ncml' % (model, prefix, grid, grid)
         elif model == 'CMS':  # this is standard operational model url Structure
-            ncfile = nc.Dataset(
-                self.crunchDataLoc + u'waveModels/%s/%s/Field/Field.ncml' % (model, prefix))
+            fname = self.crunchDataLoc + u'waveModels/%s/%s/Field/Field.ncml' % (model, prefix)
+        try:
+            ncfile = nc.Dataset(fname)
+        except IOError:
+            print('Error reading {}, trying again'.format(fname))
+            ncfile = nc.Dataset(fname)
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
         mask = (ncfile['time'][:] >= nc.date2num(self.start, ncfile['time'].units)) & (
                 ncfile['time'][:] <= nc.date2num(self.end, ncfile['time'].units))
