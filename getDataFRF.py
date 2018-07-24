@@ -10,7 +10,7 @@ This is a class definition designed to get data from the FRF thredds server
 
 """
 import datetime as DT
-import warnings, os, collections
+import warnings, os, collections, time
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
@@ -79,11 +79,16 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
             pName = 'cmtb'
         elif THREDDS == 'CHL':
             pName = 'cmtb'
-    try:
-        ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
-    except IOError as err:
-        print('Error reading {}, trying again'.format(dataLoc))
-        ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))
+    finished = False
+    n = 0
+    while not finished and n < 15:
+        try:
+            ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+            finished = True
+        except IOError as err:
+            print('Error reading {}, trying again'.format(dataLoc))
+            time.sleep(10)
+            n += 1
     allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
 
     return ncFile, allEpoch
@@ -2372,12 +2377,13 @@ class getDataTestBed:
             fname = self.crunchDataLoc + u'waveModels/%s/%s/Field/Field.ncml' % (model, prefix)
         finished = False
         n = 0
-        while not finished and n < 5:
+        while not finished and n < 15:
             try:
                 ncfile = nc.Dataset(fname)
                 finished = True
             except IOError:
                 print('Error reading {}, trying again'.format(fname))
+                time.sleep(10)
                 n+=1
 
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
@@ -2410,35 +2416,35 @@ class getDataTestBed:
             xFRF = ncfile['xFRF'][x]
             yFRF = ncfile['yFRF'][y]
             if len(list) < 100:
-                bathy = np.array(ncfile[var][np.squeeze(list)])
-                time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
+                dataVar = np.array(ncfile[var][np.squeeze(list)])
+                timeVar = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
             else:
                 for num, minidx in enumerate(list):
                     if len(list) < 100:
-                        bathy = np.array(ncfile[var][np.squeeze(list)])
-                        time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
+                        dataVar = np.array(ncfile[var][np.squeeze(list)])
+                        timeVar = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
                     elif num == 0:
-                        bathy = np.array(ncfile[var][range(minidx, list[num + 1]), y, x])
-                        time = nc.num2date(np.array(ncfile['time'][range(minidx, list[num + 1])]), ncfile['time'].units)
+                        dataVar = np.array(ncfile[var][range(minidx, list[num + 1]), y, x])
+                        timeVar = nc.num2date(np.array(ncfile['time'][range(minidx, list[num + 1])]), ncfile['time'].units)
                     elif minidx == list[-1]:
                         lastIdx = (idx - minidx)[(idx - minidx) >= 0] + minidx
-                        bathy = np.append(bathy, ncfile[var][lastIdx, y, x], axis=0)
-                        time = np.append(time, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
+                        dataVar = np.append(dataVar, ncfile[var][lastIdx, y, x], axis=0)
+                        timeVar = np.append(timeVar, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
                     else:
-                        bathy = np.append(bathy, ncfile[var][range(minidx, list[num + 1]), y, x], axis=0)
-                        time = np.append(time,
+                        dataVar = np.append(dataVar, ncfile[var][range(minidx, list[num + 1]), y, x], axis=0)
+                        timeVar = np.append(timeVar,
                                          nc.num2date(ncfile['time'][range(minidx, list[num + 1])],
                                                      ncfile['time'].units),
                                          axis=0)
         else:
-            bathy = ncfile[var][idx, y, x]
+            dataVar = ncfile[var][idx, y, x]
             xFRF = ncfile['xFRF'][x]
             yFRF = ncfile['yFRF'][y]
-            time = nc.num2date(ncfile['time'][np.squeeze(idx)], ncfile['time'].units)
+            timeVar = nc.num2date(ncfile['time'][np.squeeze(idx)], ncfile['time'].units)
         # package for output
-        field = {'time': time,
+        field = {'time': timeVar,
                  'epochtime': ncfile['time'][idx],  # pulling down epoch time of interest
-                 var: bathy,
+                 var: dataVar,
                  'xFRF': xFRF,
                  'yFRF': yFRF,
                  }
