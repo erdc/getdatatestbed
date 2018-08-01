@@ -79,8 +79,11 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
             pName = 'cmtb'
         elif THREDDS == 'CHL':
             pName = 'cmtb'
-
-    ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+    try:
+        ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+    except IOError as err:
+        print('Error reading {}, trying again'.format(dataLoc))
+        ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))
     allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
 
     return ncFile, allEpoch
@@ -116,7 +119,7 @@ class getObs:
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.THREDDS = THREDDS
         self.callingClass = 'getObs'
-        self.FRFdataloc = u'http://134.164.129.55:8080/thredds/dodsC/FRF/'
+        self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'  # 'http://10.200.23.50/thredds/dodsC/frf/'
         self.comp_time()
@@ -2011,7 +2014,7 @@ class getDataTestBed:
         self.THREDDS = THREDDS
         self.callingClass = 'getDataTestBed'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.crunchDataLoc = u'http://134.164.129.55:8080/thredds/dodsC/cmtb/'
+        self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'
         assert type(self.end) == DT.datetime, 'end dates need to be in python "Datetime" data types'
         assert type(self.start) == DT.datetime, 'start dates need to be in python "Datetime" data types'
@@ -2332,6 +2335,10 @@ class getDataTestBed:
         return gridDict
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
+        warnings.warn('Using depricated function name')
+        return self.getModelField(var, prefix, local, ijLoc, model)
+
+    def getModelField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
         """retrives data from spatial data STWAVE model
 
         Args:
@@ -2346,7 +2353,7 @@ class getDataTestBed:
 
             local (bool): pull from the nested grid or the regional grid (Default value = True)
 
-            model (str): one of: STWAVE, CMS
+            model (str): one of: STWAVE, CMS (other models can be added)
 
         Returns:
             a dictionary with keys below, see netCDF file for more metadata
@@ -2368,17 +2375,23 @@ class getDataTestBed:
             grid = 'Regional'
         ############## setting up the ncfile ############################
         if prefix == 'CBHPStatic' and local == True:  # this is needed because projects are stored in weird place
-            ncfile = nc.Dataset(
-                'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml')
+            fname = 'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml'
         elif prefix == 'CBHPStatic' and local == False:
-            ncfile = nc.Dataset(
-                'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml')
+            fname = 'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml'
         elif model == 'STWAVE':  # this is standard operational model url Structure
-            ncfile = nc.Dataset(
-                self.crunchDataLoc + u'waveModels/%s/%s/%s-Field/%s-Field.ncml' % (model, prefix, grid, grid))
+            fname = self.crunchDataLoc + u'waveModels/%s/%s/%s-Field/%s-Field.ncml' % (model, prefix, grid, grid)
         elif model == 'CMS':  # this is standard operational model url Structure
-            ncfile = nc.Dataset(
-                self.crunchDataLoc + u'waveModels/%s/%s/Field/Field.ncml' % (model, prefix))
+            fname = self.crunchDataLoc + u'waveModels/%s/%s/Field/Field.ncml' % (model, prefix)
+        finished = False
+        n = 0
+        while not finished and n < 5:
+            try:
+                ncfile = nc.Dataset(fname)
+                finished = True
+            except IOError:
+                print('Error reading {}, trying again'.format(fname))
+                n+=1
+
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
         mask = (ncfile['time'][:] >= nc.date2num(self.start, ncfile['time'].units)) & (
                 ncfile['time'][:] <= nc.date2num(self.end, ncfile['time'].units))
@@ -2451,7 +2464,8 @@ class getDataTestBed:
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True, model='STWAVE'):
         warnings.warn('Using depricated function name')
-        return self.getWaveSpecSTWAVE(prefix, gaugenumber, local, model)
+
+        return self.getWaveSpecModel(prefix, gaugenumber, model)
 
     def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE'):
         """This function pulls down the data from the thredds server and puts the data into proper places
@@ -2648,6 +2662,42 @@ class getDataTestBed:
         return out
 
     def getCSHOREOutput(self, prefix):
+        """retrives data from spatial data CSHORE model
+            
+        Args:
+            prefix (str): a 'key' to select which version of the simulations to pull data from
+                available value is only 'MOBILE_RESET' for now but more could be 
+                added in the future
+
+        Returns: 
+            dictionary with packaged data following keys
+
+            'epochtime' (float):  epoch time
+
+            'time' (obj): datetime of model output
+
+            'xFRF' (float): x location of data
+
+            'Hs' (float): significant wave height
+
+            'zb' (float): bed elevation
+
+            'WL' (float): water level
+
+            'bathyTime' (ojb): datetime of bathymetric survey used
+
+            'setup' (float): wave induced setup height
+
+            'aveN' (float): average northward current
+
+            'stdN' (float): standard deviation of northward current
+
+            'runupMean' (float): mean runup elevation
+
+            'runup2perc' (float): 2% runup elevation
+
+        """
+
         dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
         ncfile, allEpoch = getnc(dataLoc, self.THREDDS, self.callingClass)
         dataIndex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
