@@ -211,15 +211,27 @@ class getObs:
         Returns:
           dictionary with following keys for all gauges
             'time' (array): time in datetime objects
+
             'epochtime' (array): time in epoch time
+
             'name' (str): gauge name
-            'wavefreqbin' (array): wave frequencys assoicated with 2D spectra
+
+            'wavefreqbin' (array): wave frequencys associated with 2D spectra
+
+            'wavedirbin' (array): wave direction bin associated with 2D spectra
+
             'xFRF' (float): x location in FRF coordinates
+
             'yFRF' (float): y location in FRF coordinates
+
             'lat' (float): latitude
+
             'lon' (float): longitude
+
             'depth' (float): nominal water dept
+
             'Hs' (array): wave height
+
             'peakf' (array): wave peak frequency
 
         """
@@ -2458,9 +2470,10 @@ class getDataTestBed:
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True, model='STWAVE'):
         warnings.warn('Using depricated function name')
-        return self.getWaveSpecModel(prefix, gaugenumber, local, model)
 
-    def getWaveSpecModel(self, prefix, gaugenumber, local=True, model='STWAVE'):
+        return self.getWaveSpecModel(prefix, gaugenumber, model)
+
+    def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE'):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
