@@ -2397,6 +2397,8 @@ class getDataTestBed:
                 print('Error reading {}, trying again'.format(fname))
                 time.sleep(10)
                 n+=1
+        if not finished:
+            raise AssertionError
 
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
         mask = (ncfile['time'][:] >= nc.date2num(self.start, ncfile['time'].units)) & (
