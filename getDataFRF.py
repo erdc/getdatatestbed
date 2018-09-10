@@ -2464,7 +2464,8 @@ class getDataTestBed:
             field['bathymetryDate'] = ncfile['bathymetryDate'][idx]
         except IndexError:
             field['bathymetryDate'] = np.ones_like(field['time'])
-
+        if var == 'bathymetry': # renaming  to fit other convention
+            field['bathy'] = field['bathymetry']
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
         return field
 
