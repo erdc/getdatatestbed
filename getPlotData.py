@@ -1,4 +1,4 @@
-from getDataFRF import getObs
+from .getDataFRF import getObs
 from testbedutils.anglesLib import vectorRotation
 import datetime as DT
 import numpy as np
@@ -104,7 +104,7 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
         dict['TS_toggle'] = True
 
     except:
-        print('No data at %s!  Will return masked array.') %name
+        print(('No data at %s!  Will return masked array.') %name)
         # just make it a masked array
         dict = {}
         dict['wave_time'] = time

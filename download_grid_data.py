@@ -6,8 +6,8 @@
 # Edited:      Spicer Bak 12/25/15
 #
 # -------------------------------------------------------------------------------
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import json
 import time
 import gzip
@@ -35,11 +35,11 @@ def download_survey(objectid, survey_filename, save_path):
                "GPServer/Download%20Source%20Data"
     submit_url = task_url + "/submitJob"
     try:
-        urllib2.urlopen(submit_url)
+        urllib.request.urlopen(submit_url)
     except:
         sys.exit('Service is down, please try again later')
     data = {'objectid': objectid, 'f': 'pjson'}
-    submit_response = urllib.urlopen(submit_url, urllib.urlencode(data))
+    submit_response = urllib.request.urlopen(submit_url, urllib.parse.urlencode(data))
     submit_json = json.loads(submit_response.read())
     if 'jobId' in submit_json:
         job_id = submit_json['jobId']
@@ -50,7 +50,7 @@ def download_survey(objectid, survey_filename, save_path):
             print("checking to see if job is completed...")
             time.sleep(4)
 
-            job_response = urllib.urlopen(job_url, "f=json")
+            job_response = urllib.request.urlopen(job_url, "f=json")
             job_json = json.loads(job_response.read())
 
             if 'jobStatus' in job_json:
@@ -60,12 +60,12 @@ def download_survey(objectid, survey_filename, save_path):
                         if 'results' in job_json:
                             results_url = job_url + "/results/"
                             results_json = job_json['results']
-                            for param_name in results_json.keys():
+                            for param_name in list(results_json.keys()):
                                 result_url = results_url + param_name
-                                result_response = urllib.urlopen(result_url, "f=json")
+                                result_response = urllib.request.urlopen(result_url, "f=json")
                                 result_json = json.loads(result_response.read())
                                 # print result_json
-                                urllib.urlretrieve(result_json['value']['url'],
+                                urllib.request.urlretrieve(result_json['value']['url'],
                                                    os.path.join(save_path, survey_filename + '.zip'))
                             z = zipfile.ZipFile(os.path.join(save_path, survey_filename + '.zip'), 'r')
                             gzip_file = z.namelist()[0]
@@ -79,7 +79,7 @@ def download_survey(objectid, survey_filename, save_path):
                             out_file.close()
                             os.remove(os.path.join(save_path, survey_filename + '.zip'))
                             os.remove(os.path.join(save_path, gzip_file))
-                            print("File located here: {}".format(os.path.join(save_path, survey_filename)))
+                            print(("File located here: {}".format(os.path.join(save_path, survey_filename))))
                             return os.path.join(save_path, survey_filename)
 
                 if status == "esriJobFailed":
@@ -88,7 +88,7 @@ def download_survey(objectid, survey_filename, save_path):
                             raise SystemError('Esri Server Down, Contact Mobile Alabama 1-800-USACE-Mobile')
                             #  print job_json['messages']
     else:
-        print "no jobId found in the response"
+        print("no jobId found in the response")
 
 
 def query_survey_data(service_url, grid_data=True):
@@ -103,7 +103,7 @@ def query_survey_data(service_url, grid_data=True):
 
     """
     try:
-        urllib2.urlopen(service_url)
+        urllib.request.urlopen(service_url)
     except:
         sys.exit('Service is down, please try again later')
 
@@ -112,7 +112,7 @@ def query_survey_data(service_url, grid_data=True):
         'identify': service_url + '/identify?'
     }
 
-    parameters = urllib.urlencode({
+    parameters = urllib.parse.urlencode({
         'where': """SURVEYTYPE = 'GRID'""",
         'geometry': '',
         'geometryType': '',
@@ -124,7 +124,7 @@ def query_survey_data(service_url, grid_data=True):
         'orderByFields': 'SURVEYDATE DESC',
         'f': 'json'
     })
-    query_url = urllib2.urlopen(rest_operation['query'] + parameters) # this was comma'd
+    query_url = urllib.request.urlopen(rest_operation['query'] + parameters) # this was comma'd
     data = json.load(query_url)
     survey_filename, objectid, surveydate = [], [], []
     for i in range(0, len(data['features'])):
@@ -142,4 +142,4 @@ if __name__ == '__main__':
     #output_file = download_survey(objectid=objectid, survey_filename=survey_filename, save_path=r'D:\temp')
 
     for file in survey_filename:
-        print file + '\n'
+        print(file + '\n')
