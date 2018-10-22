@@ -2442,16 +2442,15 @@ class getDataTestBed:
                     elif num == 0:
                         dataVar = np.array(ncfile[var][range(minidx, list[num + 1]), y, x])
                         timeVar = nc.num2date(np.array(ncfile['time'][range(minidx, list[num + 1])]), ncfile['time'].units)
-
                     elif minidx == list[-1]:
                         lastIdx = (idx - minidx)[(idx - minidx) >= 0] + minidx
                         dataVar = np.append(dataVar, ncfile[var][lastIdx, y, x], axis=0)
                         timeVar = np.append(timeVar, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
                     else:
                         dataVar = np.append(dataVar, ncfile[var][range(minidx, list[num + 1]), y, x], axis=0)
-                        timeVar = np.append(timeVar,
-                                         nc.num2date(ncfile['time'][range(minidx, list[num + 1])],
-                                                     ncfile['time'].units), axis=0)
+                        timeVar = np.append(timeVar, nc.num2date(ncfile['time'][range(minidx, list[num + 1])],
+                                                                 ncfile['time'].units), axis=0)
+
         else:
             dataVar = ncfile[var][idx, y, x]
             xFRF = ncfile['xFRF'][x]
