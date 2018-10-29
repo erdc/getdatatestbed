@@ -2019,8 +2019,7 @@ class getObs:
         Returns:
 
         """
-        def rgb2gray(rgb):
-            return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
+        from skimage import color
         if type.lower() not in ['var', 'timex']:
             raise NotImplementedError("These data are not currently available through this function")
         elif type.lower() in ['var', 'variance']:
@@ -2076,7 +2075,7 @@ class getObs:
             out = {'time': timeArgus,
                    'epochtime': self.allEpoch[self.idxArgus],
                    'Ip': self.ncfile['Ip'][self.idxArgus, xs, ys],
-                   'Intensity': rgb2gray(self.ncfile['Ip'][self.idxArgus, xs, ys]),
+                   'Intensity': color.rgb2gray(self.ncfile['Ip'][self.idxArgus, xs, ys]),
                    'xFRF': self.ncfile['x'][xs],
                    'yFRF': self.ncfile['y'][ys],
                 }
