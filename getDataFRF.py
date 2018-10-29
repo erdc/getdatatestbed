@@ -2019,8 +2019,7 @@ class getObs:
         Returns:
 
         """
-        def rgb2gray(rgb):
-            return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
+        from skimage import color
         if type.lower() not in ['var', 'timex']:
             raise NotImplementedError("These data are not currently available through this function")
         elif type.lower() in ['var', 'variance']:
@@ -2038,17 +2037,17 @@ class getObs:
             if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
                 kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
             # first min of x
-            if (kwargs['xbounds'][0] < self.ncfile['xm'][:]).all():
+            if (kwargs['xbounds'][0] < self.ncfile['x'][:]).all():
                 # then set xmin to 0
                 removeMinX = 0
             else:  # <= used here to handle inclusive initial index inherant in python
-                removeMinX = np.argwhere(self.ncfile['xFRF'][:] <= kwargs['xbounds'][0]).squeeze().max()
+                removeMinX = np.argwhere(self.ncfile['x'][:] <= kwargs['xbounds'][0]).squeeze().max()
             # now max of x
-            if (kwargs['xbounds'][1] > self.ncfile['xFRF'][:]).all():
+            if (kwargs['xbounds'][1] > self.ncfile['x'][:]).all():
                 removeMaxX = None
             else:
                 removeMaxX = np.argwhere(
-                    self.ncfile['xFRF'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
+                    self.ncfile['x'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
             xs = slice(removeMinX, removeMaxX)
         else:
             xs = slice(None)
@@ -2057,29 +2056,29 @@ class getObs:
             if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
                 kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
             # first min of y
-            if (kwargs['ybounds'][0] < self.ncfile['yFRF'][:]).all():
+            if (kwargs['ybounds'][0] < self.ncfile['y'][:]).all():
                 # then set the ymin to first index [0]
                 removeMinY = 0  # ie get all data
             else:
-                removeMinY = np.argwhere(self.ncfile['yFRF'][:] <= kwargs['ybounds'][0]).squeeze().max()
+                removeMinY = np.argwhere(self.ncfile['y'][:] <= kwargs['ybounds'][0]).squeeze().max()
             ## now max of y
-            if (kwargs['ybounds'][1] > self.ncfile['yFRF'][:]).all():
+            if (kwargs['ybounds'][1] > self.ncfile['y'][:]).all():
                 removeMaxY = None
             else:
                 removeMaxY = np.argwhere(
-                    self.ncfile['yFRF'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
+                    self.ncfile['y'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
             ys = slice(removeMinY, removeMaxY)
         else:
             ys = slice(None)
         try:
             timeArgus = nc.num2date(self.allEpoch[self.idxArgus], 'seconds since 1970-01-01')
+            Ip = self.ncfile['Ip'][self.idxArgus, xs, ys]
             out = {'time': timeArgus,
                    'epochtime': self.allEpoch[self.idxArgus],
-                   'Ip': self.ncfile['Ip'][self.idxArgus, xs, ys],
-                   'Intensity': rgb2gray(self.ncfile['Ip'][self.idxArgus, xs, ys]),
+                   'Ip': Ip,
+                   'Intensity': color.rgb2gray(Ip),
                    'xFRF': self.ncfile['x'][xs],
-                   'yFRF': self.ncfile['y'][ys],
-                }
+                   'yFRF': self.ncfile['y'][ys],}
 
         except(IndexError, AssertionError):
             out = None
