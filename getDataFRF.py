@@ -2075,8 +2075,8 @@ class getObs:
             Ip = self.ncfile['Ip'][self.idxArgus, xs, ys]
             out = {'time': timeArgus,
                    'epochtime': self.allEpoch[self.idxArgus],
-                   'Ip': Ip,
-                   'Intensity': color.rgb2gray(Ip),
+                   'rgb': Ip,
+                   'bw': color.rgb2gray(Ip),
                    'xFRF': self.ncfile['x'][xs],
                    'yFRF': self.ncfile['y'][ys],}
 
