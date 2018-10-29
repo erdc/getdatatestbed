@@ -1795,7 +1795,7 @@ class getObs:
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.idxDEM = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
-                                          epochEnd=self.epochd2, dtRound=30 * 60)
+                                          epochEnd=self.epochd2)
         self.DEMtime = nc.num2date(self.allEpoch[self.idxDEM], 'seconds since 1970-01-01')
 
         if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
@@ -2006,7 +2006,7 @@ class getObs:
     def getArgus(self, type, **kwargs):
         """
         Grabs argus data from the bathyDuck time period, particularly staple products.  Currently this is only to get
-        variance and timex images. 
+        variance and timex images.
 
         Args:
             type (str): this is a string that describes the video product eg var, timex
@@ -2019,8 +2019,10 @@ class getObs:
         Returns:
 
         """
+        def rgb2gray(rgb):
+            return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
         if type.lower() not in ['var', 'timex']:
-            raise NotImplementedError, "These data are not currently available through this function"
+            raise NotImplementedError("These data are not currently available through this function")
         elif type.lower() in ['var', 'variance']:
             self.dataloc = "projects/bathyduck/data/argus/variance/variance.ncml"
         elif type.lower() in ['timex']:
@@ -2029,7 +2031,7 @@ class getObs:
         ################ go get data index
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
                                            dtRound=1 * 60)
-        self.idxArgus = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2, dtRound=30 * 60)
+        self.idxArgus = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
 
         ###### sub divide bounds in kwargs
         if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
@@ -2074,6 +2076,7 @@ class getObs:
             out = {'time': timeArgus,
                    'epochtime': self.allEpoch[self.idxArgus],
                    'Ip': self.ncfile['Ip'][self.idxArgus, xs, ys],
+                   'Intensity': rgb2gray(self.ncfile['Ip'][self.idxArgus, xs, ys]),
                    'xFRF': self.ncfile['x'][xs],
                    'yFRF': self.ncfile['y'][ys],
                 }
