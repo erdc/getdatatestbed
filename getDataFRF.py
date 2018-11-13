@@ -2712,7 +2712,9 @@ class getDataTestBed:
             print('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
                   ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ'))
             return {}
-        dataIndex = dataIndex[~ncfile['bottomElevation'][dataIndex, :].mask.any(1)]
+        if isinstance(ncfile['bottomElevation'][dataIndex, :], np.ma.masked_array):
+            dataIndex = dataIndex[~ncfile['bottomElevation'][dataIndex, :].mask.any(1)]
+
         if len(dataIndex) == 0:
             print('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
                   ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ'))
