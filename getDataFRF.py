@@ -35,6 +35,13 @@ def gettime(allEpoch, epochStart, epochEnd):
     idx = np.argwhere(mask).squeeze()
     if np.size(idx) == 0:
         idx = None
+    if len(set(allEpoch[idx])) != len(allEpoch[idx]):
+        ## when there are duplicate times on the server
+        times, idxUnique = np.unique(allEpoch, return_index=True)
+        mask2 = (times >= epochStart) & (times < epochEnd)
+        idx2 = np.argwhere(mask2).squeeze()
+        idx = idxUnique[idx2].squeeze()
+        assert (sorted(set(allEpoch[idx])) == allEpoch[idx]).all(), 'Data Still have duplicate times'
     return idx
 
 
