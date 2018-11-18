@@ -10,7 +10,7 @@ This is a class definition designed to get data from the FRF thredds server
 
 """
 import datetime as DT
-import warnings, os, collections
+import warnings, os, collections, time
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
@@ -86,8 +86,16 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
             pName = 'cmtb'
         elif THREDDS == 'CHL':
             pName = 'cmtb'
-
-    ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+    finished = False
+    n = 0
+    while not finished and n < 15:
+        try:
+            ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+            finished = True
+        except IOError as err:
+            print('Error reading {}, trying again'.format(dataLoc))
+            time.sleep(10)
+            n += 1
     allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
 
     return ncFile, allEpoch
@@ -123,7 +131,11 @@ class getObs:
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
         self.THREDDS = THREDDS
         self.callingClass = 'getObs'
+<<<<<<< HEAD
         self.FRFdataloc = 'http://134.164.129.55:8080/thredds/dodsC/FRF/'
+=======
+        self.FRFdataloc = 'http://134.164.129.55/thredds/dodsC/FRF/'
+>>>>>>> 010799bf0efae85ee2010895ed58c22018840155
         self.crunchDataLoc = 'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = 'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'  # 'http://10.200.23.50/thredds/dodsC/frf/'
         self.comp_time()
@@ -194,7 +206,6 @@ class getObs:
 
         return idx
 
-
     def getWaveSpec(self, gaugenumber=0, roundto=30):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
@@ -210,15 +221,27 @@ class getObs:
         Returns:
           dictionary with following keys for all gauges
             'time' (array): time in datetime objects
+
             'epochtime' (array): time in epoch time
+
             'name' (str): gauge name
-            'wavefreqbin' (array): wave frequencys assoicated with 2D spectra
+
+            'wavefreqbin' (array): wave frequencys associated with 2D spectra
+
+            'wavedirbin' (array): wave direction bin associated with 2D spectra
+
             'xFRF' (float): x location in FRF coordinates
+
             'yFRF' (float): y location in FRF coordinates
+
             'lat' (float): latitude
+
             'lon' (float): longitude
+
             'depth' (float): nominal water dept
+
             'Hs' (array): wave height
+
             'peakf' (array): wave peak frequency
 
         """
@@ -1363,6 +1386,7 @@ class getObs:
 
         return sensor_locations
 
+<<<<<<< HEAD
     def getBathyGridcBathy(self, **kwargs):
         """this function gets the cbathy data from the below address, assumes fill value of -999
         
@@ -1464,6 +1488,9 @@ class getObs:
             cbdata = None
 
         return cbdata
+=======
+
+>>>>>>> 010799bf0efae85ee2010895ed58c22018840155
 
     def getLidarRunup(self, removeMasked=True):
         """This function will get the wave runup measurements from the lidar mounted in the dune
@@ -1883,7 +1910,7 @@ class getObs:
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.idxDEM = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
-                                          epochEnd=self.epochd2, dtRound=30 * 60)
+                                          epochEnd=self.epochd2)
         self.DEMtime = nc.num2date(self.allEpoch[self.idxDEM], 'seconds since 1970-01-01')
 
         if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
@@ -1976,6 +2003,201 @@ class getObs:
 
         return out
 
+    def getBathyGridcBathy(self, **kwargs):
+        """this function gets the cbathy data from the below address, assumes fill value of -999
+
+        Keyword Args:
+            xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
+
+            ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
+
+        Returns:
+            dictionary with keys below, will return None if error is found
+                'time': time
+
+                'xm':  frf xoordinate x's
+
+                'ym': frf ycoordinates
+
+                'depth': raw cbathy depths
+
+                'depthfC: same as depth
+
+                'depthKF':  kalman filtered hourly depth
+
+                'depthKFError': errors associated with the kalman filter
+
+                'fB':  ?
+
+                'k':  ??
+
+        """
+        fillValue = -999  # assumed fill value from the rest of the files taken as less than or equal to
+        self.dataloc = 'projects/bathyduck/data/cbathy_old/cbathy.ncml'
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
+                                           dtRound=30 * 60)
+        self.cbidx = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
+
+        self.cbtime = nc.num2date(self.allEpoch[self.cbidx], 'seconds since 1970-01-01')
+        # mask = (time > start) & (time < end)
+        # assert (emask == mask).all(), 'epoch time is not working'
+        # idx = np.where(emask)[0] # this leaves a list that keeps the data iteratable with a size 1.... DON'T CHANGE
+        if np.size(self.cbidx) == 1 and self.cbidx == None:
+            cbdata = None  # throw a kick out if there's no data avaiable
+            return cbdata
+        # truncating data from experimental parameters to
+        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
+            if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
+                kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
+            # first min of x
+            if (kwargs['xbounds'][0] < self.ncfile['xm'][:]).all():
+                # then set xmin to 0
+                removeMinX = 0
+            else:  # <= used here to handle inclusive initial index inherant in python
+                removeMinX = np.argwhere(self.ncfile['xm'][:] <= kwargs['xbounds'][0]).squeeze().max()
+            # now max of x
+            if (kwargs['xbounds'][1] > self.ncfile['xm'][:]).all():
+                removeMaxX = None
+            else:
+                removeMaxX = np.argwhere(
+                    self.ncfile['xm'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
+            xs = slice(removeMinX, removeMaxX)
+        else:
+            xs = slice(None)
+
+        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
+            if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
+                kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
+            # first min of y
+            if (kwargs['ybounds'][0] < self.ncfile['ym'][:]).all():
+                # then set the ymin to first index [0]
+                removeMinY = 0  # ie get all data
+            else:
+                removeMinY = np.argwhere(self.ncfile['ym'][:] <= kwargs['ybounds'][0]).squeeze().max()
+            ## now max of y
+            if (kwargs['ybounds'][1] > self.ncfile['ym'][:]).all():
+                removeMaxY = None
+            else:
+                removeMaxY = np.argwhere(
+                    self.ncfile['ym'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
+            ys = slice(removeMinY, removeMaxY)
+        else:
+            ys = slice(None)
+
+        try:
+            cbdata = {'time': self.cbtime,  # round the time to the nearest 30 minutes
+                      'epochtime': self.allEpoch[self.cbidx],
+                      'xm': self.ncfile['xm'][xs],
+                      'ym': self.ncfile['ym'][ys],
+                      'depthKF': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs],
+                                             mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue),
+                                             fill_value=np.nan),
+                      'depthKFError': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs],
+                                                  mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue),
+                                                  fill_value=np.nan),
+                      'depthfC': np.ma.array(self.ncfile['depthfC'][self.cbidx, ys, xs],
+                                             mask=(self.ncfile['depthfC'][self.cbidx, ys, xs] <= fillValue),
+                                             fill_value=np.nan),
+                      'depthfCError': np.ma.array(self.ncfile['depthErrorfC'][self.cbidx, ys, xs],
+                                                  mask=(self.ncfile['depthErrorfC'][self.cbidx, ys, xs] <= fillValue),
+                                                  fill_value=np.nan),
+                      'fB': np.ma.array(self.ncfile['fB'][self.cbidx, ys, xs, :],
+                                        mask=(self.ncfile['fB'][self.cbidx, ys, xs, :] <= fillValue),
+                                        fill_value=np.nan),
+                      'k': np.ma.array(self.ncfile['k'][self.cbidx, ys, xs, :],
+                                       mask=(self.ncfile['k'][self.cbidx, ys, xs, :] <= fillValue), fill_value=np.nan),
+                      'P': np.ma.array(self.ncfile['PKF'][self.cbidx, ys, xs],
+                                       mask=(self.ncfile['PKF'][self.cbidx, ys, xs] <= fillValue),
+                                       fill_value=np.nan)}  # may need to be masked
+
+            assert ~cbdata['depthKF'].mask.all(), 'all Cbathy kalman filtered data retrieved are masked '
+            print('Grabbed cBathy Data, successfully')
+
+        except (IndexError, AssertionError):  # there's no data in the Cbathy
+            cbdata = None
+
+        return cbdata
+
+    def getArgus(self, type, **kwargs):
+        """
+        Grabs argus data from the bathyDuck time period, particularly staple products.  Currently this is only to get
+        variance and timex images.
+
+        Args:
+            type (str): this is a string that describes the video product eg var, timex
+
+        Keyword Args:
+            xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
+
+            ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
+
+        Returns:
+
+        """
+        from skimage import color
+        if type.lower() not in ['var', 'timex']:
+            raise NotImplementedError("These data are not currently available through this function")
+        elif type.lower() in ['var', 'variance']:
+            self.dataloc = "projects/bathyduck/data/argus/variance/variance.ncml"
+        elif type.lower() in ['timex']:
+            self.dataloc = "projects/bathyduck/data/argus/timex/timex.ncml"
+
+        ################ go get data index
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
+                                           dtRound=1 * 60)
+        self.idxArgus = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
+
+        ###### sub divide bounds in kwargs
+        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
+            if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
+                kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
+            # first min of x
+            if (kwargs['xbounds'][0] < self.ncfile['x'][:]).all():
+                # then set xmin to 0
+                removeMinX = 0
+            else:  # <= used here to handle inclusive initial index inherant in python
+                removeMinX = np.argwhere(self.ncfile['x'][:] <= kwargs['xbounds'][0]).squeeze().max()
+            # now max of x
+            if (kwargs['xbounds'][1] > self.ncfile['x'][:]).all():
+                removeMaxX = None
+            else:
+                removeMaxX = np.argwhere(
+                    self.ncfile['x'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
+            xs = slice(removeMinX, removeMaxX)
+        else:
+            xs = slice(None)
+
+        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
+            if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
+                kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
+            # first min of y
+            if (kwargs['ybounds'][0] < self.ncfile['y'][:]).all():
+                # then set the ymin to first index [0]
+                removeMinY = 0  # ie get all data
+            else:
+                removeMinY = np.argwhere(self.ncfile['y'][:] <= kwargs['ybounds'][0]).squeeze().max()
+            ## now max of y
+            if (kwargs['ybounds'][1] > self.ncfile['y'][:]).all():
+                removeMaxY = None
+            else:
+                removeMaxY = np.argwhere(
+                    self.ncfile['y'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
+            ys = slice(removeMinY, removeMaxY)
+        else:
+            ys = slice(None)
+        try:
+            timeArgus = nc.num2date(self.allEpoch[self.idxArgus], 'seconds since 1970-01-01')
+            Ip = self.ncfile['Ip'][self.idxArgus, xs, ys]
+            out = {'time': timeArgus,
+                   'epochtime': self.allEpoch[self.idxArgus],
+                   'rgb': Ip,
+                   'bw': color.rgb2gray(Ip),
+                   'xFRF': self.ncfile['x'][xs],
+                   'yFRF': self.ncfile['y'][ys],}
+
+        except(IndexError, AssertionError):
+            out = None
+        return out
 
 class getDataTestBed:
     # def __init__(self, start, end):
@@ -2005,9 +2227,16 @@ class getDataTestBed:
         self.comp_time()
         self.THREDDS = THREDDS
         self.callingClass = 'getDataTestBed'
+<<<<<<< HEAD
         self.FRFdataloc = 'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = 'http://134.164.129.55:8080/thredds/dodsC/cmtb/'
         self.chlDataLoc = 'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'
+=======
+        self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
+        self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
+        self.chlDataLoc = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'
+
+>>>>>>> 010799bf0efae85ee2010895ed58c22018840155
         assert type(self.end) == DT.datetime, 'end dates need to be in python "Datetime" data types'
         assert type(self.start) == DT.datetime, 'start dates need to be in python "Datetime" data types'
 
@@ -2327,6 +2556,10 @@ class getDataTestBed:
         return gridDict
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
+        warnings.warn('Using depricated function name')
+        return self.getModelField(var, prefix, local, ijLoc, model)
+
+    def getModelField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
         """retrives data from spatial data STWAVE model
 
         Args:
@@ -2341,7 +2574,7 @@ class getDataTestBed:
 
             local (bool): pull from the nested grid or the regional grid (Default value = True)
 
-            model (str): one of: STWAVE, CMS
+            model (str): one of: STWAVE, CMS (other models can be added)
 
         Returns:
             a dictionary with keys below, see netCDF file for more metadata
@@ -2363,18 +2596,36 @@ class getDataTestBed:
             grid = 'Regional'
         ############## setting up the ncfile ############################
         if prefix == 'CBHPStatic' and local == True:  # this is needed because projects are stored in weird place
-            ncfile = nc.Dataset(
-                'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml')
+            fname = 'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Local_Field/Local_Field.ncml'
         elif prefix == 'CBHPStatic' and local == False:
-            ncfile = nc.Dataset(
-                'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml')
+            fname = 'http://bones/thredds/dodsC/CMTB/projects/bathyDuck_SingleBathy_CBHP/Regional_Field/Regional_Field.ncml'
         elif model == 'STWAVE':  # this is standard operational model url Structure
+<<<<<<< HEAD
             ncfile = nc.Dataset(
                 self.crunchDataLoc + 'waveModels/%s/%s/%s-Field/%s-Field.ncml' % (model, prefix, grid, grid))
         elif model == 'CMS':  # this is standard operational model url Structure
             ncfile = nc.Dataset(
                 self.crunchDataLoc + 'waveModels/%s/%s/Field/Field.ncml' % (model, prefix))
         assert var in list(ncfile.variables.keys()), 'variable called is not in file please use\n%s' % list(ncfile.variables.keys())
+=======
+            fname = self.crunchDataLoc + u'waveModels/%s/%s/%s-Field/%s-Field.ncml' % (model, prefix, grid, grid)
+        elif model == 'CMS':  # this is standard operational model url Structure
+            fname = self.crunchDataLoc + u'waveModels/%s/%s/Field/Field.ncml' % (model, prefix)
+        finished = False
+        n = 0
+        while not finished and n < 15:
+            try:
+                ncfile = nc.Dataset(fname)
+                finished = True
+            except IOError:
+                print('Error reading {}, trying again'.format(fname))
+                time.sleep(10)
+                n+=1
+        if not finished:
+            raise AssertionError
+
+        assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
+>>>>>>> 010799bf0efae85ee2010895ed58c22018840155
         mask = (ncfile['time'][:] >= nc.date2num(self.start, ncfile['time'].units)) & (
                 ncfile['time'][:] <= nc.date2num(self.end, ncfile['time'].units))
         idx = np.where(mask)[0]
@@ -2383,6 +2634,10 @@ class getDataTestBed:
             print('getting %s %s  %s %s Data' % (prefix, model, grid, var))
         elif model == 'CMS':
             print('getting %s %s  %s Data' % (prefix, model, var))
+<<<<<<< HEAD
+=======
+
+>>>>>>> 010799bf0efae85ee2010895ed58c22018840155
         # now creating tool to remove single data point
         if ijLoc != None:
             assert len(ijLoc) == 2, 'if giving a postion, must be a tuple of i, j location (of length 2)'
@@ -2404,35 +2659,47 @@ class getDataTestBed:
             xFRF = ncfile['xFRF'][x]
             yFRF = ncfile['yFRF'][y]
             if len(list) < 100:
-                bathy = np.array(ncfile[var][np.squeeze(list)])
-                time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
+                dataVar = np.array(ncfile[var][np.squeeze(list)])
+                timeVar = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
             else:
                 for num, minidx in enumerate(list):
                     if len(list) < 100:
-                        bathy = np.array(ncfile[var][np.squeeze(list)])
-                        time = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
+                        dataVar = np.array(ncfile[var][np.squeeze(list)])
+                        timeVar = nc.num2date(ncfile['time'][np.squeeze(list)], ncfile['time'].units)
                     elif num == 0:
+<<<<<<< HEAD
                         bathy = np.array(ncfile[var][list(range(minidx, list[num + 1])), y, x])
                         time = nc.num2date(np.array(ncfile['time'][list(range(minidx, list[num + 1]))]), ncfile['time'].units)
+=======
+                        dataVar = np.array(ncfile[var][range(minidx, list[num + 1]), y, x])
+                        timeVar = nc.num2date(np.array(ncfile['time'][range(minidx, list[num + 1])]), ncfile['time'].units)
+>>>>>>> 010799bf0efae85ee2010895ed58c22018840155
                     elif minidx == list[-1]:
                         lastIdx = (idx - minidx)[(idx - minidx) >= 0] + minidx
-                        bathy = np.append(bathy, ncfile[var][lastIdx, y, x], axis=0)
-                        time = np.append(time, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
+                        dataVar = np.append(dataVar, ncfile[var][lastIdx, y, x], axis=0)
+                        timeVar = np.append(timeVar, nc.num2date(ncfile['time'][lastIdx], ncfile['time'].units), axis=0)
                     else:
+<<<<<<< HEAD
                         bathy = np.append(bathy, ncfile[var][list(range(minidx, list[num + 1])), y, x], axis=0)
                         time = np.append(time,
                                          nc.num2date(ncfile['time'][list(range(minidx, list[num + 1]))],
                                                      ncfile['time'].units),
                                          axis=0)
+=======
+                        dataVar = np.append(dataVar, ncfile[var][range(minidx, list[num + 1]), y, x], axis=0)
+                        timeVar = np.append(timeVar, nc.num2date(ncfile['time'][range(minidx, list[num + 1])],
+                                                                 ncfile['time'].units), axis=0)
+
+>>>>>>> 010799bf0efae85ee2010895ed58c22018840155
         else:
-            bathy = ncfile[var][idx, y, x]
+            dataVar = ncfile[var][idx, y, x]
             xFRF = ncfile['xFRF'][x]
             yFRF = ncfile['yFRF'][y]
-            time = nc.num2date(ncfile['time'][np.squeeze(idx)], ncfile['time'].units)
+            timeVar = nc.num2date(ncfile['time'][np.squeeze(idx)], ncfile['time'].units)
         # package for output
-        field = {'time': time,
+        field = {'time': timeVar,
                  'epochtime': ncfile['time'][idx],  # pulling down epoch time of interest
-                 var: bathy,
+                 var: dataVar,
                  'xFRF': xFRF,
                  'yFRF': yFRF,
                  }
@@ -2445,6 +2712,11 @@ class getDataTestBed:
         return field
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True, model='STWAVE'):
+        warnings.warn('Using depricated function name')
+
+        return self.getWaveSpecModel(prefix, gaugenumber, model)
+
+    def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE'):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
@@ -2590,6 +2862,7 @@ class getDataTestBed:
             print(err)
             print('<<ERROR>> Retrieving data from %s\n in this time period start: %s  End: %s' % (
                 gname, self.start, self.end))
+
             wavespec = None
         return wavespec
 
@@ -2639,6 +2912,42 @@ class getDataTestBed:
         return out
 
     def getCSHOREOutput(self, prefix):
+        """retrives data from spatial data CSHORE model
+            
+        Args:
+            prefix (str): a 'key' to select which version of the simulations to pull data from
+                available value is only 'MOBILE_RESET' for now but more could be 
+                added in the future
+
+        Returns: 
+            dictionary with packaged data following keys
+
+            'epochtime' (float):  epoch time
+
+            'time' (obj): datetime of model output
+
+            'xFRF' (float): x location of data
+
+            'Hs' (float): significant wave height
+
+            'zb' (float): bed elevation
+
+            'WL' (float): water level
+
+            'bathyTime' (ojb): datetime of bathymetric survey used
+
+            'setup' (float): wave induced setup height
+
+            'aveN' (float): average northward current
+
+            'stdN' (float): standard deviation of northward current
+
+            'runupMean' (float): mean runup elevation
+
+            'runup2perc' (float): 2% runup elevation
+
+        """
+
         dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
         ncfile, allEpoch = getnc(dataLoc, self.THREDDS, self.callingClass)
         dataIndex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
