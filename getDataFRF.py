@@ -23,6 +23,8 @@ def gettime(allEpoch, epochStart, epochEnd):
     from the THREDDS (data loc) server based on d1,d2, and data location
     it returns the indicies in the NCML file of the dates d1>=time>d2
 
+    It was modified to check if there are duplicate times, and only produces indices with unique times
+
     Args:
         allEpoch (list, float): a list of floats that has epoch times in it
         epochStart (float): start time in epoch
@@ -33,6 +35,18 @@ def gettime(allEpoch, epochStart, epochEnd):
     """
     mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
     idx = np.argwhere(mask).squeeze()
+    ## check for duplicates
+    # if len(set(allEpoch[idx])) != len(allEpoch[idx]):
+    #     # dupes = np.array([x for n, x in enumerate(allEpoch[idx]) if x in allEpoch[idx][:n]]).squeeze()
+    #     # idx = np.delete(idx, np.nonzero(np.in1d(allEpoch[idx], dupes).squeeze()[::2]))
+    #     try: # python 3.6 + only
+    #         ans = list(dict.fromkeys(allEpoch[idx])).copy()
+    #     except: # not sure the error from python 2
+    #         seen = set()
+    #         ans = [x for x in wave[key] if x not in seen and not seen.add(x)]
+    #     # the below line doesn't produce expected answer, but would be way faster if proper solution identified
+    #     idx = np.nonzero(np.in1d(allEpoch[idx], ans))[0]
+    #     assert len(set(allEpoch[idx])) == len(allEpoch[idx]), "Duplicate removal doesn't work"
     if np.size(idx) == 0:
         idx = None
     return idx
@@ -94,6 +108,42 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
 
     return ncFile, allEpoch
 
+def removeDuplicatesFromDictionary(inputDict):
+    """This function checks through the data and will remove duplicates from key 'epochtime's a place holder to check, and remove duplicate times from this whole class.
+    It needs to be though through still, but the code below is used to do it from an exterior script and would be a
+    good place to start
+
+    Args:
+        inputDict (dict): to check this if its duplicate
+
+    Returns:
+        inputdict (dict): same dictionary with outduplicates in time
+
+    """
+    if 'epochtime' in inputDict:
+        key = 'epochtime'
+    elif 'time' in inputDict:
+        key = 'time'
+        warnings.warn('Removing duplicates is faster using numeric time, failed looking for "epochtime" key')
+    else:
+        raise NotImplementedError ('Requires keys "time" or "epochtime"')
+
+    if len(set(inputDict[key])) != len(inputDict[key]):  # there's duplicate times in obs'
+        print(' Removing Duplicates from {}'.format(inputDict['name']))# find the duplicates
+        try:  # python 3.6 + only
+           ans2 = list(dict.fromkeys(wave[key]))
+           idxObs = np.nonzero(np.in1d(wave[key], ans2))
+        except: # a slower way
+           seen = set()
+           ans3b = [x for x in wave[key] if x not in seen and not seen.add(x)]
+           idxObs = np.nonzero(np.in1d(wave[key], ans3b))
+        inputDict = sb.reduceDict(inputDict, idxObs[0])
+        ## original Way  --- super slow
+        # dupes = np.array([x for n, x in enumerate(inputDict[key]) if x in inputDict[key][:n]]).squeeze()
+        # idxObs = np.delete(np.arange(len(inputDict[key])),
+        #                    np.argwhere(np.in1d(inputDict[key], dupes).squeeze())[::2].squeeze())  # delete every other duplicate record
+        # inputDict = sb.reduceDict(inputDict, idxObs)
+    return inputDict
 
 class getObs:
 
@@ -135,20 +185,7 @@ class getObs:
     def comp_time(self):
         """Test if times are backwards"""
         assert self.d2 >= self.d1, 'finish time: end needs to be after start time: start'
-    def removeDuplicateObservations(self):
-        """
-        This function is a place holder to check, and remove duplicate times from this whole class.
-        It needs to be though through still, but the code below is used to do it from an exterior script and would be a
-        good place to start
-        n:
-        """
-        raise(NotImplementedError, "This function is not ready for usage")
-        if len() != len(wLocal['time']):  # there's duplicate times in obs'
-            # find the duplicates
-            dupes = np.array([x for n, x in enumerate(wLocal['time']) if x in wLocal['time'][:n]]).squeeze()
-            idxObs = np.delete(np.arange(len(wLocal['time'])),
-                               np.argwhere(np.in1d(wLocal['time'], dupes).squeeze())[::2].squeeze())  # delete every other one
-            wLocal = sb.reduceDict(wLocal, idxObs)
+
     def roundtime(self, dt=None, roundto=60):
         """Round a datetime object to any time laps in seconds
         Author: Thierry Husson 2012 - Use it as you want but don't blame me.
@@ -274,7 +311,6 @@ class getObs:
                     wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
                 except IndexError:
                     wave_coords = gp.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
-                # try:   # try new variable names
                 wavespec = {'time': self.snaptime,  # note this is new variable names??
                             'epochtime': self.allEpoch[self.wavedataindex],
                             'name': str(self.ncfile.title),
@@ -308,8 +344,10 @@ class getObs:
                     if wavespec['dWED'].ndim < 3:
                         wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
                         wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
-                # if error its non-directional gauge
-                except IndexError:
+                    wavespec['dWED'][wavespec['dWED'] == 0] = 1e-6
+                    wavespec['fspec'][wavespec['fspec'] == 0] = 1e-6
+
+                except IndexError:  # if error its non-directional gauge
                     # this should throw when gauge is non directional
                     wavespec['wavedirbin'] = np.arange(0, 360, 90)  # 90 degree bins
                     wavespec['waveDp'] = np.zeros(np.size(self.wavedataindex)) * -999
@@ -674,7 +712,7 @@ class getObs:
                 'yFRF': yFRF position of the gage
 
         """
-
+        warnings.warn('please change this function name')
         # Making gauges flexible
         self.wlGageURLlookup(gaugenumber)
         # parsing out data of interest in time
@@ -1770,7 +1808,7 @@ class getObs:
                    }
 
             if removeMasked:
-
+                #TODO lets put this into a loop
                 if isinstance(out['waterLevel'], np.ma.MaskedArray):
                     out['waterLevel'] = np.array(out['waterLevel'][~out['waterLevel'].mask])
 
@@ -2026,9 +2064,8 @@ class getObs:
         return cbdata
 
     def getArgus(self, type, **kwargs):
-        """
-        Grabs argus data from the bathyDuck time period, particularly staple products.  Currently this is only to get
-        variance and timex images.
+        """Grabs argus data from the bathyDuck time period, particularly staple products.
+          Currently this is only retrieves variance and timex images.
 
         Args:
             type (str): this is a string that describes the video product eg var, timex
@@ -2457,10 +2494,10 @@ class getDataTestBed:
         return gridDict
 
     def getStwaveField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
-        warnings.warn('Using depricated function name')
+        warnings.warn('Using depricated function name: getStwaveField')
         return self.getModelField(var, prefix, local, ijLoc, model)
 
-    def getModelField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
+    def getModelField(self, var, prefix, local=True, ijLoc=None, model='STWAVE', **kwargs):
         """retrives data from spatial data STWAVE model
 
         Args:
@@ -2476,6 +2513,10 @@ class getDataTestBed:
             local (bool): pull from the nested grid or the regional grid (Default value = True)
 
             model (str): one of: STWAVE, CMS (other models can be added)
+        Keyword Args:
+            xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
+
+            ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
 
         Returns:
             a dictionary with keys below, see netCDF file for more metadata
@@ -2515,7 +2556,7 @@ class getDataTestBed:
                 time.sleep(10)
                 n+=1
         if not finished:
-            raise AssertionError
+            raise (RuntimeError, 'Data not accessible right now')
 
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
         mask = (ncfile['time'][:] >= nc.date2num(self.start, ncfile['time'].units)) & (
@@ -2540,8 +2581,47 @@ class getDataTestBed:
         else:
             x = slice(None)  # take entire data
             y = slice(None)  # take entire data
+        ############################################ xbounds/ybounds #################################################
+        ###### sub divide bounds in kwargs
+        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
+            if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
+                kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
+            # first min of x
+            if (kwargs['xbounds'][0] < ncfile['xFRF'][:]).all():
+                # then set xmin to 0
+                removeMinX = 0
+            else:  # <= used here to handle inclusive initial index inherant in python
+                removeMinX = np.argwhere(ncfile['xFRF'][:] <= kwargs['xbounds'][0]).squeeze().max()
+            # now max of x
+            if (kwargs['xbounds'][1] > ncfile['xFRF'][:]).all():
+                removeMaxX = None
+            else:
+                removeMaxX = np.argwhere(
+                    ncfile['x'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
+            x = slice(removeMinX, removeMaxX)
+        else:
+            x = slice(None)
 
-        if ncfile[var][idx].ndim > 2 and ncfile[var][idx].shape[0] > 100:  # looping through ... if necessicary
+        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
+            if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
+                kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
+            # first min of y
+            if (kwargs['ybounds'][0] < ncfile['yFRF'][:]).all():
+                # then set the ymin to first index [0]
+                removeMinY = 0  # ie get all data
+            else:
+                removeMinY = np.argwhere(ncfile['yFRF'][:] <= kwargs['ybounds'][0]).squeeze().max()
+            ## now max of y
+            if (kwargs['ybounds'][1] > ncfile['yFRF'][:]).all():
+                removeMaxY = None
+            else:
+                removeMaxY = np.argwhere(
+                    ncfile['yFRF'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
+            y = slice(removeMinY, removeMaxY)
+        else:
+            y = slice(None)
+        ################################################################################################################
+        if ncfile[var].ndim > 2 and idx.shape[0] > 100:  # looping through ... if necessary
             list = np.round(np.linspace(idx.min(), idx.max(), idx.max() - idx.min(), endpoint=True, dtype=int))
             # if idx.max() not in list:
             #     list = np.append(list, idx.max())
@@ -2567,15 +2647,20 @@ class getDataTestBed:
                         timeVar = np.append(timeVar, nc.num2date(ncfile['time'][range(minidx, list[num + 1])],
                                                                  ncfile['time'].units), axis=0)
 
-        else:
+        elif ncfile[var].ndim > 2:
             dataVar = ncfile[var][idx, y, x]
+            xFRF = ncfile['xFRF'][x]
+            yFRF = ncfile['yFRF'][y]
+            timeVar = nc.num2date(ncfile['time'][np.squeeze(idx)], ncfile['time'].units)
+        else:  # probably bathymetry date variable
+            dataVar = ncfile[var][idx]
             xFRF = ncfile['xFRF'][x]
             yFRF = ncfile['yFRF'][y]
             timeVar = nc.num2date(ncfile['time'][np.squeeze(idx)], ncfile['time'].units)
         # package for output
         field = {'time': timeVar,
                  'epochtime': ncfile['time'][idx],  # pulling down epoch time of interest
-                 var: dataVar,
+                  var: dataVar,
                  'xFRF': xFRF,
                  'yFRF': yFRF,
                  }
@@ -2584,7 +2669,7 @@ class getDataTestBed:
         except IndexError:
             field['bathymetryDate'] = np.ones_like(field['time'])
 
-        assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down bathy"
+        assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down the spatial output"
         return field
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True, model='STWAVE'):
@@ -2729,7 +2814,6 @@ class getDataTestBed:
                             'peakf': self.ncfile['waveTp'][self.wavedataindex],
                             'wavedirbin': self.ncfile['waveDirectionBins'][:],
                             'dWED': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :],
-
                             'waveDm': self.ncfile['waveDm'][self.wavedataindex],
                             'waveTm': self.ncfile['waveTm'][self.wavedataindex],
                             'waveTp': self.ncfile['waveTp'][self.wavedataindex],
@@ -2740,6 +2824,8 @@ class getDataTestBed:
                     wavespec['Umag'] = self.ncfile['Umag'][self.wavedataindex]
                     wavespec['Udir'] = self.ncfile['Udir'][self.wavedataindex]
                 wavespec['dWED'][wavespec['dWED']==0] = 1e-6
+                wavespec['fspec'][wavespec['fspec'] == 0 ] = 1e-6
+
         except (RuntimeError, AssertionError) as err:
             print(err)
             print('<<ERROR>> Retrieving data from %s\n in this time period start: %s  End: %s' % (
