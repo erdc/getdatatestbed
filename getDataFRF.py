@@ -32,24 +32,14 @@ def gettime(allEpoch, epochStart, epochEnd):
 
     Returns:
         index  of dates between
+
     """
     mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
-    idx = np.argwhere(mask).squeeze()
-    ## check for duplicates
-    # if len(set(allEpoch[idx])) != len(allEpoch[idx]):
-    #     # dupes = np.array([x for n, x in enumerate(allEpoch[idx]) if x in allEpoch[idx][:n]]).squeeze()
-    #     # idx = np.delete(idx, np.nonzero(np.in1d(allEpoch[idx], dupes).squeeze()[::2]))
-    #     try: # python 3.6 + only
-    #         ans = list(dict.fromkeys(allEpoch[idx])).copy()
-    #     except: # not sure the error from python 2
-    #         seen = set()
-    #         ans = [x for x in wave[key] if x not in seen and not seen.add(x)]
-    #     # the below line doesn't produce expected answer, but would be way faster if proper solution identified
-    #     idx = np.nonzero(np.in1d(allEpoch[idx], ans))[0]
-    #     assert len(set(allEpoch[idx])) == len(allEpoch[idx]), "Duplicate removal doesn't work"
-    if np.size(idx) == 0:
-        idx = None
-    return idx
+    vals, indices = np.unique(allEpoch[mask], return_index=True)
+    if np.size(indices) == 0:
+        return None
+    else:
+        return indices + np.argmax(mask)
 
 
 def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
@@ -119,6 +109,9 @@ def removeDuplicatesFromDictionary(inputDict):
     Returns:
         inputdict (dict): same dictionary with outduplicates in time
 
+    References:
+        https://www.peterbe.com/plog/fastest-way-to-uniquify-a-list-in-python-3.6
+        https://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-whilst-preserving-order
     """
     if 'epochtime' in inputDict:
         key = 'epochtime'
@@ -320,7 +313,7 @@ class getObs:
                             'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
                             'depth': depth,
-                            'Hs': self.ncfile['waveHs'][self.wavedataindex], }
+                            'Hs': self.ncfile['waveHs'][self.wavedataindex]}
                 try:
                     wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
                 except:
@@ -1437,6 +1430,109 @@ class getObs:
 
         return sensor_locations
 
+
+    def getBathyGridcBathy(self, **kwargs):
+        """this function gets the cbathy data from the below address, assumes fill value of -999
+        
+        Keyword Args:
+            xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
+
+            ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
+        
+        Returns:
+            dictionary with keys below, will return None if error is found
+                'time': time
+
+                'xm':  frf xoordinate x's
+
+                'ym': frf ycoordinates
+
+                'depth': raw cbathy depths
+
+                'depthfC: same as depth
+
+                'depthKF':  kalman filtered hourly depth
+
+                'depthKFError': errors associated with the kalman filter
+
+                'fB':  ?
+
+                'k':  ??
+
+        """
+        fillValue = -999  # assumed fill value from the rest of the files taken as less than or equal to
+        self.dataloc = 'projects/bathyduck/data/cbathy_old/cbathy.ncml'
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
+                                           dtRound=30 * 60)
+        self.cbidx = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
+
+        self.cbtime = nc.num2date(self.allEpoch[self.cbidx], 'seconds since 1970-01-01')
+        # mask = (time > start) & (time < end)
+        # assert (emask == mask).all(), 'epoch time is not working'
+        # idx = np.where(emask)[0] # this leaves a list that keeps the data iteratable with a size 1.... DON'T CHANGE
+        if np.size(self.cbidx) == 1 and self.cbidx == None:
+            cbdata = None  # throw a kick out if there's no data avaiable
+            return cbdata
+        # truncating data from experimental parameters to
+        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
+            if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
+                kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
+            # first min of x
+            if (kwargs['xbounds'][0] < self.ncfile['xm'][:]).all():
+                # then set xmin to 0
+                removeMinX = 0
+            else:  # <= used here to handle inclusive initial index inherant in python
+                removeMinX = np.argwhere(self.ncfile['xm'][:] <= kwargs['xbounds'][0]).squeeze().max()
+            # now max of x
+            if (kwargs['xbounds'][1] > self.ncfile['xm'][:]).all():
+                removeMaxX = None
+            else:
+                removeMaxX = np.argwhere(
+                    self.ncfile['xm'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
+            xs = slice(removeMinX, removeMaxX)
+        else:
+            xs = slice(None)
+
+        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
+            if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
+                kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
+            # first min of y
+            if (kwargs['ybounds'][0] < self.ncfile['ym'][:]).all():
+                # then set the ymin to first index [0]
+                removeMinY = 0  # ie get all data
+            else:
+                removeMinY = np.argwhere(self.ncfile['ym'][:] <= kwargs['ybounds'][0]).squeeze().max()
+            ## now max of y
+            if (kwargs['ybounds'][1] > self.ncfile['ym'][:]).all():
+                removeMaxY = None
+            else:
+                removeMaxY = np.argwhere(
+                    self.ncfile['ym'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
+            ys = slice(removeMinY, removeMaxY)
+        else:
+            ys = slice(None)
+
+        try:
+            cbdata = {'time': self.cbtime,  # round the time to the nearest 30 minutes
+                      'epochtime': self.allEpoch[self.cbidx],
+                      'xm': self.ncfile['xm'][xs],
+                      'ym': self.ncfile['ym'][ys],
+                      'depthKF': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'depthKFError': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'depthfC': np.ma.array(self.ncfile['depthfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthfC'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'depthfCError': np.ma.array(self.ncfile['depthErrorfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthErrorfC'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
+                      'fB': np.ma.array(self.ncfile['fB'][self.cbidx, ys, xs, :],  mask=(self.ncfile['fB'][self.cbidx, ys, xs, :] <= fillValue), fill_value=np.nan),
+                      'k': np.ma.array(self.ncfile['k'][self.cbidx, ys, xs, :], mask=(self.ncfile['k'][self.cbidx, ys, xs, :] <= fillValue), fill_value=np.nan),
+                      'P': np.ma.array(self.ncfile['PKF'][self.cbidx, ys, xs], mask=(self.ncfile['PKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan)}  # may need to be masked
+
+            assert ~cbdata['depthKF'].mask.all(), 'all Cbathy kalman filtered data retrieved are masked '
+            print('Grabbed cBathy Data, successfully')
+
+        except (IndexError, AssertionError):  # there's no data in the Cbathy
+            cbdata = None
+
+        return cbdata
+
     def getLidarRunup(self, removeMasked=True):
         """This function will get the wave runup measurements from the lidar mounted in the dune
 
@@ -2498,7 +2594,7 @@ class getDataTestBed:
         return self.getModelField(var, prefix, local, ijLoc, model)
 
     def getModelField(self, var, prefix, local=True, ijLoc=None, model='STWAVE', **kwargs):
-        """retrives data from spatial data STWAVE model
+        """retrives data from spatial data CMSWave and STWAVE model
 
         Args:
             local (bool): defines whether the data is from the nested simulation or the regional simulation (Default value = True)
@@ -2559,6 +2655,7 @@ class getDataTestBed:
             raise (RuntimeError, 'Data not accessible right now')
 
         assert var in ncfile.variables.keys(), 'variable called is not in file please use\n%s' % ncfile.variables.keys()
+
         mask = (ncfile['time'][:] >= nc.date2num(self.start, ncfile['time'].units)) & (
                 ncfile['time'][:] <= nc.date2num(self.end, ncfile['time'].units))
         idx = np.where(mask)[0]
@@ -2567,7 +2664,7 @@ class getDataTestBed:
             print('getting %s %s  %s %s Data' % (prefix, model, grid, var))
         elif model == 'CMS':
             print('getting %s %s  %s Data' % (prefix, model, var))
-
+        ##############################################################################################################
         # now creating tool to remove single data point
         if ijLoc != None:
             assert len(ijLoc) == 2, 'if giving a postion, must be a tuple of i, j location (of length 2)'
@@ -2582,7 +2679,7 @@ class getDataTestBed:
             x = slice(None)  # take entire data
             y = slice(None)  # take entire data
         ############################################ xbounds/ybounds #################################################
-        ###### sub divide bounds in kwargs
+        ###### sub divide bounds by x and y to get subdomain
         if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
             if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
                 kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
@@ -2828,7 +2925,7 @@ class getDataTestBed:
 
         except (RuntimeError, AssertionError) as err:
             print(err)
-            print('<<ERROR>> Retrieving data from %s\n in this time period start: %s  End: %s' % (
+            print('ERROR Retrieving data from %s\n in this time period start: %s  End: %s' % (
                 gname, self.start, self.end))
             wavespec = None
         return wavespec
@@ -2919,13 +3016,13 @@ class getDataTestBed:
         ncfile, allEpoch = getnc(dataLoc, self.THREDDS, self.callingClass)
         dataIndex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
         if dataIndex is None:
-            print('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
-                  ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ'))
+            print(('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
+                  ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ')))
             return {}
         dataIndex = dataIndex[~ncfile['bottomElevation'][dataIndex, :].mask.any(1)]
         if len(dataIndex) == 0:
-            print('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
-                  ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ'))
+            print(('There\'s no data in time period ' + self.start.strftime('%Y-%m-%dT%H%M%SZ') + 
+                  ' to ' + self.end.strftime('%Y-%m-%dT%H%M%SZ')))
             return {}
         mod = {'epochtime': ncfile['time'][dataIndex],
                'time': nc.num2date(ncfile['time'][dataIndex], ncfile['time'].units),
