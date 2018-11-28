@@ -848,7 +848,7 @@ class getObs:
         else:
             # Now that indices of interest are sectioned off, find the survey number that matches them and return whole survey
             idxSingle = idx
-            idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
+            idx = np.nonzero(np.in1d(self.ncfile['surveyNumber'][:], self.ncfile['surveyNumber'][idxSingle]))[0].shape
         # isolate specific profile numbers if necessicary
         if profilenumbers != None:
             assert pd.Series(profilenumbers).isin(np.unique(self.ncfile['profileNumber'][
