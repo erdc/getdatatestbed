@@ -1253,8 +1253,8 @@ class getObs:
             ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
         except IOError:
             ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-        out = {'lat': ncfile['latitude'][:],
-               'lon': ncfile['longitude'][:]}
+        out = {'Lat': ncfile['latitude'][:],
+               'Lon': ncfile['longitude'][:]}
         return out
 
     def get_sensor_locations_from_thredds(self):
@@ -1283,21 +1283,23 @@ class getObs:
 
         """
         loc_dict = {}
-
+        ## now do time specific dates (experiments)
         for g in self.gaugelist:
             loc_dict[g] = {}
             data = loc_dict[g]
 
             # Get latlon from Thredds server.
             try:
-                latlon = self.getWaveGaugeLoc(g)
+                if g in ['11', '12', '13', '14', '21', '22', '23', '24']:
+                    latlon = self.getBathyDuckLoc(gaugenumber=g)
+                else:
+                    latlon = self.getWaveGaugeLoc(g)
             except IOError:
                 continue
-
-            # lat and lon values currently stored as 1 element arrays. 
+            # lat and lon values currently stored as 1 element arrays.
             # Cast to float for consistency.
-            lat = float(latlon['lat'])
-            lon = float(latlon['lon'])
+            lat = float(latlon['Lat'])
+            lon = float(latlon['Lon'])
 
             # Covert latlon to stateplane.
             coords = gp.LatLon2ncsp(lon, lat)
@@ -1361,9 +1363,14 @@ class getObs:
             # MPG: only use locations specified in self.gaugelist (for the case
             # that there are archived locations that should not be used).
             sensor_locations = collections.OrderedDict()
+
             for g in self.gaugelist:
                 if g in archived_sensor_locations:
                     sensor_locations[g] = archived_sensor_locations[g]
+                elif g not in archived_sensor_locations:
+                    sensor_locations = collections.OrderedDict()
+                    sensor_locations = self.get_sensor_locations_from_thredds()
+                    return sensor_locations
                 else:
                     # MPG: use empty dict as a placeholder to indicate that no
                     # data is available.
