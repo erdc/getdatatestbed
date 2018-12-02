@@ -239,7 +239,7 @@ class getObs:
 
         return idx
 
-    def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDirectionalFlag=4):
+    def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
@@ -250,9 +250,13 @@ class getObs:
                see help on self.waveGaugeURLlookup for possible gauge names (Default value = 0)
           roundto: this is duration in minutes which data are expected.  times are rounded to nearest
              30 minute increment (data on server are not even times) (Default value = 30)
-          removeBadDirectionalFlag (int): this will remove data with a directional flag of 3/4 signaling questionable or
-             failed directional spectra (default = 4, remove failed directional spectral data time periods)
+          removeBadDataFlag (int): this will remove data with a directional flag of 3/4 signaling questionable or
+             failed directional spectra (default = 4, remove failed (directional) spectral data time periods)
              valid values: [3, 4, False]  False will not remove any data
+
+        Keyword Args:
+            "a&b" (bool): if this is True function will return a's and b's for time period
+            "specOnly" (bool); if this is True function will not return bulk statistics
 
         Returns:
           dictionary with following keys for all gauges
@@ -284,10 +288,8 @@ class getObs:
         # Making gauges flexible
         self.waveGaugeURLlookup(gaugenumber)
         # parsing out data of interest in time
-
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
                                            dtRound=roundto * 60)
-
         try:
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
             assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
@@ -295,7 +297,6 @@ class getObs:
                 # consistant for all wave gauges
                 if np.size(self.wavedataindex) == 1:
                     self.wavedataindex = np.expand_dims(self.wavedataindex, axis=0)
-                self.snaptime = nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units)
                 try:
                     depth = self.ncfile['nominalDepth'][:]  # this should always go with directional gauges
                 except IndexError:
@@ -304,6 +305,19 @@ class getObs:
                     wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
                 except IndexError:
                     wave_coords = gp.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
+                if removeBadDataFlag is not False:
+                    # Energy should not be needed
+                    try:
+                        qcDataD = self.ncfile['qcFlagD'][self.wavedataindex]
+                        qcDataE = self.ncfile['qcFlagE'][self.wavedataindex]
+                        self.wavedataindex = self.wavedataindex.compress(qcDataD < removeBadDataFlag)
+                        self.wavedataindex = self.wavedataindex.compress(qcDataE < removeBadDataFlag)
+                    except IndexError:
+                        pass  # non -directional gauge
+
+                #######################################################################################################
+                # now that wave data index is resolved, go get data
+                self.snaptime = nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units)
                 wavespec = {'time': self.snaptime,  # note this is new variable names??
                             'epochtime': self.allEpoch[self.wavedataindex],
                             'name': str(self.ncfile.title),
@@ -314,31 +328,31 @@ class getObs:
                             'lon': self.ncfile['longitude'][:],
                             'depth': depth,
                             'Hs': self.ncfile['waveHs'][self.wavedataindex]}
-                try:
-                    wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
-                except:
-                    wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
                 # now do directional gauge try
                 try:  # pull time specific data based on self.wavedataindex
-                    if removeBadDirectionalFlag is not False:
-                        removeIdxs = np.argwhere(self.ncfile['qcFlagD'][self.wavedataindex] >= removeBadDirectionalFlag).squeeze()
-                        self.wavedataindex = np.delete(self.wavedataindex, removeIdxs)  # remove the bad directional flags index
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
-                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
-                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
-                    wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
-                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
-                    wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
-                    wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
-                    wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
-                    wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
-                    wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
+                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
                     if wavespec['dWED'].ndim < 3:
                         wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
                         wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
                     wavespec['dWED'][wavespec['dWED'] == 0] = 1e-6
                     wavespec['fspec'][wavespec['fspec'] == 0] = 1e-6
+                    if 'specOnly' in kwargs and kwargs['specOnly'] is True:
+                        return wavespec  # pull out here if specOnly is true (saves time)
+                    try:
+                        wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
+                    except:
+                        wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
+                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
+                    wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
+                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
+                    if 'a&b' in kwargs and kwargs['a&b'] is True:
+                        wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
+                        wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
+                        wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
+                        wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
 
                 except IndexError:  # if error its non-directional gauge
                     # this should throw when gauge is non directional
@@ -374,6 +388,151 @@ class getObs:
                             'lon': self.ncfile['lon'][:],
                             'name': str(self.ncfile.title), }
             return wavespec
+
+    def getWaveSpecTest(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
+        """This function pulls down the data from the thredds server and puts the data into proper places
+        to be read for STwave Scripts
+        this will return the wavespec with dir/freq bin and directional wave energy
+        TODO: Set optional date input from function arguments to change self.start self.end
+
+        Args:
+          gaugenumber: wave gauge numbers pulled from self.waveGaugeURLlookup
+               see help on self.waveGaugeURLlookup for possible gauge names (Default value = 0)
+          roundto: this is duration in minutes which data are expected.  times are rounded to nearest
+             30 minute increment (data on server are not even times) (Default value = 30)
+          removeBadDataFlag (int): this will remove data with a directional flag of 3/4 signaling questionable or
+             failed directional spectra (default = 4, remove failed (directional) spectral data time periods)
+             valid values: [3, 4, False]  False will not remove any data
+
+        Keyword Args:
+            "a&b" (bool): if this is True function will return a's and b's for time period
+            "specOnly" (bool); if this is True function will not return bulk statistics
+
+        Returns:
+          dictionary with following keys for all gauges
+            'time' (array): time in datetime objects
+
+            'epochtime' (array): time in epoch time
+
+            'name' (str): gauge name
+
+            'wavefreqbin' (array): wave frequencys associated with 2D spectra
+
+            'wavedirbin' (array): wave direction bin associated with 2D spectra
+
+            'xFRF' (float): x location in FRF coordinates
+
+            'yFRF' (float): y location in FRF coordinates
+
+            'lat' (float): latitude
+
+            'lon' (float): longitude
+
+            'depth' (float): nominal water dept
+
+            'Hs' (array): wave height
+
+            'peakf' (array): wave peak frequency
+
+        """
+        # Making gauges flexible
+        self.waveGaugeURLlookup(gaugenumber)
+        # parsing out data of interest in time
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
+                                           dtRound=roundto * 60)
+        try:
+            self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
+            assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
+            if np.size(self.wavedataindex) >= 1:
+                # consistant for all wave gauges
+                if np.size(self.wavedataindex) == 1:
+                    self.wavedataindex = np.expand_dims(self.wavedataindex, axis=0)
+                try:
+                    wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
+                except IndexError:
+                    wave_coords = gp.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
+                #######################################################################################################
+                # now that wave data index is resolved, go get data
+                self.snaptime = nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units)
+                wavespec = {'time': self.snaptime,  # note this is new variable names??
+                            'epochtime': self.allEpoch[self.wavedataindex],
+                            'name': str(self.ncfile.title),
+                            'wavefreqbin': self.ncfile['waveFrequency'][:],
+                            'xFRF': wave_coords['xFRF'],
+                            'yFRF': wave_coords['yFRF'],
+                            'lat': self.ncfile['latitude'][:],
+                            'lon': self.ncfile['longitude'][:],
+                            'Hs': self.ncfile['waveHs'][self.wavedataindex]}
+                # now do directional gauge try
+                try:  # pull time specific data based on self.wavedataindex
+                    wavespec['depth'] = self.ncfile['nominalDepth'][:]  # this should always go with directional gauges
+                    wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
+                    wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
+                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
+                    if wavespec['dWED'].ndim < 3:
+                        wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
+                        wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
+                    if 'specOnly' in kwargs and kwargs['specOnly'] is True:
+                        return wavespec  # pull out here if specOnly is true (saves time)
+                    try:
+                        wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
+                    except:
+                        wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
+                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
+                    wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
+                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
+                    if 'a&b' in kwargs and kwargs['a&b'] is True:
+                        wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
+                        wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
+                        wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
+                        wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
+
+                except IndexError:  # if error its non-directional gauge
+                    # this should throw when gauge is non directional
+                    wavespec['depth'] = self.ncfile['gaugeDepth'][:]  # non directional gauges
+                    wavespec['wavedirbin'] = np.arange(0, 360, 90)  # 90 degree bins
+                    wavespec['waveDp'] = np.zeros(np.size(self.wavedataindex)) * -999
+                    try:
+                        wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
+                    except(RuntimeError):  # handle n-1 index error with Thredds
+                        wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex[:-1], :]
+                        wavespec['fspec'] = np.append(wavespec['fspec'], self.ncfile['waveEnergyDensity'][self.wavedataindex[-1], :][np.newaxis, :], axis=0)
+                    if wavespec['fspec'].ndim < 2:
+                        wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
+                    # multiply the freq spectra for all directions
+                    wavespec['dWED'] = np.ones(
+                        [np.size(self.wavedataindex), np.size(wavespec['wavefreqbin']),
+                         np.size(wavespec['wavedirbin'])])  # *
+                    wavespec['dWED'] = wavespec['dWED'] * wavespec['fspec'][:, :, np.newaxis] / len(
+                        wavespec['wavedirbin'])
+                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                if removeBadDataFlag is not False:
+                    # Energy should not be needed
+                    try:
+                        idx = np.argwhere(np.logical_not(wavespec['qcFlagD'] < removeBadDataFlag))
+                        wavespec = sb.reduceDict(wavespec, idx)
+                        idx = np.argwhere(np.logical_not(wavespec['qcFlagE'] < removeBadDataFlag))
+                        wavespec = sb.reduceDict(wavespec, idx)
+                    except IndexError:
+                        pass  # non -directional gauge
+
+                return wavespec
+
+        except (RuntimeError, AssertionError):
+
+            print('     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (gaugenumber, self.d1, self.d2))
+
+            try:
+                wavespec = {'lat': self.ncfile['latitude'][:],
+                            'lon': self.ncfile['longitude'][:],
+                            'name': str(self.ncfile.title), }
+            except:
+                wavespec = {'lat': self.ncfile['lat'][:],
+                            'lon': self.ncfile['lon'][:],
+                            'name': str(self.ncfile.title), }
+            return wavespec
+
 
     def getCurrents(self, gaugenumber=5, roundto=1):
         """This function pulls down the currents data from the Thredds Server
@@ -2774,7 +2933,7 @@ class getDataTestBed:
 
         return self.getWaveSpecModel(prefix, gaugenumber, model)
 
-    def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE'):
+    def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE', removeBadWLFlag=True):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
@@ -2894,12 +3053,13 @@ class getDataTestBed:
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
                                            callingClass=self.callingClass, dtRound=1 * 60)
         try:
+            # go get indices of interest
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
             assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
-            #lat = self.ncfile
-            #lon
-            waveDirBins = np.array(self.ncfile['waveDirectionBins'][:])
-            
+            qcFlags = self.ncfile['qcFlag'][self.wavedataindex]
+            if removeBadWLFlag is not False:
+                # removeIdxs = np.argwhere(self.ncfile['qcFlag'][self.wavedataindex,2] >= 3).squeeze()
+                self.wavedataindex = self.wavedataindex.compress(qcFlags[:, 2] <= 5)
             if np.size(self.wavedataindex) >= 1:
                 wavespec = {'epochtime': self.ncfile['time'][self.wavedataindex],
                             'time': nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units),
@@ -2915,8 +3075,10 @@ class getDataTestBed:
                             'waveTm': self.ncfile['waveTm'][self.wavedataindex],
                             'waveTp': self.ncfile['waveTp'][self.wavedataindex],
                             'WL': self.ncfile['waterLevel'][self.wavedataindex],
-                            'fspec': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :].sum(axis=2) * np.median(np.diff(waveDirBins)),
-                            'qcFlag': self.ncfile['qcFlag'][self.wavedataindex]}
+                            'qcFlagWL': self.ncfile['qcFlag'][self.wavedataindex, 2],
+                            'qcFlagWind': self.ncfile['qcFlag'][self.wavedataindex, 1]}
+                #make frequency spectra from directional energy spectrum
+                wavespec['fspec'] = wavespec['dWED'].sum(axis=2) * np.median(np.diff(np.array(wavespec['wavedirbin'])))
                 if model == 'STWAVE':
                     wavespec['Umag'] = self.ncfile['Umag'][self.wavedataindex]
                     wavespec['Udir'] = self.ncfile['Udir'][self.wavedataindex]
