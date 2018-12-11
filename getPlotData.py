@@ -207,6 +207,11 @@ def CMSF_velData(cmsfDict, station, dThresh=None):
     out['time'], out['aveEobs'], out['aveEmod'] = sb.timeMatch(obsTime, aveUobs, modTime, aveUmod)
     time, out['aveNobs'], out['aveNmod'] = sb.timeMatch(obsTime, aveVobs, modTime, aveVmod)
 
+    # make it output a datetime
+    modTime = [nc.num2date(ii, timeunits) for ii in out['time']]
+    del out['time']
+    out['time'] = modTime
+
     return out
 
 def CMSF_wlData(cmsfDict, station, dThresh=None):
@@ -248,6 +253,11 @@ def CMSF_wlData(cmsfDict, station, dThresh=None):
     # run the time matching.
     out = {}
     out['time'], out['obsWL'], out['modWL'] = sb.timeMatch(obsTime, obsWL, modTime, modWL)
+
+    # make it output a datetime
+    modTime = [nc.num2date(ii, timeunits) for ii in out['time']]
+    del out['time']
+    out['time'] = modTime
 
     return out
 
