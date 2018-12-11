@@ -199,8 +199,8 @@ def CMSF_velData(cmsfDict, station, dThresh=None):
         assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
 
     modTime = cmsfDict['time']
-    aveUmod = cmsfDict['aveE'][:][ind]
-    aveVmod = cmsfDict['aveN'][:][ind]
+    aveUmod = cmsfDict['aveE'][:, ind]
+    aveVmod = cmsfDict['aveN'][:, ind]
 
     # run the time matching.
     out = {}
@@ -248,7 +248,7 @@ def CMSF_wlData(cmsfDict, station, dThresh=None):
         assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
 
     modTime = cmsfDict['time']
-    modWL = cmsfDict['waterLevel'][:][ind]
+    modWL = cmsfDict['waterLevel'][:, ind]
 
     # run the time matching.
     out = {}
