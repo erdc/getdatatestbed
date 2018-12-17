@@ -678,7 +678,7 @@ class getObs:
             self.WLpacket = None
         return self.WLpacket
 
-    def getGageWL(self, gaugenumber=5, roundto=1):
+    def getGaugeWL(self, gaugenumber=5, roundto=1):
         """
         This function pulls down the water level data at a particular gage from the Thredds Server
         Args:
@@ -705,7 +705,7 @@ class getObs:
                 'yFRF': yFRF position of the gage
 
         """
-        warnings.warn('please change this function name')
+
         # Making gauges flexible
         self.wlGageURLlookup(gaugenumber)
         # parsing out data of interest in time
@@ -718,8 +718,13 @@ class getObs:
             assert np.array(self.wldataindex).all() != None, 'there''s no data in your time period'
             if np.size(self.wldataindex) >= 1:
                 # consistant for all wl gauges
-                if np.size(self.wldataindex) == 1:
-                    self.wldataindex = np.expand_dims(self.wldataindex, axis=0)
+
+                # do we need this?
+                # it is causing some of the stuff further down to crash
+                # if you have only one data point in the date range?
+                # if np.size(self.wldataindex) == 1:
+                    # self.wldataindex = np.expand_dims(self.wldataindex, axis=0)
+
                 self.snaptime = nc.num2date(self.allEpoch[self.wldataindex], self.ncfile['time'].units)
                 try:
                     wl_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
