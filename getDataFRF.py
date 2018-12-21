@@ -402,9 +402,9 @@ class getObs:
 
                 'epochtime' (float): unix epoch time
 
-                'aveU' (array): average cross-shore current from collection
+                'aveU' (array): average cross-shore current from collection (DLY 12/19/2018 - is this average Eastward or cross-shore?)
 
-                'aveV' (array): average along-shore current from collection
+                'aveV' (array): average along-shore current from collection (DLY 12/19/2018 - is this average Northward or alongshore?)
 
                 'speed' (array): average speed  [m/s]
 
