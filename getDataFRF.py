@@ -1893,7 +1893,6 @@ class getObs:
                    'lidarY': self.ncfile['lidarY'][:],
                    'xFRF': self.ncfile['xFRF'][:],
                    'yFRF': self.ncfile['yFRF'][:],
-                   'runupDownLine': self.ncfile['downLineDistance'][:],
                    'waveFrequency': self.ncfile['waveFrequency'][:],
                    'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units,
                                        self.ncfile['time'].calendar),
