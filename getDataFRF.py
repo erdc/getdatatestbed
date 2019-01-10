@@ -1919,6 +1919,8 @@ class getObs:
                     out['waveHsIG'] = np.array(out['waveHsIG'][~out['waveHsIG'].mask])
 
                 if isinstance(out['waveHsTotal'], np.ma.MaskedArray):
+                    # DLY note 01092019 - this bit of codes turns the 2d array out['waveHsTotal'] of time by distance into a 1-d array?
+                    # i dont think we can have this be an option for 2d data?
                     out['waveHsTotal'] = np.array(out['waveHsTotal'][~out['waveHsTotal'].mask])
 
                 if isinstance(out['waveSkewness'], np.ma.MaskedArray):
