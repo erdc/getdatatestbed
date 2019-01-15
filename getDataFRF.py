@@ -35,12 +35,10 @@ def gettime(allEpoch, epochStart, epochEnd):
 
     """
     mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
-    vals, indices = np.unique(allEpoch[mask], return_index=True)
-    if np.size(indices) == 0:
-        return None
-    else:
-        return indices + np.argmax(mask)
-
+    idx = np.argwhere(mask).squeeze()
+    if np.size(idx) == 0:
+        idx = None
+    return idx
 
 def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
     """This had to be moved out of gettime, so that even if getime failed the
@@ -107,42 +105,45 @@ def removeDuplicatesFromDictionary(inputDict):
         inputDict (dict): to check this if its duplicate
 
     Returns:
-        inputdict (dict): same dictionary with outduplicates in time
+        inputdict (dict): same dictionary with-out duplicates in time
 
     References:
         https://www.peterbe.com/plog/fastest-way-to-uniquify-a-list-in-python-3.6
         https://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-whilst-preserving-order
-    """
-    if 'epochtime' in inputDict:
-        key = 'epochtime'
-    elif 'time' in inputDict:
-        key = 'time'
-        warnings.warn('Removing duplicates is faster using numeric time, failed looking for "epochtime" key')
-    else:
-        raise NotImplementedError ('Requires keys "time" or "epochtime"')
 
-    if len(set(inputDict[key])) != len(inputDict[key]):  # there's duplicate times in obs'
-        print(' Removing Duplicates from {}'.format(inputDict['name']))# find the duplicates
-        try:  # python 3.6 + only
-           ans2 = list(dict.fromkeys(wave[key]))
-           idxObs = np.nonzero(np.in1d(wave[key], ans2))
-        except: # a slower way
-           seen = set()
-           ans3b = [x for x in wave[key] if x not in seen and not seen.add(x)]
-           idxObs = np.nonzero(np.in1d(wave[key], ans3b))
-        inputDict = sb.reduceDict(inputDict, idxObs[0])
-        ## original Way  --- super slow
-        # dupes = np.array([x for n, x in enumerate(inputDict[key]) if x in inputDict[key][:n]]).squeeze()
-        # idxObs = np.delete(np.arange(len(inputDict[key])),
-        #                    np.argwhere(np.in1d(inputDict[key], dupes).squeeze())[::2].squeeze())  # delete every other duplicate record
-        # inputDict = sb.reduceDict(inputDict, idxObs)
+    """
+    if inputDict is not None:
+        if 'epochtime' in inputDict:
+            key = 'epochtime'
+        elif 'time' in inputDict:
+            key = 'time'
+            warnings.warn('Removing duplicates is faster using numeric time, failed looking for "epochtime" key')
+        else:
+            raise NotImplementedError ('Requires keys "time" or "epochtime"')
+
+        if len(set(inputDict[key])) != len(inputDict[key]):  # there's duplicate times in dictionary
+            print(' Removing Duplicates from {}'.format(inputDict['name'])) # find the duplicates
+            _, idxObs = np.unique(inputDict[key], return_index=True)
+            inputDict = sb.reduceDict(inputDict, idxObs)
+            # try:  # python 3.6 + only
+            #    ans2 = list(dict.fromkeys(inputDict[key]))
+            #    # nonzero(np.in1d(inputDict[key], ans2)) #<=================================== this leaves duplicates
+            # except: # a slower way
+            #    seen = set()
+            #    ans3b = [x for x in inputDict[key] if x not in seen and not seen.add(x)]
+            #    idxObs = np.nonzero(np.in1d(inputDict[key], ans3b))
+            ## original Way  --- super slow
+            # dupes = np.array([x for n, x in enumerate(inputDict[key]) if x in inputDict[key][:n]]).squeeze()
+            # idxObs = np.delete(np.arange(len(inputDict[key])),
+            #                    np.argwhere(np.in1d(inputDict[key], dupes).squeeze())[::2].squeeze())  # delete every other duplicate record
+            # inputDict = sb.reduceDict(inputDict, idxObs)
     return inputDict
 
 class getObs:
 
     def __init__(self, d1, d2, THREDDS='FRF'):
         """
-        Data are returned in self.datainex are inclusive at start, exclusive at end
+        Data are returned in self.dataindex are inclusive at start, exclusive at end
         """
 
         # this is active wave gauge list for doing wave rider
@@ -197,49 +198,7 @@ class getObs:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
 
-    def gettime(self, dtRound=60):
-        """this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
-        from the THREDDS (data loc) server based on start,end, and data location
-        it returns the indicies in the NCML file of the dates start>=time>end
-
-        Args:
-          dtRound (int): the time delta of the data out of interest, default minute (60 second)
-
-        Returns:
-            indicies for time of interest
-        """
-        raise NotImplementedError('please use master get time that is not a member of this class ')
-
-        # TODO find a way to pull only hourly data or regular interval of desired time
-        # TODO this use date2index and create a list of dates see help(nc.date2index)
-        try:
-
-            self.ncfile = nc.Dataset(self.FRFdataloc + self.dataloc) #loads all of the netCDF file
-            #            try:
-            self.allEpoch = sb.baseRound(self.ncfile['time'][:], base=dtRound) # round to nearest minute
-            # now find the boolean!
-            mask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
-            idx = np.argwhere(mask).squeeze()
-            assert np.size(idx) > 0, 'no data locally, check CHLthredds'
-
-        except (IOError, RuntimeError, NameError, AssertionError):  # if theres any error try to get good data from next location
-            try:
-                self.ncfile = nc.Dataset(self.chlDataLoc + self.dataloc)
-                self.allEpoch = sb.baseRound(self.ncfile['time'][:], base=dtRound) # round to nearest minute
-                # now find the boolean !
-                emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
-                idx = np.argwhere(emask).squeeze()
-                try:
-                    assert np.size(idx) > 0, ' There are no data within the search parameters for this gauge'
-                except AssertionError:
-                    idx = None
-            except IOError:  # this occors when thredds is down
-                raise EnvironmentError('Trouble Connecteing to data on CHL Thredds, server might be down')
-                idx = None
-
-        return idx
-
-    def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDirectionalFlag=4):
+    def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
@@ -250,9 +209,13 @@ class getObs:
                see help on self.waveGaugeURLlookup for possible gauge names (Default value = 0)
           roundto: this is duration in minutes which data are expected.  times are rounded to nearest
              30 minute increment (data on server are not even times) (Default value = 30)
-          removeBadDirectionalFlag (int): this will remove data with a directional flag of 3/4 signaling questionable or
-             failed directional spectra (default = 4, remove failed directional spectral data time periods)
+          removeBadDataFlag (int): this will remove data with a directional flag of 3/4 signaling questionable or
+             failed directional spectra (default = 4, remove failed (directional) spectral data time periods)
              valid values: [3, 4, False]  False will not remove any data
+
+        Keyword Args:
+            "a&b" (bool): if this is True function will return a's and b's for time period
+            "specOnly" (bool); if this is True function will not return bulk statistics
 
         Returns:
           dictionary with following keys for all gauges
@@ -284,10 +247,8 @@ class getObs:
         # Making gauges flexible
         self.waveGaugeURLlookup(gaugenumber)
         # parsing out data of interest in time
-
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
                                            dtRound=roundto * 60)
-
         try:
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
             assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
@@ -295,15 +256,13 @@ class getObs:
                 # consistant for all wave gauges
                 if np.size(self.wavedataindex) == 1:
                     self.wavedataindex = np.expand_dims(self.wavedataindex, axis=0)
-                self.snaptime = nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units)
-                try:
-                    depth = self.ncfile['nominalDepth'][:]  # this should always go with directional gauges
-                except IndexError:
-                    depth = self.ncfile['gaugeDepth'][:]  # non directional gauges
                 try:
                     wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
                 except IndexError:
                     wave_coords = gp.FRFcoord(self.ncfile['lon'][:], self.ncfile['lat'][:])
+                #######################################################################################################
+                # now that wave data index is resolved, go get data
+                self.snaptime = nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units)
                 wavespec = {'time': self.snaptime,  # note this is new variable names??
                             'epochtime': self.allEpoch[self.wavedataindex],
                             'name': str(self.ncfile.title),
@@ -312,36 +271,36 @@ class getObs:
                             'yFRF': wave_coords['yFRF'],
                             'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
-                            'depth': depth,
                             'Hs': self.ncfile['waveHs'][self.wavedataindex]}
-                try:
-                    wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
-                except:
-                    wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
                 # now do directional gauge try
                 try:  # pull time specific data based on self.wavedataindex
-                    if removeBadDirectionalFlag is not False:
-                        removeIdxs = np.argwhere(self.ncfile['qcFlagD'][self.wavedataindex] >= removeBadDirectionalFlag).squeeze()
-                        self.wavedataindex = np.delete(self.wavedataindex, removeIdxs)  # remove the bad directional flags index
+                    wavespec['depth'] = self.ncfile['nominalDepth'][:]  # this should always go with directional gauges
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
-                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
-                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
-                    wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
-                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
-                    wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
-                    wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
-                    wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
-                    wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
-                    wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
+                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
                     if wavespec['dWED'].ndim < 3:
                         wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
                         wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
-                    wavespec['dWED'][wavespec['dWED'] == 0] = 1e-6
-                    wavespec['fspec'][wavespec['fspec'] == 0] = 1e-6
+                    if 'specOnly' in kwargs and kwargs['specOnly'] is True:
+                        return wavespec  # pull out here if specOnly is true (saves time)
+                    try:
+                        wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
+                    except:
+                        wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
+                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
+                    wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
+                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
+                    if 'a&b' in kwargs and kwargs['a&b'] is True:
+                        wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
+                        wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
+                        wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
+                        wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
 
                 except IndexError:  # if error its non-directional gauge
                     # this should throw when gauge is non directional
+                    wavespec['peakf'] = 1/self.ncfile['waveTp'][self.wavedataindex]
+                    wavespec['depth'] = self.ncfile['nominalDepth'][:]  # non directional gauges
                     wavespec['wavedirbin'] = np.arange(0, 360, 90)  # 90 degree bins
                     wavespec['waveDp'] = np.zeros(np.size(self.wavedataindex)) * -999
                     try:
@@ -358,7 +317,18 @@ class getObs:
                     wavespec['dWED'] = wavespec['dWED'] * wavespec['fspec'][:, :, np.newaxis] / len(
                         wavespec['wavedirbin'])
                     wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
-
+                if removeBadDataFlag is not False:
+                    # Energy should not be needed
+                    try:
+                        idx = np.argwhere(wavespec['qcFlagD']<removeBadDataFlag).squeeze() # find data that are below threshold
+                        if np.size(idx) > 0:
+                            wavespec = sb.reduceDict(wavespec, idx)  # if there are values, keep good ones
+                        idx = np.argwhere(wavespec['qcFlagE'] < removeBadDataFlag).squeeze()
+                        if np.size(idx) > 0:
+                            wavespec = sb.reduceDict(wavespec, idx)
+                    except(KeyError):
+                        pass  # non -directional gauge
+                wavespec = removeDuplicatesFromDictionary(wavespec)
                 return wavespec
 
         except (RuntimeError, AssertionError):
@@ -2773,6 +2743,7 @@ class getDataTestBed:
             field['bathymetryDate'] = np.ones_like(field['time'])
 
         assert field[var].shape[0] == len(field['time']), " the indexing is wrong for pulling down the spatial output"
+        field = removeDuplicatesFromDictionary(field)
         return field
 
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True, model='STWAVE'):
@@ -2780,7 +2751,7 @@ class getDataTestBed:
 
         return self.getWaveSpecModel(prefix, gaugenumber, model)
 
-    def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE'):
+    def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE', removeBadWLFlag=True):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
         this will return the wavespec with dir/freq bin and directional wave energy
@@ -2900,12 +2871,9 @@ class getDataTestBed:
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
                                            callingClass=self.callingClass, dtRound=1 * 60)
         try:
+            # go get indices of interest
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
             assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
-            #lat = self.ncfile
-            #lon
-            waveDirBins = np.array(self.ncfile['waveDirectionBins'][:])
-            
             if np.size(self.wavedataindex) >= 1:
                 wavespec = {'epochtime': self.ncfile['time'][self.wavedataindex],
                             'time': nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units),
@@ -2921,20 +2889,27 @@ class getDataTestBed:
                             'waveTm': self.ncfile['waveTm'][self.wavedataindex],
                             'waveTp': self.ncfile['waveTp'][self.wavedataindex],
                             'WL': self.ncfile['waterLevel'][self.wavedataindex],
-                            'fspec': self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :].sum(axis=2) * np.median(np.diff(waveDirBins)),
-                            'qcFlag': self.ncfile['qcFlag'][self.wavedataindex]}
+                            'qcFlagWL': self.ncfile['qcFlag'][self.wavedataindex, 2],
+                            'qcFlagWind': self.ncfile['qcFlag'][self.wavedataindex, 1]}
+                #make frequency spectra from directional energy spectrum
+                wavespec['fspec'] = wavespec['dWED'].sum(axis=2) * np.median(np.diff(np.array(wavespec['wavedirbin'])))
                 if model == 'STWAVE':
                     wavespec['Umag'] = self.ncfile['Umag'][self.wavedataindex]
                     wavespec['Udir'] = self.ncfile['Udir'][self.wavedataindex]
                 wavespec['dWED'][wavespec['dWED']==0] = 1e-6
                 wavespec['fspec'][wavespec['fspec'] == 0 ] = 1e-6
+            qcFlags = self.ncfile['qcFlag'][self.wavedataindex]
+            if removeBadWLFlag is not False:
+                idxGood = np.argwhere(qcFlags[:, 2] <= 5).squeeze()
+                wavespec = sb.reduceDict(wavespec, idxGood)
+            return removeDuplicatesFromDictionary(wavespec)
 
         except (RuntimeError, AssertionError) as err:
             print(err)
             print('ERROR Retrieving data from %s\n in this time period start: %s  End: %s' % (
                 gname, self.start, self.end))
-            wavespec = None
-        return wavespec
+            return None
+
 
     def getLidarWaveProf(self, removeMasked=True):
         """  This function is a place holder, it does not work
