@@ -333,6 +333,7 @@ class getObs:
                     wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
                     wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
                     wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
+                    wavespec['Tm'] = self.ncfile['waveTm'][self.wavedataindex]
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
                     if wavespec['dWED'].ndim < 3:
                         wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
@@ -1186,6 +1187,21 @@ class getObs:
             self.dataloc = 'oceanography/waves/xp100m/xp100m.ncml'
         elif str(gaugenumber).lower() in ['12', '8m array', '8m-array']:
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
+        # lidar wave guages - 140 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge140', 'lidargauge140', 'lidarwavegauge140m', 'lidargauge140m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge140/lidarWaveGauge140.ncml'
+        # lidar wave guages - 110 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge110', 'lidargauge110', 'lidarwavegauge110m', 'lidargauge110m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge110/lidarWaveGauge110.ncml'
+        # lidar wave guages - 100 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge100', 'lidargauge100', 'lidarwavegauge100m', 'lidargauge100m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge100/lidarWaveGauge100.ncml'
+        # lidar wave guages - 90 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge90', 'lidargauge90', 'lidarwavegauge90m', 'lidargauge90m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge90/lidarWaveGauge90.ncml'
+        # lidar wave guages - 80 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge80', 'lidargauge80', 'lidarwavegauge80m', 'lidargauge80m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge80/lidarWaveGauge80.ncml'
         elif str(gaugenumber).lower() in ['oregoninlet', 'oi']:
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
         else:
