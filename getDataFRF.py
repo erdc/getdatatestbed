@@ -112,6 +112,7 @@ def removeDuplicatesFromDictionary(inputDict):
         https://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-whilst-preserving-order
 
     """
+    from collections.abc import Iterable
     if inputDict is not None:
         if 'epochtime' in inputDict:
             key = 'epochtime'
@@ -121,10 +122,10 @@ def removeDuplicatesFromDictionary(inputDict):
         else:
             raise NotImplementedError ('Requires keys "time" or "epochtime"')
 
-        if len(set(inputDict[key])) != len(inputDict[key]):  # there's duplicate times in dictionary
+        if isinstance(inputDict[key], Iterable) and np.size(set(np.array(inputDict[key]))) != np.size(inputDict[key]):  # there's duplicate times in dictionary
             print(' Removing Duplicates from {}'.format(inputDict['name'])) # find the duplicates
-            _, idxObs = np.unique(inputDict[key], return_index=True)
-            inputDict = sb.reduceDict(inputDict, idxObs)
+            _, idxUnique = np.unique(inputDict[key], return_index=True)
+            inputDict = sb.reduceDict(inputDict, idxUnique)
             # try:  # python 3.6 + only
             #    ans2 = list(dict.fromkeys(inputDict[key]))
             #    # nonzero(np.in1d(inputDict[key], ans2)) #<=================================== this leaves duplicates
@@ -2254,7 +2255,7 @@ class getDataTestBed:
         """Test if times are backwards"""
         assert self.end >= self.start, 'finish time: end needs to be after start time: start'
 
-    def gettime(self, dtRound=60):
+    def gettime(self):
         """this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
         from the THREDDS (data loc) server based on start,end, and data location
         it returns the indicies in the NCML file of the dates start>=time>end
@@ -2335,16 +2336,16 @@ class getDataTestBed:
 
         Returns:
           key 'xCoord': x in FRF
-          :key 'yCoord': y in FRF
-          :key 'elevation': elevation NAVD 88
-          :key 'time': time in date time object
-          :key 'lat': latitude
-          :key 'lon': longitude
-          :key 'northing': NC stateplane Northing
-          :key 'easting': NC stateplane Easting
-          :key 'x0': origin in x (stateplane easting)
-          :key 'azimuth': grid orientation
-          :key 'y0': origin in y (stateplane northing)
+          key 'yCoord': y in FRF
+          key 'elevation': elevation NAVD 88
+          key 'time': time in date time object
+          key 'lat': latitude
+          key 'lon': longitude
+          key 'northing': NC stateplane Northing
+          key 'easting': NC stateplane Easting
+          key 'x0': origin in x (stateplane easting)
+          key 'azimuth': grid orientation
+          key 'y0': origin in y (stateplane northing)
 
         """
         self.dataloc = 'grids/CMSwave_v1/CMSwave_v1.ncml'
@@ -2431,7 +2432,11 @@ class getDataTestBed:
         Keyword Args:
            'cBKF': if true will get cBathy original Kalman Filter
 
-           'cBKF_T: if true will get wave height thresholded Kalman filter
+           'cBKF_T': if true will get wave height thresholded Kalman filter
+
+            'xbound': = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
+
+            'ybound': = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
 
         Returns:
           dictionary with keys
@@ -2519,22 +2524,58 @@ class getDataTestBed:
                                                                                     self.ncfile['time'].units))
             print('Please End new simulation with the date above')
             raise Exception
+        ###############################################################################################################
+        # bound it if requested
+        ###############################################################################################################
+        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
+            if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
+                kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
+            # first min of x
+            if (kwargs['xbounds'][0] < self.ncfile['xFRF'][:]).all():
+                # then set xmin to 0
+                removeMinX = 0
+            else:  # <= used here to handle inclusive initial index inherant in python
+                removeMinX = np.argwhere(self.ncfile['xFRF'][:] <= kwargs['xbounds'][0]).squeeze().max()
+            # now max of x
+            if (kwargs['xbounds'][1] > self.ncfile['xFRF'][:]).all():
+                removeMaxX = None
+            else:
+                removeMaxX = np.argwhere(
+                    self.ncfile['x'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
+            xs = slice(removeMinX, removeMaxX)
+        else:
+            xs = slice(None)
 
+        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
+            if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
+                kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
+            # first min of y
+            if (kwargs['ybounds'][0] < self.ncfile['yFRF'][:]).all():
+                # then set the ymin to first index [0]
+                removeMinY = 0  # ie get all data
+            else:
+                removeMinY = np.argwhere(self.ncfile['yFRF'][:] <= kwargs['ybounds'][0]).squeeze().max()
+            ## now max of y
+            if (kwargs['ybounds'][1] > self.ncfile['yFRF'][:]).all():
+                removeMaxY = None
+            else:
+                removeMaxY = np.argwhere(
+                    self.ncfile['yFRF'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
+            ys = slice(removeMinY, removeMaxY)
+        else:
+            ys = slice(None)
+        ###############################################################################################################
+        ###############################################################################################################
         # the below line was in place, it should be masking nan's but there is not supposed to be nan's
         # in the data, should only be fill values (-999)
         # elevation_points = np.ma.array(cshore_ncfile['elevation'][idx,:,:], mask=np.isnan(cshore_ncfile['elevation'][idx,:,:]))
         # remove -999's
-        elevation_points = self.ncfile['elevation'][idx, :, :]
-        xCoord = self.ncfile['xFRF'][:]
-        yCoord = self.ncfile['yFRF'][:]
-        lat = self.ncfile['latitude'][:]
-        lon = self.ncfile['longitude'][:]
-        try:
-            northing = self.ncfile['northing'][:]
-            easting = self.ncfile['easting'][:]
-        except IndexError:
-            northing = None
-            easting = None
+        elevation_points = self.ncfile['elevation'][idx, ys, xs]
+        xCoord = self.ncfile['xFRF'][xs]
+        yCoord = self.ncfile['yFRF'][ys]
+        lat = self.ncfile['latitude'][ys, xs]
+        lon = self.ncfile['longitude'][ys, xs]
+
 
         # putting dates and times back for all the other instances that use get time
         if ForcedSurveyDate != None:
@@ -2543,11 +2584,9 @@ class getDataTestBed:
             self.epochd2 = oldD2epoch
             self.epochd1 = oldD1epoch
 
-        # this commented out section will work once the times on the CHL THREDDS are fixed.
-        # Until then, it will error because self.allEpoch was obtained
-        # from the CHL THREDDS times, and they are screwed all up!
-        # bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')
-        bathyT = nc.num2date(self.ncfile['time'][idx], 'seconds since 1970-01-01')
+        bathyT = nc.num2date(self.allEpoch[idx], 'seconds since 1970-01-01')  # This one is rounded appropraitely
+        # this comes directly from file (useful if server is acting funny)
+        # bathyT = nc.num2date(self.ncfile['time'][idx], 'seconds since 1970-01-01')
 
         print('  Measured Bathy is %s old' % (self.end - bathyT))
 
@@ -2556,11 +2595,8 @@ class getDataTestBed:
                     'elevation': elevation_points,
                     'time': bathyT,
                     'lat': lat,
-                    'lon': lon,
-                    'northing': northing,
-                    'easting': easting,
-                    }
-        if ('cBKF_T' not in kwargs) and ('cBKF' not in kwargs): # then its a survey, get the survey number
+                    'lon': lon,}
+        if ('cBKF_T' not in kwargs) and ('cBKF' not in kwargs):     # then its a survey, get the survey number
             gridDict['surveyNumber'] = self.ncfile['surveyNumber'][idx]
 
         return gridDict
