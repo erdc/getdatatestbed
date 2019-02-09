@@ -626,23 +626,19 @@ class getObs:
         self.WLdataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
 
         if np.size(self.WLdataindex) > 1:
-            # self.WL = self.cshore_ncfile['waterLevel'][self.WLdataindex]
-            # self.WLtime = nc.num2date(self.cshore_ncfile['time'][self.WLdataindex], self.cshore_ncfile['time'].units,
-            #                           self.cshore_ncfile['time'].calendar)
-            # for num in range(0, len(self.WLtime)):
-            #     self.WLtime[num] = self.roundtime(self.WLtime[num], roundto=collectionlength * 60)
             self.WLtime = nc.num2date(self.allEpoch[self.WLdataindex], self.ncfile['time'].units)
             self.WLpacket = {
                 'name': str(self.ncfile.title),
-                'WL': self.ncfile['waterLevel'][self.WLdataindex],
+                'WL': self.ncfile['waterLevel'][self.WLdataindex],  # why does this call take so long for even 10 data points?
                 'time': self.WLtime,
                 'epochtime': self.allEpoch[self.WLdataindex],
                 'lat': self.ncfile['latitude'][:],
                 'lon': self.ncfile['longitude'][:],
-                'residual': self.ncfile['residualWaterLevel'][self.WLdataindex],
-                'predictedWL': self.ncfile['predictedWaterLevel'][self.WLdataindex],
-                'gapNum': self.ncfile['gapGauge'][self.WLdataindex],
-            }
+                'predictedWL': self.ncfile['predictedWaterLevel'][self.WLdataindex],}
+            # this is faster to calculate myself, than pull from server
+            self.WLpacket['residual'] = self.WLpacket['WL'] - self.WLpacket['predictedWL']
+        elif self.WLdataindex is not None and np.size(self.WLdataindex) == 1:
+            raise BaseException('you have 1 WL point, can the above be a >= logic or does 1 cause problems')
 
         else:
             print('ERROR: there is no WATER level Data for this time period!!!')
