@@ -112,7 +112,7 @@ def removeDuplicatesFromDictionary(inputDict):
         https://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-whilst-preserving-order
 
     """
-    from collections.abc import Iterable
+    from collections.abc import Iterable # this is not available in Python 2.7?
     if inputDict is not None:
         if 'epochtime' in inputDict:
             key = 'epochtime'
@@ -277,6 +277,17 @@ class getObs:
                 try:  # pull time specific data based on self.wavedataindex
                     wavespec['depth'] = self.ncfile['nominalDepth'][:]  # this should always go with directional gauges
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
+                    wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
+                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
+                    wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
+                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
+                    wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
+                    wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
+                    wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
+                    wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
+                    wavespec['Tm'] = self.ncfile['waveTm'][self.wavedataindex]
+
                     wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
                     wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
                     if wavespec['dWED'].ndim < 3:
@@ -301,7 +312,12 @@ class getObs:
                 except IndexError:  # if error its non-directional gauge
                     # this should throw when gauge is non directional
                     wavespec['peakf'] = 1/self.ncfile['waveTp'][self.wavedataindex]
-                    wavespec['depth'] = self.ncfile['nominalDepth'][:]  # non directional gauges
+                    # lidar guages don't have this variable.
+                    if 'nominalDepth' in self.ncfile.variables.keys():
+                        wavespec['depth'] = self.ncfile['nominalDepth'][:]  # non directional gauges
+                    else:
+                        # leave it blank if lidar wave gauge.
+                        wavespec['depth'] = np.nan
                     wavespec['wavedirbin'] = np.arange(0, 360, 90)  # 90 degree bins
                     wavespec['waveDp'] = np.zeros(np.size(self.wavedataindex)) * -999
                     try:
@@ -317,7 +333,12 @@ class getObs:
                          np.size(wavespec['wavedirbin'])])  # *
                     wavespec['dWED'] = wavespec['dWED'] * wavespec['fspec'][:, :, np.newaxis] / len(
                         wavespec['wavedirbin'])
-                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    if 'qcFlagE' in self.ncfile.variables.keys():
+                        # lidar wave gauges don't have this variable.
+                        wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    else:
+                        # lidar wave gauges have waterLevelQCFlag and spectralQCFlag
+                        wavespec['qcFlagE'] = self.ncfile['waterLevelQCFlag'][self.wavedataindex]
                 if removeBadDataFlag is not False:
                     # Energy should not be needed
                     try:
@@ -1153,6 +1174,21 @@ class getObs:
             self.dataloc = 'oceanography/waves/xp100m/xp100m.ncml'
         elif str(gaugenumber).lower() in ['12', '8m array', '8m-array']:
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
+        # lidar wave gauges - 140 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge140', 'lidargauge140', 'lidarwavegauge140m', 'lidargauge140m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge140/lidarWaveGauge140.ncml'
+        # lidar wave gauges - 110 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge110', 'lidargauge110', 'lidarwavegauge110m', 'lidargauge110m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge110/lidarWaveGauge110.ncml'
+        # lidar wave gauges - 100 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge100', 'lidargauge100', 'lidarwavegauge100m', 'lidargauge100m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge100/lidarWaveGauge100.ncml'
+        # lidar wave gauges - 90 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge90', 'lidargauge90', 'lidarwavegauge90m', 'lidargauge90m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge90/lidarWaveGauge90.ncml'
+        # lidar wave gauges - 80 m
+        elif str(gaugenumber).lower() in ['lidarwavegauge80', 'lidargauge80', 'lidarwavegauge80m', 'lidargauge80m']:
+            self.dataloc = 'oceanography/waves/lidarWaveGauge80/lidarWaveGauge80.ncml'
         elif str(gaugenumber).lower() in ['oregoninlet', 'oi']:
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
         else:
