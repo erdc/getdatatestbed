@@ -40,7 +40,7 @@ def gettime(allEpoch, epochStart, epochEnd):
         idx = None
     return idx
 
-def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
+def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
     """This had to be moved out of gettime, so that even if getime failed the
     rest of the functions would still have access to the nc file
 
@@ -48,21 +48,26 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
         dataLoc (str):
         THREDDS (str): a key associated with the server location
         callingClass (str): which class calls this
-        dtRound:
+        dtRound(int): rounding the times returned from the server (Default=60 (s))
+
+    Keyword Args:
+        start: if given, will parse out to monthly netCDF file (if query is in same month)
+        end: if given, will parse out to monthly netCDF file (if query is in same month)
 
     Returns:
         object:
 
+    TODO: could use thredds crawler to more efficiently pick files to pull from.  This would save query time
     """
-
     # toggle my data location
     threddsList = np.array(['CHL', 'FRF'])
+    start = kwargs.get('start', None)
+    end = kwargs.get('end', None)
 
     FRFdataloc = 'http://134.164.129.55/thredds/dodsC/'
-    chlDataLoc = 'https://chlthredds.erdc.dren.mil/thredds/dodsC/'
-
-    assert (
-            THREDDS == threddsList).any(), "Please enter a valid THREDDS data location\n Location assigned = %s must be in List %s" % (
+    chlDataLoc = 'https://chldata.erdc.dren.mil/thredds/dodsC/'
+    doNotDrillList = ['survey']  # a list of data sets (just the ncml) that shouldn't drill down to monthly file
+    assert (THREDDS == threddsList).any(), "Please enter a valid server location\nLocation assigned=%s must be in list %s" % (
         THREDDS, threddsList)
 
     if THREDDS == 'FRF':
@@ -77,15 +82,36 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60):
             pName = 'frf'
 
     elif callingClass == 'getDataTestBed':
-        if THREDDS == 'FRF':
             pName = 'cmtb'
-        elif THREDDS == 'CHL':
-            pName = 'cmtb'
-    finished = False
-    n = 0
+
+    #### now set URL for netCDF file call,
+    if start is None and end is None:
+        ncfileURL = os.path.join(THREDDSloc, pName, dataLoc)
+    elif isinstance(start, float) and isinstance(end, float):  # then we assume epoch
+        raise NotImplementedError('check conversion for floats (epoch time), currently needs to be datetime object')
+        ncfileURL = os.path.join(THREDDSloc, pName, monthlyPath)
+    elif isinstance(start, DT.datetime) and isinstance(end, DT.datetime) and start.month == end.month and ~np.in1d(doNotDrillList, dataLoc.split('/')).any():
+        # tthis section dives to the specific month's datafile if it's within the same month
+        dataLocSplit = os.path.split(dataLoc)
+        fileparts = dataLocSplit[0].split('/')
+        if fileparts[0] == 'oceanography':
+            field = 'ocean'
+        else:
+            field = fileparts[0]
+        try:  # this will work for get Obs
+            fname = "{}-{}_{}_{}_{}{}.nc".format(pName.upper(), field, fileparts[1], fileparts[2], start.year, start.month)
+        except IndexError:  # works for getDataTestBed class
+            fname = "{}-{}_{}_{}{}.nc".format(pName.upper(), field, fileparts[1], start.year, start.month)
+
+        ncfileURL = os.path.join(THREDDSloc, pName, dataLocSplit[0], str(start.year), fname)
+    else:  # function couldn't be more efficient, default to old way
+        ncfileURL = os.path.join(THREDDSloc, pName, dataLoc)
+
+    ############# go now to open file   ################################
+    finished, n = False, 0  # initializing variables to iterate over
     while not finished and n < 15:
         try:
-            ncFile = nc.Dataset(os.path.join(THREDDSloc, pName, dataLoc))  # get the netCDF file
+            ncFile = nc.Dataset(ncfileURL)  # get the netCDF file
             finished = True
         except IOError as err:
             print('Error reading {}, trying again'.format(dataLoc))
@@ -249,7 +275,7 @@ class getObs:
         self.waveGaugeURLlookup(gaugenumber)
         # parsing out data of interest in time
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
-                                           dtRound=roundto * 60)
+                                           dtRound=roundto * 60, start=self.d1, end=self.d2)
         try:
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
             assert np.array(self.wavedataindex).all() != None, 'there''s no data in your time period'
@@ -437,7 +463,7 @@ class getObs:
             raise NameError('Check gauge name')
 
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
-                                           dtRound=roundto * 60)
+                                           dtRound=roundto * 60) # start=self.d1, end=self.d2) < -- needs to be tested
         currdataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
 
         # _______________________________________
@@ -549,7 +575,7 @@ class getObs:
             raise NameError('Specifiy proper Gauge number')
 
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
-                                           dtRound=collectionlength * 60)
+                                           dtRound=collectionlength * 60) # start=self.d1, end=self.d2) <-- needs to be tested
         self.winddataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
         # remove nan's that shouldn't be there
         # ______________________________________
@@ -638,12 +664,10 @@ class getObs:
 
             'predictedWL': predicted tide
 
-            'gapNum': ???
-
         """
         self.dataloc = 'oceanography/waterlevel/eopNoaaTide/eopNoaaTide.ncml'  # this is the back end of the url for waterlevel
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
-                                           dtRound=collectionlength * 60)
+                                           dtRound=collectionlength * 60, start=self.d1, end=self.d2)
         self.WLdataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
 
         if np.size(self.WLdataindex) > 1:
@@ -2520,7 +2544,7 @@ class getDataTestBed:
         ####################################################################
         # go ahead and assign the ncfile first....
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
-                                           dtRound=1 * 60)
+                                           dtRound=1 * 60, start=self.start, end=self.end)
 
         try:
             self.bathydataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
