@@ -101,20 +101,14 @@ class getObs:
         Data are returned in self.datainex are inclusive at start, exclusive at end
         """
 
-        # this is active wave gauge list for doing wave rider
-        self.gaugelist = ['waverider-26m',
-                          'waverider-17m',
-                          'awac-11m',
-                          '8m-array',
-                          'awac-6m',
-                          'awac-4.5m',
-                          'adop-3.5m',
-                          'xp200m',
-                          'xp150m',
-                          'xp125m',]
+        # this is active wave gauge list for looping through as needed
+        self.waveGaugeList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
+                              'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
 
-        self.directional = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
-                            'adop-3.5m']
+        self.directionalWaveGaugeList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
+                                         'awac-6m', 'awac-4.5m', 'adop-3.5m']
+
+        self.currentsGaugeList = ['awac-11m','awac-6m', 'awac-4.5m', 'adop-3.5m']
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.d1 = d1  # start date for data grab
@@ -198,7 +192,7 @@ class getObs:
     def getWaveSpec(self, gaugenumber=0, roundto=30):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
-        this will return the wavespec with dir/freq bin and directional wave energy
+        this will return the wavespec with dir/freq bin and directionalWaveGaugeList wave energy
         TODO: Set optional date input from function arguments to change self.start self.end
 
         Args:
@@ -252,7 +246,10 @@ class getObs:
                 try:
                     depth = self.ncfile['nominalDepth'][:]  # this should always go
                 except IndexError:
-                    depth = self.ncfile['gaugeDepth'][:]  # non directional gauges
+                    try:
+                        depth = self.ncfile['gaugeDepth'][:]  # non directionalWaveGaugeList gauges
+                    except IndexError:
+                        depth = -999  # fill value
                 try:
                     wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
                 except IndexError:
@@ -272,7 +269,7 @@ class getObs:
                     wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
                 except:
                     wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
-                # now do directional gauge try
+                # now do directionalWaveGaugeList gauge try
                 try:  # pull time specific data based on self.wavedataindex
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
                     wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
@@ -288,9 +285,9 @@ class getObs:
                     if wavespec['dWED'].ndim < 3:
                         wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
                         wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
-                # if error its non-directional gauge
+                # if error its non-directionalWaveGaugeList gauge
                 except IndexError:
-                    # this should throw when gauge is non directional
+                    # this should throw when gauge is non directionalWaveGaugeList
                     wavespec['wavedirbin'] = np.arange(0, 360, 90)  # 90 degree bins
                     wavespec['waveDp'] = np.zeros(np.size(self.wavedataindex)) * -999
                     wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
@@ -302,7 +299,11 @@ class getObs:
                          np.size(wavespec['wavedirbin'])])  # *
                     wavespec['dWED'] = wavespec['dWED'] * wavespec['fspec'][:, :, np.newaxis] / len(
                         wavespec['wavedirbin'])
-                    wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    try:
+                        wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
+                    except IndexError:
+                        # for lidar wave data
+                        wavespec['qcFlagE'] = self.ncfile['spectralQCFlag'][self.wavedataindex]
 
                 return wavespec
 
@@ -1128,9 +1129,19 @@ class getObs:
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
         elif str(gaugenumber).lower() in ['oregoninlet', 'oi']:
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
+        elif str(gaugenumber).lower() in ['lidarwavegauge080', 'lidarwavegauge80']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge080/lidarWaveGauge080.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge090', 'lidarwavegauge90']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge090/lidarWaveGauge090.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge100']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge100/lidarWaveGauge100.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge110']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge110/lidarWaveGauge110.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge140']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge140/lidarWaveGauge140.ncml"
         else:
             self.gname = 'There Are no Gauge numbers here'
-            raise NameError('Bad Gauge name, specify proper gauge name/number')
+            raise NameError('Bad Gauge name, specify proper gauge name/number, or add capability')
 
     def wlGageURLlookup(self, gaugenumber):
         """
@@ -1184,11 +1195,6 @@ class getObs:
         elif gaugenumber in [12, '8m-Array', '8m Array', '8m array', '8m-array']:
             self.gname = "8m array"
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
-
-        elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
-            self.gname = 'Oregon Inlet'
-            self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
-
         else:
             self.gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number')
@@ -1283,7 +1289,7 @@ class getObs:
         """
         loc_dict = {}
 
-        for g in self.gaugelist:
+        for g in self.waveGaugeList:
             loc_dict[g] = {}
             data = loc_dict[g]
 
@@ -1357,10 +1363,10 @@ class getObs:
         if abs(self.d1 - nearest_timestamp).days < window_days:
             # if there is data, and its within the window
             archived_sensor_locations = loc_dict[nearest_timestamp]
-            # MPG: only use locations specified in self.gaugelist (for the case
+            # MPG: only use locations specified in self.waveGaugeList (for the case
             # that there are archived locations that should not be used).
             sensor_locations = collections.OrderedDict()
-            for g in self.gaugelist:
+            for g in self.waveGaugeList:
                 if g in archived_sensor_locations:
                     sensor_locations[g] = archived_sensor_locations[g]
                 else:
@@ -1374,8 +1380,6 @@ class getObs:
                 pickle.dump(loc_dict, fid)
 
         return sensor_locations
-
-
 
     def getLidarRunup(self, removeMasked=True):
         """This function will get the wave runup measurements from the lidar mounted in the dune
@@ -1726,16 +1730,16 @@ class getObs:
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
             out = {'name': nc.chartostring(self.ncfile['station_name'][:]),
+                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units,
+                                       self.ncfile['time'].calendar),
                    'lat': self.ncfile['lidarLatitude'][:],  # Coordinates
                    'lon': self.ncfile['lidarLongitude'][:],
                    'lidarX': self.ncfile['lidarX'][:],
                    'lidarY': self.ncfile['lidarY'][:],
                    'xFRF': self.ncfile['xFRF'][:],
                    'yFRF': self.ncfile['yFRF'][:],
-                   'runupDownLine': self.ncfile['downLineDistance'][:],
                    'waveFrequency': self.ncfile['waveFrequency'][:],
-                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar),
+
                    'hydroQCflag': self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
                    'waterLevel': self.ncfile['waterLevel'][self.lidarIndex, :],
                    'waveHs': self.ncfile['waveHs'][self.lidarIndex, :],
@@ -2020,7 +2024,7 @@ class getObs:
 
         """
         if type.lower() not in ['var', 'timex']:
-            raise NotImplementedError, "These data are not currently available through this function"
+            raiseNotImplementedError, "These data are not currently available through this function"
         elif type.lower() in ['var', 'variance']:
             self.dataloc = "projects/bathyduck/data/argus/variance/variance.ncml"
         elif type.lower() in ['timex']:
@@ -2571,7 +2575,7 @@ class getDataTestBed:
     def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE'):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
-        this will return the wavespec with dir/freq bin and directional wave energy
+        this will return the wavespec with dir/freq bin and directionalWaveGaugeList wave energy
 
         Args:
             prefix (str): a 'key' to select which version of the simulations to pull data from
@@ -2610,7 +2614,7 @@ class getDataTestBed:
 
             'wavedirbin': wave direction bins for dwed
 
-            'dWED': directional wave energy density - 2d spectra [t, freq, dir]
+            'dWED': directionalWaveGaugeList wave energy density - 2d spectra [t, freq, dir]
 
             'waveDm': wave mean direction
 
