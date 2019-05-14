@@ -881,7 +881,7 @@ class getObs:
         # acceptableProfileNumbers = [None, ]
         self.dataloc = 'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location of the gridded surveys
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
-                                           dtRound=1 * 60)
+                                           dtRound=1 * 60) 
         try:
             self.bathydataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
         except IOError:  # when data are not on CHL thredds
@@ -893,18 +893,18 @@ class getObs:
         # logic to handle no transects in date range
         if forceReturnAll == True:
             idx = self.bathydataindex
-        elif len(self.bathydataindex) == 1:
+        elif np.size(self.bathydataindex) == 1 and self.bathydataindex is not None:
             idx = self.bathydataindex
-        elif len(self.bathydataindex) < 1 & method == 1:
+        elif (np.size(self.bathydataindex) < 1 & method == 1) or (self.bathydataindex is None and method == 1):
             # there's no exact bathy match so find the max negative number where the negative
             # numbers are historical and the max would be the closest historical
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             #print 'Bathymetry is taken as closest in HISTORY - operational'
-        elif len(self.bathydataindex) < 1 and method == 0:
+        elif (np.size(self.bathydataindex) < 1 and method == 0) or (self.bathydataindex is None and method == 1):
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
             # print 'Bathymetry is taken as closest in TIME - NON-operational'
-        elif len(self.bathydataindex) > 1:  # if dates fall into d1,d2 bounds,
+        elif np.size(self.bathydataindex) > 1:  # if dates fall into d1,d2 bounds,
             idx = self.bathydataindex[0]  # return a single index. this means there was a survey between d1,d2
 
         if forceReturnAll is not True:
