@@ -185,27 +185,40 @@ def CMSF_velData(cmsfDict, station, dThresh=None):
 
     # get my obs_dict
     obsV = go.getCurrents(station)
-    aveUobs = obsV['aveU']
-    aveVobs = obsV['aveV']
-    obsTime = obsV['time']
-    xFRFobs = obsV['xFRF']
-    yFRFobs = obsV['yFRF']
-
-    # find the closest node and pull that data
-    ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
-    if dThresh is None:
-        pass
+    if obsV is None:
+        out = None
+    elif 'aveU' not in obsV:
+        out = None
     else:
-        assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
+        aveUobs = obsV['aveU']
+        aveVobs = obsV['aveV']
+        obsTime = obsV['time']
+        xFRFobs = obsV['xFRF']
+        yFRFobs = obsV['yFRF']
 
-    modTime = cmsfDict['time']
-    aveUmod = cmsfDict['aveE'][:][ind]
-    aveVmod = cmsfDict['aveN'][:][ind]
+        # find the closest node and pull that data
+        ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
+        if dThresh is None:
+            pass
+        else:
+            assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
 
-    # run the time matching.
-    out = {}
-    out['time'], out['aveEobs'], out['aveEmod'] = sb.timeMatch(obsTime, aveUobs, modTime, aveUmod)
-    time, out['aveNobs'], out['aveNmod'] = sb.timeMatch(obsTime, aveVobs, modTime, aveVmod)
+        modTime = cmsfDict['time']
+        aveUmod = cmsfDict['aveE'][:, ind]
+        aveVmod = cmsfDict['aveN'][:, ind]
+
+        # run the time matching.
+        out = {}
+        out['time'], out['aveEobs'], out['aveEmod'] = sb.timeMatch(obsTime, aveUobs, modTime, aveUmod)
+        time, out['aveNobs'], out['aveNmod'] = sb.timeMatch(obsTime, aveVobs, modTime, aveVmod)
+
+        # make it output a datetime
+        if isinstance(out['time'][0], DT.datetime):
+            pass
+        else:
+            modTime = [nc.num2date(ii, timeunits) for ii in out['time']]
+            del out['time']
+            out['time'] = modTime
 
     return out
 
@@ -229,25 +242,36 @@ def CMSF_wlData(cmsfDict, station, dThresh=None):
     go = getObs(modTime[0] - DT.timedelta(minutes=3), modTime[-1] + DT.timedelta(minutes=3))
 
     # get my obs_dict
-    obsWLdict = go.getGageWL(station)
-    obsWL = obsWLdict['wl']
-    obsTime = obsWLdict['time']
-    xFRFobs = obsWLdict['xFRF']
-    yFRFobs = obsWLdict['yFRF']
-
-    # find the closest node and pull that data
-    ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
-    if dThresh is None:
-        pass
+    obsWLdict = go.getGaugeWL(station)
+    if 'wl' not in obsWLdict.keys():
+        out = None
     else:
-        assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
+        obsWL = obsWLdict['wl']
+        obsTime = obsWLdict['time']
+        xFRFobs = obsWLdict['xFRF']
+        yFRFobs = obsWLdict['yFRF']
 
-    modTime = cmsfDict['time']
-    modWL = cmsfDict['waterLevel'][:][ind]
+        # find the closest node and pull that data
+        ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
+        if dThresh is None:
+            pass
+        else:
+            assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
 
-    # run the time matching.
-    out = {}
-    out['time'], out['obsWL'], out['modWL'] = sb.timeMatch(obsTime, obsWL, modTime, modWL)
+        modTime = cmsfDict['time']
+        modWL = cmsfDict['waterLevel'][:, ind]
+
+        # run the time matching.
+        out = {}
+        out['time'], out['obsWL'], out['modWL'] = sb.timeMatch(obsTime, obsWL, modTime, modWL)
+
+        # make it output a datetime
+        if isinstance(out['time'][0], DT.datetime):
+            pass
+        else:
+            modTime = [nc.num2date(ii, timeunits) for ii in out['time']]
+            del out['time']
+            out['time'] = modTime
 
     return out
 
