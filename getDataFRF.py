@@ -99,9 +99,9 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
         else:
             field = fileparts[0]
         try:  # this will work for get Obs
-            fname = "{}-{}_{}_{}_{}{}.nc".format(pName.upper(), field, fileparts[1], fileparts[2], start.year, start.month)
+            fname = "{}-{}_{}_{}_{}{:02d}.nc".format(pName.upper(), field, fileparts[1], fileparts[2], start.year, start.month)
         except IndexError:  # works for getDataTestBed class
-            fname = "{}-{}_{}_{}{}.nc".format(pName.upper(), field, fileparts[1], start.year, start.month)
+            fname = "{}-{}_{}_{}{:02d}.nc".format(pName.upper(), field, fileparts[1], start.year, start.month)
 
         ncfileURL = os.path.join(THREDDSloc, pName, dataLocSplit[0], str(start.year), fname)
     else:  # function couldn't be more efficient, default to old way
@@ -925,10 +925,11 @@ class getObs:
                                                                                         self.ncfile['time'].units))
                 raise NotImplementedError('Please End new simulation with the date above')
                 idx = self.bathydataindex
-        else:
-            # Now that indices of interest are sectioned off, find the survey number that matches them and return whole survey
-            idxSingle = idx
-            idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
+
+        # else:
+        #     # Now that indices of interest are sectioned off, find the survey number that matches them and return whole survey
+        #     idxSingle = idx
+        #     # idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
         # isolate specific profile numbers if necessicary
         if profilenumbers != None:
             assert pd.Series(profilenumbers).isin(np.unique(self.ncfile['profileNumber'][
