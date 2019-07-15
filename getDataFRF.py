@@ -80,9 +80,9 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
             pName = 'FRF'
         elif THREDDS == 'CHL':
             pName = 'frf'
-
     elif callingClass == 'getDataTestBed':
             pName = 'cmtb'
+
 
     #### now set URL for netCDF file call,
     if start is None and end is None:
@@ -99,9 +99,9 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
         else:
             field = fileparts[0]
         try:  # this will work for get Obs
-            fname = "{}-{}_{}_{}_{}{}.nc".format(pName.upper(), field, fileparts[1], fileparts[2], start.year, start.month)
+            fname = "{}-{}_{}_{}_{}{:02d}.nc".format(pName.upper(), field, fileparts[1], fileparts[2], start.year, start.month)
         except IndexError:  # works for getDataTestBed class
-            fname = "{}-{}_{}_{}{}.nc".format(pName.upper(), field, fileparts[1], start.year, start.month)
+            fname = "{}-{}_{}_{}{:02d}.nc".format(pName.upper(), field, fileparts[1], start.year, start.month)
 
         ncfileURL = os.path.join(THREDDSloc, pName, dataLocSplit[0], str(start.year), fname)
     else:  # function couldn't be more efficient, default to old way
