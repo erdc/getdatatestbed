@@ -173,20 +173,14 @@ class getObs:
         Data are returned in self.dataindex are inclusive at start, exclusive at end
         """
 
-        # this is active wave gauge list for doing wave rider
-        self.gaugelist = ['waverider-26m',
-                          'waverider-17m',
-                          'awac-11m',
-                          '8m-array',
-                          'awac-6m',
-                          'awac-4.5m',
-                          'adop-3.5m',
-                          'xp200m',
-                          'xp150m',
-                          'xp125m',]
+        # this is active wave gauge list for looping through as needed
+        self.waveGaugeList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
+                              'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
 
-        self.directional = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
-                            'adop-3.5m']
+        self.directionalWaveGaugeList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
+                                         'awac-6m', 'awac-4.5m', 'adop-3.5m']
+
+        self.currentsGaugeList = ['awac-11m','awac-6m', 'awac-4.5m', 'adop-3.5m']
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.d1 = d1  # start date for data grab
@@ -228,7 +222,7 @@ class getObs:
     def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
-        this will return the wavespec with dir/freq bin and directional wave energy
+        this will return the wavespec with dir/freq bin and directionalWaveGaugeList wave energy
         TODO: Set optional date input from function arguments to change self.start self.end
 
         Args:
@@ -283,6 +277,14 @@ class getObs:
                 # consistant for all wave gauges
                 if np.size(self.wavedataindex) == 1:
                     self.wavedataindex = np.expand_dims(self.wavedataindex, axis=0)
+                self.snaptime = nc.num2date(self.allEpoch[self.wavedataindex], self.ncfile['time'].units)
+                try:
+                    depth = self.ncfile['nominalDepth'][:]  # this should always go
+                except IndexError:
+                    try:
+                        depth = self.ncfile['gaugeDepth'][:]  # non directionalWaveGaugeList gauges
+                    except IndexError:
+                        depth = -999  # fill value
                 try:
                     wave_coords = gp.FRFcoord(self.ncfile['longitude'][:], self.ncfile['latitude'][:])
                 except IndexError:
@@ -298,8 +300,13 @@ class getObs:
                             'yFRF': wave_coords['yFRF'],
                             'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
-                            'Hs': self.ncfile['waveHs'][self.wavedataindex]}
-                # now do directional gauge try
+                            'depth': depth,
+                            'Hs': self.ncfile['waveHs'][self.wavedataindex], }
+                try:
+                    wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
+                except:
+                    wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
+                # now do directionalWaveGaugeList gauge try
                 try:  # pull time specific data based on self.wavedataindex
                     wavespec['depth'] = self.ncfile['nominalDepth'][:]  # this should always go with directional gauges
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
@@ -319,6 +326,7 @@ class getObs:
                     if wavespec['dWED'].ndim < 3:
                         wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
                         wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
+
                     if 'specOnly' in kwargs and kwargs['specOnly'] is True:
                         return wavespec  # pull out here if specOnly is true (saves time)
                     try:
@@ -334,7 +342,7 @@ class getObs:
                         wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
                         wavespec['b1'] = self.ncfile['waveB1Value'][self.wavedataindex, :]
                         wavespec['b2'] = self.ncfile['waveB2Value'][self.wavedataindex, :]
-
+                # this should throw when gauge is non directionalWaveGaugeList
                 except IndexError:  # if error its non-directional gauge
                     # this should throw when gauge is non directional
                     wavespec['peakf'] = 1/self.ncfile['waveTp'][self.wavedataindex]
@@ -377,6 +385,7 @@ class getObs:
                     except(KeyError):
                         pass  # non -directional gauge
                 wavespec = removeDuplicatesFromDictionary(wavespec)
+
                 return wavespec
 
         except (RuntimeError, AssertionError):
@@ -916,10 +925,11 @@ class getObs:
                                                                                         self.ncfile['time'].units))
                 raise NotImplementedError('Please End new simulation with the date above')
                 idx = self.bathydataindex
-        else:
-            # Now that indices of interest are sectioned off, find the survey number that matches them and return whole survey
-            idxSingle = idx
-            idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
+
+        # else:
+        #     # Now that indices of interest are sectioned off, find the survey number that matches them and return whole survey
+        #     idxSingle = idx
+        #     # idx = np.argwhere(self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
         # isolate specific profile numbers if necessicary
         if profilenumbers != None:
             assert pd.Series(profilenumbers).isin(np.unique(self.ncfile['profileNumber'][
@@ -1215,9 +1225,19 @@ class getObs:
             self.dataloc = 'oceanography/waves/lidarWaveGauge80/lidarWaveGauge80.ncml'
         elif str(gaugenumber).lower() in ['oregoninlet', 'oi']:
             self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
+        elif str(gaugenumber).lower() in ['lidarwavegauge080', 'lidarwavegauge80']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge080/lidarWaveGauge080.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge090', 'lidarwavegauge90']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge090/lidarWaveGauge090.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge100']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge100/lidarWaveGauge100.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge110']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge110/lidarWaveGauge110.ncml"
+        elif str(gaugenumber).lower() in ['lidarwavegauge140']:
+            self.dataloc = "oceanography/waves/lidarWaveGauge140/lidarWaveGauge140.ncml"
         else:
             self.gname = 'There Are no Gauge numbers here'
-            raise NameError('Bad Gauge name, specify proper gauge name/number')
+            raise NameError('Bad Gauge name, specify proper gauge name/number, or add capability')
 
     def wlGageURLlookup(self, gaugenumber):
         """
@@ -1271,11 +1291,6 @@ class getObs:
         elif gaugenumber in [12, '8m-Array', '8m Array', '8m array', '8m-array']:
             self.gname = "8m array"
             self.dataloc = 'oceanography/waves/8m-array/8m-array.ncml'
-
-        elif gaugenumber in ['oregonInlet', 'OI', 'oi']:
-            self.gname = 'Oregon Inlet'
-            self.dataloc = 'oceanography/waves/waverider-oregon-inlet-nc/waverider-oregon-inlet-nc.ncml'
-
         else:
             self.gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number')
@@ -1370,7 +1385,7 @@ class getObs:
         """
         loc_dict = {}
 
-        for g in self.gaugelist:
+        for g in self.waveGaugeList:
             loc_dict[g] = {}
             data = loc_dict[g]
 
@@ -1444,10 +1459,10 @@ class getObs:
         if abs(self.d1 - nearest_timestamp).days < window_days:
             # if there is data, and its within the window
             archived_sensor_locations = loc_dict[nearest_timestamp]
-            # MPG: only use locations specified in self.gaugelist (for the case
+            # MPG: only use locations specified in self.waveGaugeList (for the case
             # that there are archived locations that should not be used).
             sensor_locations = collections.OrderedDict()
-            for g in self.gaugelist:
+            for g in self.waveGaugeList:
                 if g in archived_sensor_locations:
                     sensor_locations[g] = archived_sensor_locations[g]
                 else:
@@ -1462,108 +1477,6 @@ class getObs:
 
         return sensor_locations
 
-
-    def getBathyGridcBathy(self, **kwargs):
-        """this function gets the cbathy data from the below address, assumes fill value of -999
-        
-        Keyword Args:
-            xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
-
-            ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
-        
-        Returns:
-            dictionary with keys below, will return None if error is found
-                'time': time
-
-                'xm':  frf xoordinate x's
-
-                'ym': frf ycoordinates
-
-                'depth': raw cbathy depths
-
-                'depthfC: same as depth
-
-                'depthKF':  kalman filtered hourly depth
-
-                'depthKFError': errors associated with the kalman filter
-
-                'fB':  ?
-
-                'k':  ??
-
-        """
-        fillValue = -999  # assumed fill value from the rest of the files taken as less than or equal to
-        self.dataloc = 'projects/bathyduck/data/cbathy_old/cbathy.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
-                                           dtRound=30 * 60)
-        self.cbidx = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
-
-        self.cbtime = nc.num2date(self.allEpoch[self.cbidx], 'seconds since 1970-01-01')
-        # mask = (time > start) & (time < end)
-        # assert (emask == mask).all(), 'epoch time is not working'
-        # idx = np.where(emask)[0] # this leaves a list that keeps the data iteratable with a size 1.... DON'T CHANGE
-        if np.size(self.cbidx) == 1 and self.cbidx == None:
-            cbdata = None  # throw a kick out if there's no data avaiable
-            return cbdata
-        # truncating data from experimental parameters to
-        if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
-            if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
-                kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
-            # first min of x
-            if (kwargs['xbounds'][0] < self.ncfile['xm'][:]).all():
-                # then set xmin to 0
-                removeMinX = 0
-            else:  # <= used here to handle inclusive initial index inherant in python
-                removeMinX = np.argwhere(self.ncfile['xm'][:] <= kwargs['xbounds'][0]).squeeze().max()
-            # now max of x
-            if (kwargs['xbounds'][1] > self.ncfile['xm'][:]).all():
-                removeMaxX = None
-            else:
-                removeMaxX = np.argwhere(
-                    self.ncfile['xm'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
-            xs = slice(removeMinX, removeMaxX)
-        else:
-            xs = slice(None)
-
-        if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
-            if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
-                kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
-            # first min of y
-            if (kwargs['ybounds'][0] < self.ncfile['ym'][:]).all():
-                # then set the ymin to first index [0]
-                removeMinY = 0  # ie get all data
-            else:
-                removeMinY = np.argwhere(self.ncfile['ym'][:] <= kwargs['ybounds'][0]).squeeze().max()
-            ## now max of y
-            if (kwargs['ybounds'][1] > self.ncfile['ym'][:]).all():
-                removeMaxY = None
-            else:
-                removeMaxY = np.argwhere(
-                    self.ncfile['ym'][:] >= kwargs['ybounds'][1]).squeeze().min() + 1  # python indexing
-            ys = slice(removeMinY, removeMaxY)
-        else:
-            ys = slice(None)
-
-        try:
-            cbdata = {'time': self.cbtime,  # round the time to the nearest 30 minutes
-                      'epochtime': self.allEpoch[self.cbidx],
-                      'xm': self.ncfile['xm'][xs],
-                      'ym': self.ncfile['ym'][ys],
-                      'depthKF': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
-                      'depthKFError': np.ma.array(self.ncfile['depthKF'][self.cbidx, ys, xs], mask=(self.ncfile['depthKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
-                      'depthfC': np.ma.array(self.ncfile['depthfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthfC'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
-                      'depthfCError': np.ma.array(self.ncfile['depthErrorfC'][self.cbidx, ys, xs], mask=(self.ncfile['depthErrorfC'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan),
-                      'fB': np.ma.array(self.ncfile['fB'][self.cbidx, ys, xs, :],  mask=(self.ncfile['fB'][self.cbidx, ys, xs, :] <= fillValue), fill_value=np.nan),
-                      'k': np.ma.array(self.ncfile['k'][self.cbidx, ys, xs, :], mask=(self.ncfile['k'][self.cbidx, ys, xs, :] <= fillValue), fill_value=np.nan),
-                      'P': np.ma.array(self.ncfile['PKF'][self.cbidx, ys, xs], mask=(self.ncfile['PKF'][self.cbidx, ys, xs] <= fillValue), fill_value=np.nan)}  # may need to be masked
-
-            assert ~cbdata['depthKF'].mask.all(), 'all Cbathy kalman filtered data retrieved are masked '
-            print('Grabbed cBathy Data, successfully')
-
-        except (IndexError, AssertionError):  # there's no data in the Cbathy
-            cbdata = None
-
-        return cbdata
 
     def getLidarRunup(self, removeMasked=True):
         """This function will get the wave runup measurements from the lidar mounted in the dune
@@ -1914,6 +1827,8 @@ class getObs:
         if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
 
             out = {'name': nc.chartostring(self.ncfile['station_name'][:]),
+                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units,
+                                       self.ncfile['time'].calendar),
                    'lat': self.ncfile['lidarLatitude'][:],  # Coordinates
                    'lon': self.ncfile['lidarLongitude'][:],
                    'lidarX': self.ncfile['lidarX'][:],
@@ -1921,8 +1836,7 @@ class getObs:
                    'xFRF': self.ncfile['xFRF'][:],
                    'yFRF': self.ncfile['yFRF'][:],
                    'waveFrequency': self.ncfile['waveFrequency'][:],
-                   'time': nc.num2date(self.ncfile['time'][self.lidarIndex], self.ncfile['time'].units,
-                                       self.ncfile['time'].calendar),
+
                    'hydroQCflag': self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
                    'waterLevel': self.ncfile['waterLevel'][self.lidarIndex, :],
                    'waveHs': self.ncfile['waveHs'][self.lidarIndex, :],
@@ -2846,7 +2760,7 @@ class getDataTestBed:
     def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE', removeBadWLFlag=True):
         """This function pulls down the data from the thredds server and puts the data into proper places
         to be read for STwave Scripts
-        this will return the wavespec with dir/freq bin and directional wave energy
+        this will return the wavespec with dir/freq bin and directionalWaveGaugeList wave energy
 
         Args:
             prefix (str): a 'key' to select which version of the simulations to pull data from
@@ -2885,7 +2799,7 @@ class getDataTestBed:
 
             'wavedirbin': wave direction bins for dwed
 
-            'dWED': directional wave energy density - 2d spectra [t, freq, dir]
+            'dWED': directionalWaveGaugeList wave energy density - 2d spectra [t, freq, dir]
 
             'waveDm': wave mean direction
 
