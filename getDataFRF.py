@@ -17,6 +17,7 @@ import pandas as pd
 from testbedutils import sblib as sb
 from testbedutils import geoprocess as gp
 import pickle as pickle
+from posixpath import join as urljoin
 
 def gettime(allEpoch, epochStart, epochEnd):
     """this function opens the netcdf file, pulls down all of the time, then pulls the dates of interest
@@ -64,8 +65,8 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
     start = kwargs.get('start', None)
     end = kwargs.get('end', None)
 
-    FRFdataloc = 'http://134.164.129.55/thredds/dodsC/'
-    chlDataLoc = 'https://chldata.erdc.dren.mil/thredds/dodsC/'
+    FRFdataloc = u'http://134.164.129.55/thredds/dodsC/'
+    chlDataLoc = u'https://chldata.erdc.dren.mil/thredds/dodsC/'
     doNotDrillList = ['survey']  # a list of data sets (just the ncml) that shouldn't drill down to monthly file
     assert (THREDDS == threddsList).any(), "Please enter a valid server location\nLocation assigned=%s must be in list %s" % (
         THREDDS, threddsList)
@@ -77,19 +78,19 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
 
     if callingClass == 'getObs':
         if THREDDS == 'FRF':
-            pName = 'FRF'
+            pName = u'FRF'
         elif THREDDS == 'CHL':
-            pName = 'frf'
+            pName = u'frf'
     elif callingClass == 'getDataTestBed':
-            pName = 'cmtb'
+            pName = u'cmtb'
 
 
     #### now set URL for netCDF file call,
     if start is None and end is None:
-        ncfileURL = os.path.join(THREDDSloc, pName, dataLoc)
+        ncfileURL = ourljoin(THREDDSloc, pName, dataLoc)
     elif isinstance(start, float) and isinstance(end, float):  # then we assume epoch
         raise NotImplementedError('check conversion for floats (epoch time), currently needs to be datetime object')
-        ncfileURL = os.path.join(THREDDSloc, pName, monthlyPath)
+        ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
     elif isinstance(start, DT.datetime) and isinstance(end, DT.datetime) and start.month == end.month and ~np.in1d(doNotDrillList, dataLoc.split('/')).any():
         # tthis section dives to the specific month's datafile if it's within the same month
         dataLocSplit = os.path.split(dataLoc)
@@ -101,11 +102,11 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
         try:  # this will work for get Obs
             fname = "{}-{}_{}_{}_{}{:02d}.nc".format(pName.upper(), field, fileparts[1], fileparts[2], start.year, start.month)
         except IndexError:  # works for getDataTestBed class
-            fname = "{}-{}_{}_{}{:02d}.nc".format(pName.upper(), field, fileparts[1], start.year, start.month)
+            fname = u"{}-{}_{}_{}{:02d}.nc".format(pName.upper(), field, fileparts[1], start.year, start.month)
 
-        ncfileURL = os.path.join(THREDDSloc, pName, dataLocSplit[0], str(start.year), fname)
+        ncfileURL = urljoin(THREDDSloc, pName, dataLocSplit[0], str(start.year), fname)
     else:  # function couldn't be more efficient, default to old way
-        ncfileURL = os.path.join(THREDDSloc, pName, dataLoc)
+        ncfileURL = urljoin(THREDDSloc, pName, dataLoc)
 
     ############# go now to open file   ################################
     finished, n = False, 0  # initializing variables to iterate over
