@@ -1325,7 +1325,6 @@ class getObs:
         except:
             loc = str(self.chlDataLoc + 'projects/bathyduck/data/BathyDuck-ocean_waves_p%s_201510.nc' % gaugenumber)
             ncfile = nc.Dataset(loc)
-
             xloc = ncfile['xloc'][:]  # these are hard coded in these files [do not change w/o recreating the file]
             yloc = ncfile['yloc'][:]
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
