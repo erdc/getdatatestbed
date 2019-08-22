@@ -87,7 +87,7 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
 
     #### now set URL for netCDF file call,
     if start is None and end is None:
-        ncfileURL = ourljoin(THREDDSloc, pName, dataLoc)
+        ncfileURL = urljoin(THREDDSloc, pName, dataLoc)
     elif isinstance(start, float) and isinstance(end, float):  # then we assume epoch
         raise NotImplementedError('check conversion for floats (epoch time), currently needs to be datetime object')
         ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
