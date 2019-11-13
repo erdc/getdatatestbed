@@ -35,11 +35,15 @@ def gettime(allEpoch, epochStart, epochEnd):
         index  of dates between
 
     """
-    mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
-    idx = np.argwhere(mask).squeeze()
-    if np.size(idx) == 0:
+    try:
+        mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
+        idx = np.argwhere(mask).squeeze()
+        if np.size(idx) == 0:
+            idx = None
+    except TypeError:  # when None's are handed for allEpoch
         idx = None
-    return idx
+    finally:
+        return idx
 
 def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
     """This had to be moved out of gettime, so that even if getime failed the
@@ -109,19 +113,20 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
         ncfileURL = urljoin(THREDDSloc, pName, dataLoc)
 
     ############# go now to open file   ################################
-    finished, n = False, 0  # initializing variables to iterate over
-    while not finished and n < 15:
+    finished, n, maxTries = False, 0, 3  # initializing variables to iterate over
+    ncFile, allEpoch = None, None        # will return None's when URL doesn't exist
+    while not finished and n < maxTries:
         try:
             ncFile = nc.Dataset(ncfileURL)  # get the netCDF file
+            allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
             finished = True
-        except IOError as err:
-            print('Error reading {}, trying again'.format(dataLoc))
-            time.sleep(10)
-            n += 1
-
-    allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
+        except IOError:
+            print('Error reading {}, trying again {}/{}'.format(ncfileURL, n+1, maxTries))
+            time.sleep(5)   # time in seconds to wait
+            n += 1           # iteration number
 
     return ncFile, allEpoch
+
 
 def removeDuplicatesFromDictionary(inputDict):
     """This function checks through the data and will remove duplicates from key 'epochtime's a place holder to check, and remove duplicate times from this whole class.
@@ -387,21 +392,21 @@ class getObs:
                         pass  # non -directional gauge
                 wavespec = removeDuplicatesFromDictionary(wavespec)
 
-                return wavespec
-
         except (RuntimeError, AssertionError):
-
             print('     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (gaugenumber, self.d1, self.d2))
 
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
                             'name': str(self.ncfile.title), }
-            except:
+            except TypeError:  # when self.ncfile is None
+                wavespec = None
+            except KeyError:
                 wavespec = {'lat': self.ncfile['lat'][:],
                             'lon': self.ncfile['lon'][:],
                             'name': str(self.ncfile.title), }
-            return wavespec
+
+        return  wavespec
 
     def getCurrents(self, gaugenumber=5, roundto=1):
         """This function pulls down the currents data from the Thredds Server
@@ -451,7 +456,7 @@ class getObs:
                 'meanP' (array): mean pressure
 
         """
-        assert gaugenumber in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
+        assert gaugenumber.lower() in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
                                'adop-3.5m'], 'Input string/number is not a valid gage name/number'
 
         if gaugenumber in [2, 'awac-11m']:
