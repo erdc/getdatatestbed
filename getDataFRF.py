@@ -87,7 +87,7 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
 
     #### now set URL for netCDF file call,
     if start is None and end is None:
-        ncfileURL = ourljoin(THREDDSloc, pName, dataLoc)
+        ncfileURL = urljoin(THREDDSloc, pName, dataLoc)
     elif isinstance(start, float) and isinstance(end, float):  # then we assume epoch
         raise NotImplementedError('check conversion for floats (epoch time), currently needs to be datetime object')
         ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
@@ -2398,7 +2398,8 @@ class getDataTestBed:
 
                 method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
 
-            ForcedSurveyDate (str): This is to force a date of survey gathering (Default value = None)
+            ForcedSurveyDate (str): This is to force a date of survey gathering (Default value = None) if set to 'all'
+                it will pull multiple bathys, this can choke up the server, and is recommended to set xbounds and ybounds
 
         Keyword Args:
            'cBKF': if true will get cBathy original Kalman Filter
@@ -2430,7 +2431,7 @@ class getDataTestBed:
             'surveyNumber': FRF survey number (metadata)
 
         """
-        if ForcedSurveyDate != None:
+        if ForcedSurveyDate != None and ForcedSurveyDate != "all":
             # start is used in the gettime function,
             # to force a selection of survey date self.start/end is changed to the forced
             # survey date and then changed back using logged start/stop
@@ -2466,18 +2467,20 @@ class getDataTestBed:
                                           epochEnd=self.epochd2)  # getting the index of the grid
         except IOError:
             self.bathydataindex = []  # when a server is not available
-        if np.size(self.bathydataindex) == 1 and self.bathydataindex != None:
+        if (np.size(self.bathydataindex) == 1 and self.bathydataindex != None) or (np.size(self.bathydataindex) > 1 and ForcedSurveyDate == "all"):
             idx = self.bathydataindex.squeeze()
-        elif np.size(self.bathydataindex) > 1:
+        elif np.size(self.bathydataindex) > 1 and ForcedSurveyDate != "all":
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             # idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
             warnings.warn('Pulled multiple bathymetries')
-            print('   The nearest bathy to your simulation start date is %s' % nc.num2date(self.allEpoch[idx],
-                                                                                   self.ncfile['time'].units))
-
-            print('   Please End new simulation with the date above, so it does not pull multiple bathymetries')
-            raise NotImplementedError
+            if ForcedSurveyDate != 'all':
+                print('   The nearest bathy to your simulation start date is %s' % nc.num2date(self.allEpoch[idx],
+                                                                                       self.ncfile['time'].units))
+    
+                print('   Please End new simulation with the date above, so it does not pull multiple bathymetries')
+                print("   if you want all surveydates set ForcedSurveyData = 'all'")
+                raise NotImplementedError
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
