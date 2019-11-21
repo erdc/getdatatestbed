@@ -2438,7 +2438,7 @@ class getDataTestBed:
 
         """
         forceReturnAll = kwargs.get('forceReturnAll', False)  # returns all surveys
-
+        verbose  = kwargs.get('verbose', False)
         if ForcedSurveyDate != None:
             # start is used in the gettime function,
             # to force a selection of survey date self.start/end is changed to the forced
@@ -2560,7 +2560,6 @@ class getDataTestBed:
         lat = self.ncfile['latitude'][ys, xs]
         lon = self.ncfile['longitude'][ys, xs]
 
-
         # putting dates and times back for all the other instances that use get time
         if ForcedSurveyDate != None:
             self.start = oldD1
@@ -2572,7 +2571,7 @@ class getDataTestBed:
         # this comes directly from file (useful if server is acting funny)
         # bathyT = nc.num2date(self.ncfile['time'][idx], 'seconds since 1970-01-01')
 
-        print('  Measured Bathy is %s old' % (self.end - bathyT))
+        if verbose: print('  Measured Bathy is %s old' % (self.end - bathyT))
 
         gridDict = {'xFRF': xCoord,
                     'yFRF': yCoord,
