@@ -35,11 +35,15 @@ def gettime(allEpoch, epochStart, epochEnd):
         index  of dates between
 
     """
-    mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
-    idx = np.argwhere(mask).squeeze()
-    if np.size(idx) == 0:
+    try:
+        mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
+        idx = np.argwhere(mask).squeeze()
+        if np.size(idx) == 0:
+            idx = None
+    except TypeError:  # when None's are handed for allEpoch
         idx = None
-    return idx
+    finally:
+        return idx
 
 def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
     """This had to be moved out of gettime, so that even if getime failed the
@@ -109,19 +113,20 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
         ncfileURL = urljoin(THREDDSloc, pName, dataLoc)
 
     ############# go now to open file   ################################
-    finished, n = False, 0  # initializing variables to iterate over
-    while not finished and n < 15:
+    finished, n, maxTries = False, 0, 3  # initializing variables to iterate over
+    ncFile, allEpoch = None, None        # will return None's when URL doesn't exist
+    while not finished and n < maxTries:
         try:
             ncFile = nc.Dataset(ncfileURL)  # get the netCDF file
+            allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
             finished = True
-        except IOError as err:
-            print('Error reading {}, trying again'.format(dataLoc))
-            time.sleep(10)
-            n += 1
-
-    allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
+        except IOError:
+            print('Error reading {}, trying again {}/{}'.format(ncfileURL, n+1, maxTries))
+            time.sleep(5)   # time in seconds to wait
+            n += 1           # iteration number
 
     return ncFile, allEpoch
+
 
 def removeDuplicatesFromDictionary(inputDict):
     """This function checks through the data and will remove duplicates from key 'epochtime's a place holder to check, and remove duplicate times from this whole class.
@@ -194,15 +199,15 @@ class getObs:
         self.FRFdataloc = 'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = 'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = 'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'  # 'http://10.200.23.50/thredds/dodsC/frf/'
-        self.comp_time()
+        self._comp_time()
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
 
-    def comp_time(self):
+    def _comp_time(self):
         """Test if times are backwards"""
         assert self.d2 >= self.d1, 'finish time: end needs to be after start time: start'
 
-    def roundtime(self, dt=None, roundto=60):
+    def _roundtime(self, dt=None, roundto=60):
         """Round a datetime object to any time laps in seconds
         Author: Thierry Husson 2012 - Use it as you want but don't blame me.
 
@@ -267,7 +272,7 @@ class getObs:
 
         """
         # Making gauges flexible
-        self.waveGaugeURLlookup(gaugenumber)
+        self._waveGaugeURLlookup(gaugenumber)
         # parsing out data of interest in time
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS, callingClass=self.callingClass,
                                            dtRound=roundto * 60, start=self.d1, end=self.d2)
@@ -387,21 +392,21 @@ class getObs:
                         pass  # non -directional gauge
                 wavespec = removeDuplicatesFromDictionary(wavespec)
 
-                return wavespec
-
         except (RuntimeError, AssertionError):
-
             print('     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (gaugenumber, self.d1, self.d2))
 
             try:
                 wavespec = {'lat': self.ncfile['latitude'][:],
                             'lon': self.ncfile['longitude'][:],
                             'name': str(self.ncfile.title), }
-            except:
+            except TypeError:  # when self.ncfile is None
+                wavespec = None
+            except KeyError:
                 wavespec = {'lat': self.ncfile['lat'][:],
                             'lon': self.ncfile['lon'][:],
                             'name': str(self.ncfile.title), }
-            return wavespec
+
+        return  wavespec
 
     def getCurrents(self, gaugenumber=5, roundto=1):
         """This function pulls down the currents data from the Thredds Server
@@ -451,7 +456,7 @@ class getObs:
                 'meanP' (array): mean pressure
 
         """
-        assert gaugenumber in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
+        assert gaugenumber.lower() in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
                                'adop-3.5m'], 'Input string/number is not a valid gage name/number'
 
         if gaugenumber in [2, 'awac-11m']:
@@ -795,6 +800,7 @@ class getObs:
         Returns:
             dict
         """
+        warnings.warn('This function is depricated')
         from getdatatestbed import download_grid_data as DGD
         # url for raw grid data setup on geospatial database
         if grid_data == True:
@@ -1144,7 +1150,7 @@ class getObs:
                     }
         return gridDict
 
-    def waveGaugeURLlookup(self, gaugenumber):
+    def _waveGaugeURLlookup(self, gaugenumber):
         r"""A lookup table function that sets the URL backend for get wave spec and get wave gauge loc
 
         Args:
@@ -1326,7 +1332,6 @@ class getObs:
         except:
             loc = str(self.chlDataLoc + 'projects/bathyduck/data/BathyDuck-ocean_waves_p%s_201510.nc' % gaugenumber)
             ncfile = nc.Dataset(loc)
-
             xloc = ncfile['xloc'][:]  # these are hard coded in these files [do not change w/o recreating the file]
             yloc = ncfile['yloc'][:]
         assert len(np.unique(xloc)) == 1, "there are different locations in the netCDFfile"
@@ -1350,7 +1355,7 @@ class getObs:
         Notes:
             see help on self.waveGaugeURLlookup for gauge keys
         """
-        self.waveGaugeURLlookup(gaugenumber)
+        self._waveGaugeURLlookup(gaugenumber)
         try:
             ncfile = nc.Dataset(self.FRFdataloc + self.dataloc)
         except IOError:
@@ -1477,7 +1482,6 @@ class getObs:
                 pickle.dump(loc_dict, fid)
 
         return sensor_locations
-
 
     def getLidarRunup(self, removeMasked=True):
         """This function will get the wave runup measurements from the lidar mounted in the dune
@@ -1736,9 +1740,9 @@ class getObs:
             self.alt_time = nc.num2date(self.ncfile['time'][altdataindex], self.ncfile['time'].units,
                                         self.ncfile['time'].calendar)
             for num in range(0, len(self.alt_time)):
-                self.alt_time[num] = self.roundtime(self.alt_time[num], roundto=1 * 60)
-                self.alt_timestart[num] = self.roundtime(self.alt_timestart[num], roundto=1 * 60)
-                self.alt_timeend[num] = self.roundtime(self.alt_timeend[num], roundto=1 * 60)
+                self.alt_time[num] = self._roundtime(self.alt_time[num], roundto=1 * 60)
+                self.alt_timestart[num] = self._roundtime(self.alt_timestart[num], roundto=1 * 60)
+                self.alt_timeend[num] = self._roundtime(self.alt_timeend[num], roundto=1 * 60)
 
             alt_coords = gp.FRFcoord(alt_lon, alt_lat)
 
@@ -2410,6 +2414,8 @@ class getDataTestBed:
 
             'ybound': = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
 
+            'forceReturnAll' (bool): return all survey grids, not just nearest in time by method above
+
         Returns:
           dictionary with keys
             'xFRF': x coordinate in FRF
@@ -2431,7 +2437,9 @@ class getDataTestBed:
             'surveyNumber': FRF survey number (metadata)
 
         """
-        if ForcedSurveyDate != None and ForcedSurveyDate != "all":
+        forceReturnAll = kwargs.get('forceReturnAll', False)  # returns all surveys
+
+        if ForcedSurveyDate != None:
             # start is used in the gettime function,
             # to force a selection of survey date self.start/end is changed to the forced
             # survey date and then changed back using logged start/stop
@@ -2467,20 +2475,22 @@ class getDataTestBed:
                                           epochEnd=self.epochd2)  # getting the index of the grid
         except IOError:
             self.bathydataindex = []  # when a server is not available
-        if (np.size(self.bathydataindex) == 1 and self.bathydataindex != None) or (np.size(self.bathydataindex) > 1 and ForcedSurveyDate == "all"):
+        
+        if forceReturnAll == True:
+            idx = self.bathydataindex
+        elif np.size(self.bathydataindex) == 1 and self.bathydataindex is not None:
             idx = self.bathydataindex.squeeze()
-        elif np.size(self.bathydataindex) > 1 and ForcedSurveyDate != "all":
+            
+        elif np.size(self.bathydataindex) > 1:
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             # idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
             idx = np.argmin(np.abs(self.ncfile['time'][:] - self.epochd1))  # closest in time
             warnings.warn('Pulled multiple bathymetries')
-            if ForcedSurveyDate != 'all':
-                print('   The nearest bathy to your simulation start date is %s' % nc.num2date(self.allEpoch[idx],
-                                                                                       self.ncfile['time'].units))
-    
-                print('   Please End new simulation with the date above, so it does not pull multiple bathymetries')
-                print("   if you want all surveydates set ForcedSurveyData = 'all'")
-                raise NotImplementedError
+            print('   The nearest bathy to your simulation start date is %s' % nc.num2date(self.allEpoch[idx],
+                                                                                   self.ncfile['time'].units))
+            print('   Please End new simulation with the date above, so it does not pull multiple bathymetries')
+            raise NotImplementedError
+
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
@@ -2515,7 +2525,7 @@ class getDataTestBed:
                 removeMaxX = None
             else:
                 removeMaxX = np.argwhere(
-                    self.ncfile['x'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
+                    self.ncfile['xFRF'][:] >= kwargs['xbounds'][1]).squeeze().min() + 1  # python indexing
             xs = slice(removeMinX, removeMaxX)
         else:
             xs = slice(None)
