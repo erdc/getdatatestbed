@@ -27,7 +27,7 @@ jobs:
     - name: check docstrings
       run: |
         pip install pydocstyle
-        python pydocstyle
+        pydocstyle
     
     - name: Test with pytest
       run: |
