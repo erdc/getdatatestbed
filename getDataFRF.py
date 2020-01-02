@@ -93,7 +93,7 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
         ncfileURL = urljoin(THREDDSloc, pName, dataLoc)
     elif isinstance(start, float) and isinstance(end, float):  # then we assume epoch
         raise NotImplementedError('check conversion for floats (epoch time), currently needs to be datetime object')
-        ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
+        #ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
     elif isinstance(start, DT.datetime) and isinstance(end, DT.datetime) \
             and (start.year == end.year and start.month == end.month) \
             and ~np.in1d(doNotDrillList, dataLoc.split('/')).any():
