@@ -2403,7 +2403,8 @@ class getDataTestBed:
 
                 method == 0  - > 'Bathymetry is taken as closest in TIME - NON-operational'
 
-            ForcedSurveyDate (str): This is to force a date of survey gathering (Default value = None)
+            ForcedSurveyDate (str): This is to force a date of survey gathering (Default value = None) if set to 'all'
+                it will pull multiple bathys, this can choke up the server, and is recommended to set xbounds and ybounds
 
         Keyword Args:
            'cBKF': if true will get cBathy original Kalman Filter
@@ -2439,8 +2440,10 @@ class getDataTestBed:
             'surveyNumber': FRF survey number (metadata)
 
         """
-        forceReturnAll = kwargs.get('forceReturnAll', False)  # returns all surveys
+        forceReturnAll = kwargs.get('forceReturnAll', False)  # returns all survey
         forceReturnAllPlusOne = kwargs.get('forceReturnAllPlusOne', False)  # returns all surveys
+        verbose  = kwargs.get('verbose', False)
+
         if ForcedSurveyDate != None:
             # start is used in the gettime function,
             # to force a selection of survey date self.start/end is changed to the forced
@@ -2478,6 +2481,7 @@ class getDataTestBed:
         except IOError:
             self.bathydataindex = []  # when a server is not available
 
+
         if (forceReturnAll == True and self.bathydataindex is not None) or (np.size(self.bathydataindex) == 1 and self.bathydataindex != None):
             idx = self.bathydataindex.squeeze()
         elif forceReturnAllPlusOne == True and self.bathydataindex is not None:
@@ -2491,6 +2495,7 @@ class getDataTestBed:
                                                                                    self.ncfile['time'].units))
             print('   Please End new simulation with the date above, so it does not pull multiple bathymetries')
             raise NotImplementedError
+
         elif (self.bathydataindex == None or len(self.bathydataindex) < 1) & method == 1:
             # there's no exact bathy match so find the max negative number where the negitive
             # numbers are historical and the max would be the closest historical
@@ -2560,7 +2565,6 @@ class getDataTestBed:
         lat = self.ncfile['latitude'][ys, xs]
         lon = self.ncfile['longitude'][ys, xs]
 
-
         # putting dates and times back for all the other instances that use get time
         if ForcedSurveyDate != None:
             self.start = oldD1
@@ -2572,7 +2576,7 @@ class getDataTestBed:
         # this comes directly from file (useful if server is acting funny)
         # bathyT = nc.num2date(self.ncfile['time'][idx], 'seconds since 1970-01-01')
 
-        print('  Measured Bathy is %s old' % (self.end - bathyT))
+        if verbose: print('  Measured Bathy is %s old' % (self.end - bathyT))
 
         gridDict = {'xFRF': xCoord,
                     'yFRF': yCoord,
