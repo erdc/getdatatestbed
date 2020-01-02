@@ -88,15 +88,16 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
     elif callingClass == 'getDataTestBed':
             pName = u'cmtb'
 
-
     #### now set URL for netCDF file call,
     if start is None and end is None:
         ncfileURL = urljoin(THREDDSloc, pName, dataLoc)
     elif isinstance(start, float) and isinstance(end, float):  # then we assume epoch
         raise NotImplementedError('check conversion for floats (epoch time), currently needs to be datetime object')
         ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
-    elif isinstance(start, DT.datetime) and isinstance(end, DT.datetime) and start.month == end.month and ~np.in1d(doNotDrillList, dataLoc.split('/')).any():
-        # tthis section dives to the specific month's datafile if it's within the same month
+    elif isinstance(start, DT.datetime) and isinstance(end, DT.datetime) \
+            and (start.year == end.year and start.month == end.month) \
+            and ~np.in1d(doNotDrillList, dataLoc.split('/')).any():
+        # this section dives to the specific month's datafile if it's within the same month
         dataLocSplit = os.path.split(dataLoc)
         fileparts = dataLocSplit[0].split('/')
         if fileparts[0] == 'oceanography':
@@ -310,7 +311,7 @@ class getObs:
                             'Hs': self.ncfile['waveHs'][self.wavedataindex], }
                 try:
                     wavespec['peakf'] = 1 / self.ncfile['waveTp'][self.wavedataindex]
-                except:
+                except:  # this should be removed eventually (once data files are updated)
                     wavespec['peakf'] = 1 / self.ncfile['waveTpPeak'][self.wavedataindex]
                 # now do directionalWaveGaugeList gauge try
                 try:  # pull time specific data based on self.wavedataindex
@@ -2415,6 +2416,8 @@ class getDataTestBed:
 
             'forceReturnAll' (bool): return all survey grids, not just nearest in time by method above
 
+            'forceReturnAllPlusOne' (bool): return all survey grids, but also the one just before your inital survey date
+
         Returns:
           dictionary with keys
             'xFRF': x coordinate in FRF
@@ -2437,7 +2440,7 @@ class getDataTestBed:
 
         """
         forceReturnAll = kwargs.get('forceReturnAll', False)  # returns all surveys
-
+        forceReturnAllPlusOne = kwargs.get('forceReturnAllPlusOne', False)  # returns all surveys
         if ForcedSurveyDate != None:
             # start is used in the gettime function,
             # to force a selection of survey date self.start/end is changed to the forced
@@ -2475,10 +2478,10 @@ class getDataTestBed:
         except IOError:
             self.bathydataindex = []  # when a server is not available
 
-        if forceReturnAll == True and self.bathydataindex != None:
+        if (forceReturnAll == True and self.bathydataindex is not None) or (np.size(self.bathydataindex) == 1 and self.bathydataindex != None):
             idx = self.bathydataindex.squeeze()
-        elif np.size(self.bathydataindex) == 1 and self.bathydataindex != None:
-            idx = self.bathydataindex.squeeze()
+        elif forceReturnAllPlusOne == True and self.bathydataindex is not None:
+            idx = np.append(self.bathydataindex.squeeze().min() -1,self.bathydataindex.squeeze())
         elif np.size(self.bathydataindex) > 1:
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             # idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
