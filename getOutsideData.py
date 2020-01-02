@@ -20,11 +20,11 @@ class forecastData:
         self.d1 = d1  # start date for data grab
         self.timeunits = 'seconds since 1970-01-01 00:00:00'
         self.epochd1 = nc.date2num(self.d1, self.timeunits)
-        self.dataLocFRF = u'http://134.164.129.55/thredds/dodsC/FRF/'
-        self.dataLocTB = u'http://134.164.129.62:8080/thredds/dodsC/CMTB'
-        self.dataLocCHL = u'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
-        self.dataLocNCEP = u'http://nomads.ncep.noaa.gov/pub/data/nccf/com/wave/prod/'#ftpprd.ncep.noaa.gov/pub/data/nccf/com/wave/prod/multi_1.'
-        self.dataLocECWMF = u'ftp://data-portal.ecmwf.int/20170808120000/'  # ECMWF forecasts
+        self.dataLocFRF = 'http://134.164.129.55/thredds/dodsC/FRF/'
+        self.dataLocTB = 'http://134.164.129.62:8080/thredds/dodsC/CMTB'
+        self.dataLocCHL = 'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/' #'http://10.200.23.50/thredds/dodsC/frf/'
+        self.dataLocNCEP = 'http://nomads.ncep.noaa.gov/pub/data/nccf/com/wave/prod/'#ftpprd.ncep.noaa.gov/pub/data/nccf/com/wave/prod/multi_1.'
+        self.dataLocECWMF = 'ftp://data-portal.ecmwf.int/20170808120000/'  # ECMWF forecasts
         assert type(self.d1) == DT.datetime, 'end need to be in python "Datetime" data types'
 
     def getWW3(self, forecastHour, buoyNumber=44100):
@@ -51,12 +51,12 @@ class forecastData:
           spectra, and the timestamps for each spectrum.
 
         """
-        import urllib
+        import urllib.request, urllib.parse, urllib.error
         assert type(forecastHour) is str, 'Forecast hour variable must be a string'
         forecastHour = forecastHour.zfill(2)
         urlBack = '/bulls.t%sz/' %forecastHour +'multi_1.%d.spec' %buoyNumber
         ftpURL = self.dataLocNCEP + 'multi_1.' + self.d1.strftime('%Y%m%d') + urlBack
-        ftpstream = urllib.urlopen(ftpURL)  # open url
+        ftpstream = urllib.request.urlopen(ftpURL)  # open url
         lines = ftpstream.readlines()  # read the lines of the url into an array of lines
         ftpstream.close()  # close connection with the server
         # # # # # # # # # # # # now the forecast spectra are in lines # # # # # # # # # # # #
@@ -208,9 +208,9 @@ class forecastData:
             if timex == True:
                 fname = '/*timex.merge.mat'
             addr = svr + fldr + fname
-            print "checking " + fldr + fname
+            print("checking " + fldr + fname)
             if os.path.isfile(fname[1:]):
-                print "already downloaded: %s" % fname
+                print("already downloaded: %s" % fname)
             elif not os.path.isfile(fname[1:]):
                 # try:
                 # dlfname = wget.download(addr)

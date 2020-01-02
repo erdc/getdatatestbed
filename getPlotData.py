@@ -1,4 +1,4 @@
-from getDataFRF import getObs
+from .getDataFRF import getObs
 from testbedutils.anglesLib import vectorRotation
 import datetime as DT
 import numpy as np
@@ -7,23 +7,24 @@ import testbedutils.sblib as sb
 import netCDF4 as nc
 
 def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
-
-    """
-    This function is just to remove clutter in my plot functions
+    """This function is just to remove clutter in my plot functions
     all it does is pull out altimeter data and put it into the appropriate dictionary keys.
     If None, it will return masked arrays.
 
-    :param name: name of the altimeter you want (Alt03, Alt04, Alt05)
-    :param mod_time: start time of the model
-    :param time: array of model datetimes
-    :param mod: array of model observations at that instrument location corresponding to variable "comp_time"
+    Args:
+        name: name of the altimeter you want (Alt03, Alt04, Alt05)
+        mod_time: start time of the model
+        time: array of model datetimes
+        mod: array of model observations at that instrument location corresponding to variable "comp_time"
 
-    :return: Altimeter data dictionary with keys:
+    Returns:
+        Altimeter data dictionary with keys:
             'zb' - elevation
             'name' - gage name
             'time' - timestamps of the data
             'xFRF' - position of the gage
             'plot_ind' - this just tells it which data point it should plot for the snapshots
+
     """
     t1 = mod_times[0] - DT.timedelta(days=0, hours=0, minutes=3)
     t2 = mod_times[-1] + DT.timedelta(days=0, hours=0, minutes=3)
@@ -40,7 +41,6 @@ def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
         dict['plot_ind'] = plot_ind
         dict['TS_toggle'] = True
 
-
     except:
         # just make it a masked array
         dict = {}
@@ -54,7 +54,6 @@ def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
         fill_ind[0] = 1
         dict['plot_ind'] = fill_ind
         dict['TS_toggle'] = False
-
 
     return dict
 
@@ -104,7 +103,7 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
         dict['TS_toggle'] = True
 
     except:
-        print('No data at %s!  Will return masked array.') %name
+        print(('No data at %s!  Will return masked array.') %name)
         # just make it a masked array
         dict = {}
         dict['wave_time'] = time
@@ -161,22 +160,25 @@ def lidar_PlotData(time, THREDDS='FRF'):
     return dict
 
 def CMSF_velData(cmsfDict, station, dThresh=None):
+    """this is a little function I wrote that will do the heavy lifting of pulling the current data from a particular gage,
+        finds the closest model node to that gage, time matches the data, and returns the variables that need to be
+        handed to obsVmod_TS to make pretty plots.
 
-    """
-    this is a little function I wrote that will do the heavy lifting of pulling the current data from a particular gage,
-    finds the closest model node to that gage, time matches the data, and returns the variables that need to be
-    handed to obsVmod_TS to make pretty plots.
-    :param cmsfDict: keys (that are used...):
+    Args:
+        cmsfDict: keys (that are used...):
                     'time' - this needs to be in epochtime
                     'aveE' - average eastward velocity
                     'aveN' - average northward velocity
-    :param station: this is the stationname that will get handed to getCurrents, a gagenumber would (should?) also work
-    :return: dictionary with keys:
+        station: this is the stationname that will get handed to getCurrents, a gagenumber would (should?) also work
+
+    Returns:
+         dictionary with keys:
              'time' - epochtimes of the matched data
              'aveEobs' - time-matched observed eastward velocity
              'aveNobs' - time-matched observed northward velocity
              'aveEmod' - time-matched model eastward velocity
              'aveNmod' - time-matched model northward velocity
+
     """
     # initialize this class
     timeunits = 'seconds since 1970-01-01 00:00:00'
@@ -185,27 +187,34 @@ def CMSF_velData(cmsfDict, station, dThresh=None):
 
     # get my obs_dict
     obsV = go.getCurrents(station)
-    aveUobs = obsV['aveU']
-    aveVobs = obsV['aveV']
-    obsTime = obsV['time']
-    xFRFobs = obsV['xFRF']
-    yFRFobs = obsV['yFRF']
-
-    # find the closest node and pull that data
-    ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
-    if dThresh is None:
-        pass
+    if obsV is None:
+        out = None
+    elif 'aveU' not in obsV:
+        out = None
     else:
-        assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
+        aveUobs = obsV['aveU']
+        aveVobs = obsV['aveV']
+        obsTime = obsV['time']
+        xFRFobs = obsV['xFRF']
+        yFRFobs = obsV['yFRF']
 
-    modTime = cmsfDict['time']
-    aveUmod = cmsfDict['aveE'][:][ind]
-    aveVmod = cmsfDict['aveN'][:][ind]
+        # find the closest node and pull that data
+        ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
+        if dThresh is not None:
+            assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
 
-    # run the time matching.
-    out = {}
-    out['time'], out['aveEobs'], out['aveEmod'] = sb.timeMatch(obsTime, aveUobs, modTime, aveUmod)
-    time, out['aveNobs'], out['aveNmod'] = sb.timeMatch(obsTime, aveVobs, modTime, aveVmod)
+        modTime = cmsfDict['time']
+        aveUmod = cmsfDict['aveE'][:, ind]
+        aveVmod = cmsfDict['aveN'][:, ind]
+
+        # run the time matching.
+        out = {}
+        out['time'], out['aveEobs'], out['aveEmod'] = sb.timeMatch(obsTime, aveUobs, modTime, aveUmod)
+        time, out['aveNobs'], out['aveNmod'] = sb.timeMatch(obsTime, aveVobs, modTime, aveVmod)
+
+        # make it output a datetime
+        if not isinstance(out['time'][0], DT.datetime):
+            out['time'] = [nc.num2date(ii, timeunits) for ii in out['time']]
 
     return out
 
@@ -229,25 +238,36 @@ def CMSF_wlData(cmsfDict, station, dThresh=None):
     go = getObs(modTime[0] - DT.timedelta(minutes=3), modTime[-1] + DT.timedelta(minutes=3))
 
     # get my obs_dict
-    obsWLdict = go.getGageWL(station)
-    obsWL = obsWLdict['wl']
-    obsTime = obsWLdict['time']
-    xFRFobs = obsWLdict['xFRF']
-    yFRFobs = obsWLdict['yFRF']
-
-    # find the closest node and pull that data
-    ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
-    if dThresh is None:
-        pass
+    obsWLdict = go.getGaugeWL(station)
+    if 'wl' not in obsWLdict.keys():
+        out = None
     else:
-        assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
+        obsWL = obsWLdict['wl']
+        obsTime = obsWLdict['time']
+        xFRFobs = obsWLdict['xFRF']
+        yFRFobs = obsWLdict['yFRF']
 
-    modTime = cmsfDict['time']
-    modWL = cmsfDict['waterLevel'][:][ind]
+        # find the closest node and pull that data
+        ind, dist = findNearestUnstructNode(xFRFobs, yFRFobs, cmsfDict)
+        if dThresh is None:
+            pass
+        else:
+            assert dist <= dThresh, 'Error: this grid has no nodes within %s of gage %s.' %(dThresh, station)
 
-    # run the time matching.
-    out = {}
-    out['time'], out['obsWL'], out['modWL'] = sb.timeMatch(obsTime, obsWL, modTime, modWL)
+        modTime = cmsfDict['time']
+        modWL = cmsfDict['waterLevel'][:, ind]
+
+        # run the time matching.
+        out = {}
+        out['time'], out['obsWL'], out['modWL'] = sb.timeMatch(obsTime, obsWL, modTime, modWL)
+
+        # make it output a datetime
+        if isinstance(out['time'][0], DT.datetime):
+            pass
+        else:
+            modTime = [nc.num2date(ii, timeunits) for ii in out['time']]
+            del out['time']
+            out['time'] = modTime
 
     return out
 
