@@ -16,7 +16,7 @@ import pickle as pickle
 import time
 import warnings
 from posixpath import join as urljoin
-
+import socket
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
@@ -53,7 +53,7 @@ def gettime(allEpoch, epochStart, epochEnd):
         return idx
 
 
-def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
+def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     """This had to be moved out of gettime, so that even if getime failed the
     rest of the functions would still have access to the nc file
 
@@ -74,31 +74,28 @@ def getnc(dataLoc, THREDDS, callingClass, dtRound=60, **kwargs):
     query time
     """
     # toggle my data location
-    threddsList = np.array(['CHL', 'FRF'])
+    # threddsList = np.array(['CHL', 'FRF'])
     start = kwargs.get('start', None)
     end = kwargs.get('end', None)
-    
     FRFdataloc = u'http://134.164.129.55/thredds/dodsC/'
     chlDataLoc = u'https://chldata.erdc.dren.mil/thredds/dodsC/'
-    doNotDrillList = [
-        'survey']  # a list of data sets (just the ncml) that shouldn't drill down to monthly file
-    assert (
-        THREDDS == threddsList).any(), "Please enter a valid server location\nLocation " \
-                                       "assigned=%s must be in list " \
-                                       "%s" % (
-                                           THREDDS, threddsList)
-    
-    if THREDDS == 'FRF':
+    # a list of data sets (just the ncml) that shouldn't drill down to monthly file
+    doNotDrillList = ['survey']
+    # assert (THREDDS == threddsList).any(), "Please enter a valid server location\nLocation " \
+    #                                    "assigned=%s must be in list " \
+    #                                    "%s" % (
+    #                                        THREDDS, threddsList)
+    #
+    # chose which server to select based on IP
+    ipAddress = socket.gethostbyname(socket.gethostname())
+    if ipAddress.startswith('134.164.129'):  # FRF subdomain
         THREDDSloc = FRFdataloc
-    elif THREDDS == 'CHL':
+        pName = u'FRF'
+    else:
         THREDDSloc = chlDataLoc
-    
-    if callingClass == 'getObs':
-        if THREDDS == 'FRF':
-            pName = u'FRF'
-        elif THREDDS == 'CHL':
-            pName = u'frf'
-    elif callingClass == 'getDataTestBed':
+        pName = u'frf'
+        
+    if callingClass == 'getDataTestBed':  # overwrite pName if calling for model data
         pName = u'cmtb'
     
     # now set URL for netCDF file call,
@@ -203,7 +200,7 @@ def removeDuplicatesFromDictionary(inputDict):
 
 class getObs:
     
-    def __init__(self, d1, d2, THREDDS='FRF'):
+    def __init__(self, d1, d2, THREDDS=None):
         """
         Data are returned in self.dataindex are inclusive at start, exclusive at end
         """
@@ -223,7 +220,12 @@ class getObs:
         self.timeunits = 'seconds since 1970-01-01 00:00:00'
         self.epochd1 = nc.date2num(self.d1, self.timeunits)
         self.epochd2 = nc.date2num(self.d2, self.timeunits)
-        self.THREDDS = THREDDS
+        # if THREDDS is None:
+        #     ipAddress = socket.gethostbyname(socket.gethostname())
+        #     if ipAddress.startswith('134.164.129'):  # FRF subdomain
+        #         self.THREDDS = 'FRF'
+        #     else:
+        #         self.THREDDS = 'CHL'
         self.callingClass = 'getObs'
         self.FRFdataloc = 'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = 'http://134.164.129.55/thredds/dodsC/cmtb/'
@@ -308,8 +310,7 @@ class getObs:
         # Making gauges flexible
         self._waveGaugeURLlookup(gaugenumber)
         # parsing out data of interest in time
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=roundto * 60, start=self.d1, end=self.d2)
         try:
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -533,8 +534,7 @@ class getObs:
         else:
             raise NameError('Check gauge name')
         
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=roundto * 60)  # start=self.d1, end=self.d2) <
         # -- needs to be tested
         currdataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -651,8 +651,7 @@ class getObs:
         else:
             raise NameError('Specifiy proper Gauge number')
         
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=collectionlength * 60)
         
         self.winddataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -759,8 +758,7 @@ class getObs:
         self.dataloc = 'oceanography/waterlevel/eopNoaaTide/eopNoaaTide.ncml'  # this is the back
         # end of the url for
         # waterlevel
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=collectionlength * 60, start=self.d1,
                                            end=self.d2)
         self.WLdataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -821,8 +819,7 @@ class getObs:
         self.wlGageURLlookup(gaugenumber)
         # parsing out data of interest in time
         
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=roundto * 60)
         
         try:
@@ -999,8 +996,7 @@ class getObs:
         # acceptableProfileNumbers = [None, ]
         self.dataloc = 'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location
         # of the gridded surveys
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         try:
             self.bathydataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -1125,8 +1121,7 @@ class getObs:
         # acceptableProfileNumbers = [None, ]
         self.dataloc = 'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location
         # of the gridded surveys
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         
         try:
@@ -1212,8 +1207,7 @@ class getObs:
                'easting': easting
         """
         self.dataloc = 'survey/gridded/gridded.ncml'  # location of the gridded surveys
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         try:
             self.bathydataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -1682,8 +1676,7 @@ class getObs:
 
         """
         self.dataloc = 'oceanography/waves/lidarWaveRunup/lidarWaveRunup.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.lidarIndex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                   epochEnd=self.epochd2)
@@ -1887,8 +1880,7 @@ class getObs:
         else:
             raise NotImplementedError('Please use one of the following keys\n'.format(gauge_list))
         
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         altdataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                epochEnd=self.epochd2)
@@ -1998,8 +1990,7 @@ class getObs:
 
         """
         self.dataloc = 'oceanography/waves/lidarHydrodynamics/lidarHydrodynamics.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.lidarIndex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                   epochEnd=self.epochd2)
@@ -2078,8 +2069,7 @@ class getObs:
 
         """
         self.dataloc = 'geomorphology/DEMs/duneLidarDEM/duneLidarDEM.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.idxDEM = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                               epochEnd=self.epochd2)
@@ -2213,8 +2203,7 @@ class getObs:
         fillValue = -999  # assumed fill value from the rest of the files taken as less than or
         # equal to
         self.dataloc = 'projects/bathyduck/data/cbathy_old/cbathy.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=30 * 60)
         self.cbidx = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
         
@@ -2335,8 +2324,7 @@ class getObs:
             self.dataloc = "projects/bathyduck/data/argus/timex/timex.ncml"
         
         ################ go get data index
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.idxArgus = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                 epochEnd=self.epochd2)
@@ -2409,7 +2397,7 @@ class getDataTestBed:
     #         instance of getDataTestBed
     #     """
     
-    def __init__(self, d1, d2, THREDDS='FRF'):
+    def __init__(self, d1, d2, THREDDS=None):
         """
         Initialization description here
         Data are returned in self.datainex are inclusive at d1,d2
@@ -2424,7 +2412,13 @@ class getDataTestBed:
         self.epochd1 = nc.date2num(self.start, self.timeunits)
         self.epochd2 = nc.date2num(self.end, self.timeunits)
         self.comp_time()
-        self.THREDDS = THREDDS
+        # if THREDDS is None:
+        #     ipAddress = socket.gethostbyname(socket.gethostname())
+        #     if ipAddress.startswith('134.164.129'):  # FRF subdomain
+        #         self.THREDDS = 'FRF'
+        #     else:
+        #         self.THREDDS = 'CHL'
+        #
         self.callingClass = 'getDataTestBed'
         self.FRFdataloc = u'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = u'http://134.164.129.55/thredds/dodsC/cmtb/'
@@ -2544,8 +2538,7 @@ class getDataTestBed:
 
         """
         self.dataloc = 'grids/CMSwave_v1/CMSwave_v1.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         try:
             self.bathydataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -2709,8 +2702,7 @@ class getDataTestBed:
         #   go get the index and return based on method chosen             #
         ####################################################################
         # go ahead and assign the ncfile first....
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60, start=self.start, end=self.end)
         
         try:
@@ -3165,8 +3157,7 @@ class getDataTestBed:
             raise NameError('Bad Gauge name, specify proper gauge name/number')
         # parsing out data of interest in time
         self.dataloc = urlFront + '/' + fname
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass, dtRound=1 * 60)
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass, dtRound=1 * 60)
         try:
             # go get indices of interest
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -3218,8 +3209,7 @@ class getDataTestBed:
         """
         
         self.dataloc = 'projects/tucker/waveprofile/test.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, THREDDS=self.THREDDS,
-                                           callingClass=self.callingClass,
+        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.lidarIndex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                   epochEnd=self.epochd2)
@@ -3260,13 +3250,13 @@ class getDataTestBed:
     
     def getCSHOREOutput(self, prefix):
         """retrives data from spatial data CSHORE model
-            
+        
         Args:
             prefix (str): a 'key' to select which version of the simulations to pull data from
-                available value is only 'MOBILE_RESET' for now but more could be 
+                available value is only 'MOBILE_RESET' for now but more could be
                 added in the future
 
-        Returns: 
+        Returns:
             dictionary with packaged data following keys
 
             'epochtime' (float):  epoch time
