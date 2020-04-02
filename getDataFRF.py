@@ -659,15 +659,14 @@ class getObs:
         # remove nan's that shouldn't be there
         # ______________________________________
         if np.size(self.winddataindex) > 0 and self.winddataindex is not None:
-            self.winddataindex = self.winddataindex[
-                ~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
+            # TODO: why are we removing nan's here. this should be resolved down stream if they're causing problems
+            # do they even come up as nans? i thought they returned as masked arrays
+            self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
             if np.size(self.winddataindex) == 0:
                 # return None is he wind direction is associated with the wind is no good!
-                windpacket = None
-                return windpacket
+                return None
             # MPG: moved inside if statement b/c call to gettime possibly returns None.
-            self.winddataindex = self.winddataindex[
-                ~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
+            self.winddataindex = self.winddataindex[~np.isnan(self.ncfile['windDirection'][self.winddataindex])]
             
             windvecspd = self.ncfile['vectorSpeed'][self.winddataindex]
             windspeed = self.ncfile['windSpeed'][self.winddataindex]  # wind speed
