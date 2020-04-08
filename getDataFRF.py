@@ -2830,19 +2830,10 @@ class getDataTestBed:
         gridDict = {'xFRF':      xCoord,
                     'yFRF':      yCoord,
                     'elevation': elevation_points,
-<<<<<<< HEAD
-                    'time': bathyT,
-                    'lat': lat,
-                    'lon': lon,
-                    'updateTime': updateTime}
-        if ('cBKF_T' not in kwargs) and ('cBKF' not in kwargs):     # then its a survey, get the survey number
-=======
                     'time':      bathyT,
                     'lat':       lat,
                     'lon':       lon, }
-        if ('cBKF_T' not in kwargs) and (
-            'cBKF' not in kwargs):  # then its a survey, get the survey number
->>>>>>> caecb732d8ea237510c5f51e338e629113a35e8a
+        if ('cBKF_T' not in kwargs) and (f'cBKF' not in kwargs):  # then its a survey, get the survey number
             gridDict['surveyNumber'] = self.ncfile['surveyNumber'][idx]
         
         return gridDict
