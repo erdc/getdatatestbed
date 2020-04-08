@@ -2478,9 +2478,10 @@ class getDataTestBed:
         
         if forceReturnAll == True:
             idx = self.bathydataindex
+
         elif np.size(self.bathydataindex) == 1 and self.bathydataindex is not None:
             idx = self.bathydataindex.squeeze()
-            
+
         elif np.size(self.bathydataindex) > 1:
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             # idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
@@ -2508,6 +2509,10 @@ class getDataTestBed:
                                                                                     self.ncfile['time'].units))
             print('Please End new simulation with the date above')
             raise Exception
+
+        # after all that logic, if it's still None, just return it
+        if idx is None:
+            return None
         ###############################################################################################################
         # bound it if requested
         ###############################################################################################################
@@ -2554,7 +2559,9 @@ class getDataTestBed:
         # in the data, should only be fill values (-999)
         # elevation_points = np.ma.array(cshore_ncfile['elevation'][idx,:,:], mask=np.isnan(cshore_ncfile['elevation'][idx,:,:]))
         # remove -999's
+
         elevation_points = self.ncfile['elevation'][idx, ys, xs]
+        updateTime = self.ncfile['updateTime'][idx, ys, xs]
         xCoord = self.ncfile['xFRF'][xs]
         yCoord = self.ncfile['yFRF'][ys]
         lat = self.ncfile['latitude'][ys, xs]
@@ -2578,7 +2585,8 @@ class getDataTestBed:
                     'elevation': elevation_points,
                     'time': bathyT,
                     'lat': lat,
-                    'lon': lon,}
+                    'lon': lon,
+                    'updateTime': updateTime}
         if ('cBKF_T' not in kwargs) and ('cBKF' not in kwargs):     # then its a survey, get the survey number
             gridDict['surveyNumber'] = self.ncfile['surveyNumber'][idx]
 
