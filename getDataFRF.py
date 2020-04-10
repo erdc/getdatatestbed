@@ -6,8 +6,6 @@ This is a class definition designed to get data from the FRF thredds server
 @author: Spicer Bak, PhD
 @contact: spicer.bak@usace.army.mil
 @organization: USACE CHL FRF
-
-
 """
 import collections
 import datetime as DT
@@ -105,6 +103,7 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
         raise NotImplementedError(
             'check conversion for floats (epoch time), currently needs to be datetime object')
         # ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
+
     elif isinstance(start, DT.datetime) and isinstance(end, DT.datetime) \
         and (start.year == end.year and start.month == end.month) \
         and ~np.in1d(doNotDrillList, dataLoc.split('/')).any():
@@ -2426,7 +2425,7 @@ class getDataTestBed:
         """Test if times are backwards"""
         assert self.end >= self.start, 'finish time: end needs to be after start time: start'
     
-    def gettime(self):
+    def gettime(self, dtRound=60):
         """this function opens the netcdf file, pulls down all of the time, then pulls the dates
         of interest
         from the THREDDS (data loc) server based on start,end, and data location
@@ -2439,6 +2438,7 @@ class getDataTestBed:
             index (bytearray): indicies for time of interest
 
         """
+        
         raise NotImplementedError('please use master get time that is not a member of this class ')
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
@@ -2473,8 +2473,7 @@ class getDataTestBed:
             try:
                 # MPG: Use self.chlDataLoc with 'frf/' removed from string for correct url.
                 self.ncfile = nc.Dataset(self.chlDataLoc.replace('frf/', 'cmtb/') + self.dataloc)
-                self.allEpoch = sb.baseRound(self.ncfile['time'][:],
-                                             base=dtRound)  # round to nearest minute
+                self.allEpoch = sb.baseRound(self.ncfile['time'][:], base=dtRound)  # round to nearest minute
                 # now find the boolean !
                 emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
                 idx = np.argwhere(emask).squeeze()
@@ -2708,8 +2707,10 @@ class getDataTestBed:
         if (forceReturnAll == True and self.bathydataindex is not None) or (
             np.size(self.bathydataindex) == 1 and self.bathydataindex != None):
             idx = self.bathydataindex.squeeze()
+
         elif forceReturnAllPlusOne == True and self.bathydataindex is not None:
             idx = np.append(self.bathydataindex.squeeze().min() - 1, self.bathydataindex.squeeze())
+
         elif np.size(self.bathydataindex) > 1:
             val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
             # idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
@@ -2741,6 +2742,10 @@ class getDataTestBed:
                 self.ncfile['time'].units))
             print('Please End new simulation with the date above')
             raise Exception
+
+        # after all that logic, if it's still None, just return it
+        if idx is None:
+            return None
         ###############################################################################################################
         # bound it if requested
         ###############################################################################################################
@@ -2794,7 +2799,9 @@ class getDataTestBed:
         # cshore_ncfile[
         # 'elevation'][idx,:,:]))
         # remove -999's
+
         elevation_points = self.ncfile['elevation'][idx, ys, xs]
+        updateTime = self.ncfile['updateTime'][idx, ys, xs]
         xCoord = self.ncfile['xFRF'][xs]
         yCoord = self.ncfile['yFRF'][ys]
         lat = self.ncfile['latitude'][ys, xs]
@@ -2820,8 +2827,7 @@ class getDataTestBed:
                     'time':      bathyT,
                     'lat':       lat,
                     'lon':       lon, }
-        if ('cBKF_T' not in kwargs) and (
-            'cBKF' not in kwargs):  # then its a survey, get the survey number
+        if ('cBKF_T' not in kwargs) and (f'cBKF' not in kwargs):  # then its a survey, get the survey number
             gridDict['surveyNumber'] = self.ncfile['surveyNumber'][idx]
         
         return gridDict
