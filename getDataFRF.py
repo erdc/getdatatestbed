@@ -6,8 +6,6 @@ This is a class definition designed to get data from the FRF thredds server
 @author: Spicer Bak, PhD
 @contact: spicer.bak@usace.army.mil
 @organization: USACE CHL FRF
-
-
 """
 import collections
 import datetime as DT
@@ -105,6 +103,7 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
         raise NotImplementedError(
             'check conversion for floats (epoch time), currently needs to be datetime object')
         # ncfileURL = urljoin(THREDDSloc, pName, monthlyPath)
+
     elif isinstance(start, DT.datetime) and isinstance(end, DT.datetime) \
         and (start.year == end.year and start.month == end.month) \
         and ~np.in1d(doNotDrillList, dataLoc.split('/')).any():
@@ -2444,6 +2443,7 @@ class getDataTestBed:
             index (bytearray): indicies for time of interest
 
         """
+        
         raise NotImplementedError('please use master get time that is not a member of this class ')
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
