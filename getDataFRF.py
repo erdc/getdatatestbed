@@ -2431,7 +2431,7 @@ class getDataTestBed:
         """Test if times are backwards"""
         assert self.end >= self.start, 'finish time: end needs to be after start time: start'
     
-    def gettime(self):
+    def gettime(self, dtRound=60):
         """this function opens the netcdf file, pulls down all of the time, then pulls the dates
         of interest
         from the THREDDS (data loc) server based on start,end, and data location
@@ -2478,8 +2478,7 @@ class getDataTestBed:
             try:
                 # MPG: Use self.chlDataLoc with 'frf/' removed from string for correct url.
                 self.ncfile = nc.Dataset(self.chlDataLoc.replace('frf/', 'cmtb/') + self.dataloc)
-                self.allEpoch = sb.baseRound(self.ncfile['time'][:],
-                                             base=dtRound)  # round to nearest minute
+                self.allEpoch = sb.baseRound(self.ncfile['time'][:], base=dtRound)  # round to nearest minute
                 # now find the boolean !
                 emask = (self.allEpoch >= self.epochd1) & (self.allEpoch < self.epochd2)
                 idx = np.argwhere(emask).squeeze()
