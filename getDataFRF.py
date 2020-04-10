@@ -133,14 +133,14 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     while not finished and n < maxTries:
         try:
             ncFile = nc.Dataset(ncfileURL)  # get the netCDF file
-            allEpoch = sb.baseRound(ncFile['time'][:], base=dtRound)  # round to nearest minute
+            allEpoch = ncFile['time'][:]
             finished = True
         except IOError:
             print('Error reading {}, trying again {}/{}'.format(ncfileURL, n + 1, maxTries))
             time.sleep(5)  # time in seconds to wait
             n += 1  # iteration number
     
-    return ncFile, allEpoch
+    return ncFile, sb.baseRound(allEpoch, base=dtRound) # round to nearest minute
 
 
 def removeDuplicatesFromDictionary(inputDict):
@@ -675,12 +675,9 @@ class getObs:
             stdspeed = self.ncfile['stdWindSpeed'][self.winddataindex]  # std dev of 10 min avg
             qcflagS = self.ncfile['qcFlagS'][self.winddataindex]  # qc flag
             qcflagD = self.ncfile['qcFlagD'][self.winddataindex]
-            minspeed = self.ncfile['minWindSpeed'][
-                self.winddataindex]  # min wind speed in 10 min avg
-            maxspeed = self.ncfile['maxWindSpeed'][
-                self.winddataindex]  # max wind speed in 10 min avg
-            sustspeed = self.ncfile['sustWindSpeed'][
-                self.winddataindex]  # 1 minute largest mean wind speed
+            minspeed = self.ncfile['minWindSpeed'][self.winddataindex]  # min wind speed in 10 min avg
+            maxspeed = self.ncfile['maxWindSpeed'][self.winddataindex]  # max wind speed in 10 min avg
+            sustspeed = self.ncfile['sustWindSpeed'][self.winddataindex]  # 1 minute largest mean wind speed
             gaugeht = self.ncfile.geospatial_vertical_max
             
             self.windtime = nc.num2date(self.allEpoch[self.winddataindex],
@@ -720,9 +717,8 @@ class getObs:
                 windpacket = None
             return windpacket
         else:
-            print('     ---- Problem finding wind !!!')
-            windpacket = None
-            return windpacket
+            print('     ---- ERROR: Problem finding wind !!!')
+            return None
     
     def getWL(self, collectionlength=6):
         """This function retrieves the water level data from the server
@@ -754,9 +750,9 @@ class getObs:
             'predictedWL': predicted tide
 
         """
-        self.dataloc = 'oceanography/waterlevel/eopNoaaTide/eopNoaaTide.ncml'  # this is the back
-        # end of the url for
-        # waterlevel
+        # this is the back end of the url for waterlevel
+        self.dataloc = 'oceanography/waterlevel/eopNoaaTide/eopNoaaTide.ncml'
+
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=collectionlength * 60, start=self.d1,
                                            end=self.d2)
@@ -773,13 +769,12 @@ class getObs:
                 'epochtime':   self.allEpoch[self.WLdataindex],
                 'lat':         self.ncfile['latitude'][:],
                 'lon':         self.ncfile['longitude'][:],
-                'predictedWL': self.ncfile['predictedWaterLevel'][self.WLdataindex], }
+                'predictedWL': self.ncfile['predictedWaterLevel'][self.WLdataindex],
+                    }
             # this is faster to calculate myself, than pull from server
             self.WLpacket['residual'] = self.WLpacket['WL'] - self.WLpacket['predictedWL']
         elif self.WLdataindex is not None and np.size(self.WLdataindex) == 1:
-            raise BaseException(
-                'you have 1 WL point, can the above be a >= logic or does 1 cause problems')
-        
+            raise BaseException('you have 1 WL point, can the above be a >= logic or does 1 cause problems')
         else:
             print('ERROR: there is no WATER level Data for this time period!!!')
             self.WLpacket = None
