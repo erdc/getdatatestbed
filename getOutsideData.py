@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+"""Module for retrieving data that are not hosted by the FRF"""
 import datetime as DT
 import netCDF4 as nc
 import os
@@ -28,8 +30,9 @@ class forecastData:
         assert type(self.d1) == DT.datetime, 'end need to be in python "Datetime" data types'
 
     def getWW3(self, forecastHour, buoyNumber=44100):
-        """This funcion will get spectral forecasts from the NCEP nomads server and
-        parse it out to geographic coordinate system. Currently, the data is
+        """This function will get spectral forecasts from the NCEP nomads server.
+        
+        The function will parse it out to geographic coordinate system. Currently, the data is
         transformed from oceanographic to meteorological coordinates and from
         units of m^2 s rad^-1 to m^2 s deg^-1 to maintain FRF gauge data
         conventions. Spectra are also sorted in ascending order by frequency and
@@ -73,12 +76,12 @@ class forecastData:
                 directions.extend(split)
             elif len(split[0]) == 8  and len(split) == 2: ## this is the date line for the beggining of a spectra
                 # MPG: Include time component (second entry in date line).
-                timestampstr = split[0] + split[1] 
+                timestampstr = split[0] + split[1]
                 timestamp = DT.datetime.strptime(timestampstr, '%Y%m%d%H%M%S')
                 forcastDates.append(timestamp)
                 forcastDateLines.append(ii)
         
-        # MPG: convert directions and frequencies from list(string) to 
+        # MPG: convert directions and frequencies from list(string) to
         # np.array(float).
         directions = np.array(directions).astype('float')
         frequencies = np.array(frequencies).astype('float')
@@ -86,7 +89,7 @@ class forecastData:
         # MPG: convert directions from radians to degrees.
         directions = np.rad2deg(directions)
 
-        # MPG: convert directions from oceanographic to meteorological 
+        # MPG: convert directions from oceanographic to meteorological
         # convention to be consistent w/ FRF wave gauge data.
         small_angle = directions < 180.0
         directions[small_angle] = 180.0 + directions[small_angle]
@@ -138,7 +141,7 @@ class forecastData:
         return out
 
     def get_CbathyFromFTP(self, dlist, path, timex=True):
-        """this function downloads argus cbathy bathy data from the argus ftp server
+        """This function downloads argus cbathy bathy data from the argus ftp server.
         times must be on the hour or half hour, it will return dates from a list
         provided as dlist.  dlist can be a single point (not in list) in time or
         a list of datetimes
@@ -155,7 +158,6 @@ class forecastData:
             oflist (list): list of strings of files to be downloaded
 
         """
-
         curdir = os.getcwd()  # remembering where i am now
         if not os.path.exists(path):
             os.mkdir(path)
