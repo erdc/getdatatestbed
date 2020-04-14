@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Jul 21 13:38:05 2015
-This is a class definition designed to get data from the FRF thredds server
+"""This is a class definition designed to get data from the FRF thredds server.
 
 @author: Spicer Bak, PhD
 @contact: spicer.bak@usace.army.mil
@@ -23,9 +21,10 @@ from testbedutils import geoprocess as gp, sblib as sb
 
 
 def gettime(allEpoch, epochStart, epochEnd):
-    """This function opens the netcdf file, pulls down all of the time, then pulls the dates of
-    interest from the THREDDS (data loc) server based on d1,d2, and data location it returns the indices in the
-    NCML file of the dates d1>=time>d2
+    """This function opens the netcdf file, and retrieves time.
+    
+    It pulls the dates of interest from the THREDDS (data loc) server based on d1,d2, and data location it returns
+     the indices in the NCML file of the dates d1>=time>d2
 
     Args:
         allEpoch (list, float): a list of floats that has epoch times in it
@@ -48,8 +47,9 @@ def gettime(allEpoch, epochStart, epochEnd):
 
 
 def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
-    """This had to be moved out of gettime, so that even if getime failed the
-    rest of the functions would still have access to the nc file
+    """Function grabs the netCDF file interested.
+    
+    Responsible for drilling down to specific monthly file if applicable to speed things up.
 
     Args:
         dataLoc (str):
@@ -186,10 +186,9 @@ def removeDuplicatesFromDictionary(inputDict):
 
 
 class getObs:
-    
-    def __init__(self, d1, d2, THREDDS=None):
-        """Data are returned in self.dataindex are inclusive at start, exclusive at end"""
-        
+    """Class focused on retrieving observational data."""
+    def __init__(self, d1, d2):
+        """Data are returned in self.dataindex are inclusive at start, exclusive at end."""
         # this is active wave gauge list for looping through as needed
         self.waveGaugeList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
                               'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
@@ -215,11 +214,12 @@ class getObs:
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
     
     def _comp_time(self):
-        """Test if times are backwards"""
+        """Test if times are backwards."""
         assert self.d2 >= self.d1, 'finish time: end needs to be after start time: start'
     
     def _roundtime(self, dt=None, roundto=60):
-        """Round a datetime object to any time laps in seconds
+        """Round a datetime object to any time laps in seconds.
+        
         Author: Thierry Husson 2012 - Use it as you want but don't blame me.
 
         Args:
@@ -228,6 +228,7 @@ class getObs:
 
         Returns:
             datetime object that is rounded
+            
         """
         if dt is None:
             dt = DT.datetime.now()
@@ -419,7 +420,7 @@ class getObs:
         return wavespec
     
     def getCurrents(self, gaugenumber=5, roundto=1):
-        """This function pulls down the currents data from the Thredds Server
+        """This function pulls down the currents data from the Thredds Server.
 
         Args:
           gaugenumber: a string or number to get ocean currents from look up table
@@ -538,10 +539,10 @@ class getObs:
             return self.curpacket
     
     def getWind(self, gaugenumber=0, collectionlength=10):
-        """this function retrieves the wind data from the FDIF server
-        collection length is the time over which the wind record exists
-        ie data is collected in 10 minute increments
-        data is rounded to the nearst [collectionlength] (default 10 min)
+        """This function retrieves the wind data.
+        
+        Collection length is the time over which the wind record exists ie data is collected in 10 minute increments
+        data is rounded to the nearst [collectionlength] (default 10 min).
 
         Args:
           collectionlength: Default value = 10)
@@ -677,7 +678,8 @@ class getObs:
             return None
     
     def getWL(self, collectionlength=6):
-        """This function retrieves the water level data from the server
+        """This function retrieves the water level data from the server.
+        
         WL data on server is NAVD88
         
         collection length is the time over which the wind record exists
@@ -737,8 +739,8 @@ class getObs:
         return self.WLpacket
     
     def getGaugeWL(self, gaugenumber=5, roundto=1):
-        """
-        This function pulls down the water level data at a particular gage from the Thredds Server
+        """This function pulls down the water level data at a particular gauge from the Server.
+        
         Args:
             gaugenumber (int/str) describing the location (default=5 End of pier)
             roundto: the time over which the wind record exists ie data is collected in 10 minute
@@ -764,9 +766,8 @@ class getObs:
                 'yFRF': yFRF position of the gage
 
         """
-        
         # Making gauges flexible
-        self.wlGageURLlookup(gaugenumber)
+        self._wlGageURLlookup(gaugenumber)
         # parsing out data of interest in time
         
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
@@ -817,96 +818,8 @@ class getObs:
                             'name': str(self.ncfile.title), }
             return wlpacket
     
-    def getBathyFromArcServer(self, output_location, grid_data, method=1):
-        """This function is designed to pull the raw gridded text file from the Mobile,
-        AL geospatial data server
-        between
-        the times of interest (start, end) or the most recent file there in
-
-        Args:
-          output_location: output file name
-          method: Default value = 1
-            method = 0 uses the nearest in time to start
-
-            method = 1 uses the most recent historical survey but not future to start
-
-          grid_data: boolean True/False defines which grid data to get
-             True returns gridded data file
-             False returns transect data
-        :return grid_fname: grid file name from Arc-server
-
-        Returns:
-            dict
-        """
-        warnings.warn('This function is depricated')
-        from getdatatestbed import download_grid_data as DGD
-        # url for raw grid data setup on geospatial database
-        if grid_data == True:
-            service_url = 'http://gis.sam.usace.army.mil/server/rest/services/FRF/FRF' \
-                          '/FeatureServer/4'
-        elif grid_data == False:
-            service_url = 'http://gis.sam.usace.army.mil/server/rest/services/FRF/FRF_DEV2' \
-                          '/FeatureServer/4'
-        else:
-            print('grid data must be True (returns gridded data) or False (returns transect data)')
-        # query the survey to get the file name and the ID of the file name back for the most
-        # recent survey on location
-        gridID_list, grid_fname_list, grid_date_list = DGD.query_survey_data(service_url,
-                                                                             grid_data=grid_data)
-        #
-        # do logic here for which survey to pull
-        #
-        mask = (grid_date_list >= self.epochd1) & (
-            grid_date_list < self.epochd2)  # boolean true/false of time
-        maskids = np.where(mask)[0]  # where the true values are
-        if len(maskids) == 1:  # there is 1 record found between the dates of interest
-            print("One bathymetry surveys found between %s and %s" % (self.d1, self.d2))
-            gridID = gridID_list[maskids[0]]
-            grid_fname = grid_fname_list[maskids[0]]
-        elif len(maskids) < 1:
-            print("No bathymetry surveys found between %s and %s" % (self.d1, self.d2))
-            print("Latest survey found is %s" % sorted(grid_fname_list)[-1])
-            if method == 0:
-                idx = np.argmin(np.abs(grid_date_list - self.epochd1))  # closest in time
-                print('Bathymetry is taken as closest in TIME - NON-operational')
-            # or
-            elif method == 1:
-                val = (max([n for n in (grid_date_list - self.epochd1) if n < 0]))
-                idx = np.where((grid_date_list - self.epochd1) == val)[0]
-                if len(idx) > 1:
-                    if grid_fname_list[idx[0]] == grid_fname_list[idx[-1]]:
-                        idx = idx[0]
-                    else:
-                        print(
-                            'Multiple grids are returned on the Bathy Server, they are not the '
-                            'same, this will cause '
-                            'an error')
-                print('Bathymetry is taken as closest in HISTORY - operational')
-            
-            grid_fname = grid_fname_list[int(idx)]
-            gridID = gridID_list[int(idx)]
-            gridtime = nc.num2date(grid_date_list[int(idx)], 'seconds since 1970-01-01')
-            if grid_data == True:
-                print("Downloading Bathymetry GRID from %s" % gridtime)
-            elif grid_data == False:
-                print("Downloading SURVEY TRANSECT from %s" % gridtime)
-            print("This survey is %s  old" % ((self.d1 - gridtime)))
-        else:
-            print(
-                ' There Are Multiple Surveys between %s and %s\nPlease Break Simulation up into '
-                'Multiple Parts.' % (
-                    self.d1, self.d2))
-            print('The latest survey is %s' % grid_fname_list[maskids[0]])
-            raise NotImplementedError
-        
-        #
-        # download the file name and the ID
-        #
-        DGD.download_survey(gridID, grid_fname, output_location)  # , grid_data)
-        return grid_fname  # file name returned w/o prefix simply the name
-    
     def getBathyTransectFromNC(self, profilenumbers=None, method=1, forceReturnAll=False):
-        """This function gets the bathymetric data from the thredds server,
+        """This function gets the bathymetric data from the server.
 
         Args:
           profilenumbers: Default value = None)
@@ -1051,10 +964,9 @@ class getObs:
         return profileDict
     
     def getBathyTransectProfNum(self, method=1):
-        """This function gets the bathymetric data from the thredds server, currently designed
-        for the bathy duck
-        experiment
-            just gets profile numbers only
+        """This function gets the bathymetric data from the server, currently designed for the bathy duck experiment.
+        
+        Just gets profile numbers only.
 
         Args:
             method (int): approach to select which method of how to select bathymetry
@@ -1125,9 +1037,9 @@ class getObs:
         return prof_nums
     
     def getBathyGridFromNC(self, method, removeMask=True):
-        """This function gets the frf krigged grid product, it will currently break with the
-        present link
-        bathymetric data from the thredds server
+        """This function gets the frf krigged grid product, it will currently break with the present link.
+        
+        Bathymetric data from the server.
 
         Args:
           method: defines which choice method to use
@@ -1155,6 +1067,7 @@ class getObs:
                'northing': northing,
 
                'easting': easting
+               
         """
         self.dataloc = 'survey/gridded/gridded.ncml'  # location of the gridded surveys
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
@@ -1235,8 +1148,7 @@ class getObs:
         return gridDict
     
     def _waveGaugeURLlookup(self, gaugenumber):
-        r"""A lookup table function that sets the URL backend for get wave spec and get wave
-        gauge loc
+        """A lookup table function that sets the URL backend for get wave spec and get wave gauge locations.
 
         Args:
           gaugenumber: a string or number that refers to a specific gauge and will set a url
@@ -1338,12 +1250,12 @@ class getObs:
             self.gname = 'There Are no Gauge numbers here'
             raise NameError('Bad Gauge name, specify proper gauge name/number, or add capability')
     
-    def wlGageURLlookup(self, gaugenumber):
-        """
-        A lookup table function that sets the URL backend for getGageWL
-
-        :param gaugenumber: a string or number that refers to a specific gauge and will set a url
-               Available values inclue:
+    def _wlGageURLlookup(self, gaugenumber):
+        """ A lookup table function that sets the URL backend for getGageWL.
+        
+        Args:
+            gaugenumber: a string or number that refers to a specific gauge and will set a url
+               Available values include:
                    11m AWAC         can be [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']
                    8m AWAC          can be [3, 'awac-8m', 'AWAC-8m']
                    6m AWAC          can be [4, 'awac-6m', 'AWAC-6m']
@@ -1354,7 +1266,9 @@ class getObs:
                    125m pressure    can be [10, 'xp125m', 'xp125']
                    100m pressure    can be [11, 'xp100m']
                    8m array         can be [8, '8m-Array', '8m Array', '8m array', '8m-array']
-        :returns: Nothing, this just sets the self.dataloc data member
+        
+        Returns:
+             Nothing, this just sets the self.dataloc data member
 
         """
         if gaugenumber in [2, 'AWAC-11m', 'awac-11m', 'Awac-11m']:
@@ -1395,8 +1309,9 @@ class getObs:
             raise NameError('Bad Gauge name, specify proper gauge name/number')
     
     def getBathyDuckLoc(self, gaugenumber):
-        """this function pulls the stateplane location (if desired) from the surveyed
-        FRF coords from deployed ADV's, These are data owned by WHOI and kept on private server
+        """This function pulls the stateplane location (if desired) from the survey.
+        
+        FRF coords from deployed ADV's, These are data owned by WHOI and kept on private local server
 
         Args:
           gaugenumber: a gauge number with associated data from bathyduck experiment
@@ -1438,7 +1353,7 @@ class getObs:
         return locDict
     
     def getWaveGaugeLoc(self, gaugenumber):
-        """This function gets gauge location data quickly, faster than getwavespec
+        """This function gets gauge location data quickly, faster than getwavespec.
 
         Args:
           gaugenumber (str, int): wave gauge numbers
@@ -1462,8 +1377,9 @@ class getObs:
         return out
     
     def get_sensor_locations_from_thredds(self):
-        """Retrieves lat/lon coordinates for each gauge in gauge_list, converts
-        to state plane and frf coordinates and creates a dictionary containing
+        """Retrieves lat/lon coordinates for each gauge in gauge_list.
+        
+        Function converts to state plane and frf coordinates and creates a dictionary containing
         all three coordinates types with gaugenumbers as keys.
 
         Args:
@@ -1524,8 +1440,9 @@ class getObs:
         return loc_dict
     
     def get_sensor_locations(self, datafile='frf_sensor_locations.pkl', window_days=14):
-        """Retrieve sensor coordinate dictionary from file if there is an entry
-        within window_days of the specified timestampstr. Otherwise query the
+        """Retrieve sensor coordinate dictionary from file if there is an entry.
+        
+        Look within window_days of the specified timestampstr. Otherwise query the
         Thredds server for location information and update archived data
         accordingly.
 
@@ -1587,7 +1504,7 @@ class getObs:
         return sensor_locations
     
     def getLidarRunup(self, removeMasked=True):
-        """This function will get the wave runup measurements from the lidar mounted in the dune
+        """This function will get the wave runup measurements from the lidar mounted in the dune.
 
         Args:
           removeMasked: if data come back as masked, remove from the arrays removeMasked will
@@ -1686,8 +1603,9 @@ class getObs:
         return out
     
     def getCTD(self):
-        """THIS FUNCTION IS CURRENTLY BROKEN - THE PROBLEM IS THAT self.cshore_ncfile does not
-        have any keys?
+        """THIS FUNCTION IS CURRENTLY BROKEN.
+        
+        THE PROBLEM IS THAT self.cshore_ncfile does not have any keys?
         TODO fix this function
         This function gets the CTD data from the thredds server
         
@@ -1758,7 +1676,7 @@ class getObs:
         return ctd_Dict
     
     def getALT(self, gaugeName=None, removeMasked=True):
-        """This function gets the Altimeter data from the thredds server
+        """This function gets the Altimeter data from the thredds server.
 
         Args:
           gaugeName (str):  This is just the name of the altimeter we want to use
@@ -1891,10 +1809,10 @@ class getObs:
             return self.altpacket
     
     def getLidarWaveProf(self, removeMasked=True):
-        """Grabs wave profile data from Lidar gauge
+        """Grabs wave profile data from Lidar gauge.
 
         Args:
-          removeMasked: Default value = True)
+          removeMasked: Removes masked values from data. Default value = (True)
 
         Returns:
           dictionary with keys below, will None if there's no data or an error
@@ -2003,7 +1921,7 @@ class getObs:
         return out
     
     def getLidarDEM(self, **kwargs):
-        r"""this function will get the lidar DEM data, beach topography data
+        """This function will get the lidar DEM data, beach topography data
 
             This function is not finished being developed
 
@@ -2071,7 +1989,7 @@ class getObs:
         return DEMdata
     
     def getBathyRegionalDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
-        """grabs bathymery from the regional background grid
+        """Grabs bathymery from the regional background grid.
 
         Args:
           utmEmin: left side of DEM bounding box in UTM
@@ -2122,7 +2040,7 @@ class getObs:
         return out
     
     def getBathyGridcBathy(self, **kwargs):
-        """this function gets the cbathy data from the below address, assumes fill value of -999
+        """This function gets the cbathy data from the below address, assumes fill value of -999.
 
         Keyword Args:
             xbound: = [xmin, xmax]  which will truncate the cbathy domain to xmin, xmax (frf coord)
@@ -2251,7 +2169,8 @@ class getObs:
     
     def getArgus(self, type, **kwargs):
         """Grabs argus data from the bathyDuck time period, particularly staple products.
-          Currently this is only retrieves variance and timex images.
+        
+      Currently this is only retrieves variance and timex images.
 
         Args:
             type (str): this is a string that describes the video product eg var, timex
@@ -2337,23 +2256,12 @@ class getObs:
 
 
 class getDataTestBed:
-    # def __init__(self, start, end):
-    #     """Data are returned in self.datainex are inclusive, exclusive at start, end, respectively
-    
-    #     Args:
-    #       start: datetime instance for start of
-    
-    #     Returns:
-    #         instance of getDataTestBed
-    #     """
-    
-    def __init__(self, d1, d2, THREDDS=None):
-        """
-        Initialization description here
-        Data are returned in self.datainex are inclusive at d1,d2
-        Data comes from waverider 632 (26m?)
-        """
+    """Retrieves model data"""
+    def __init__(self, d1, d2):
+        """Initialization description here.
         
+        Data are returned in self.datainex are inclusive at d1,d2
+        """
         self.rawdataloc_wave = []
         self.outputdir = []  # location for outputfiles
         self.start = d1  # start date for data grab
@@ -2379,12 +2287,12 @@ class getDataTestBed:
             self.start) == DT.datetime, 'start dates need to be in python "Datetime" data types'
     
     def comp_time(self):
-        """Test if times are backwards"""
+        """Test if times are backwards."""
         assert self.end >= self.start, 'finish time: end needs to be after start time: start'
     
     def gettime(self, dtRound=60):
-        """this function opens the netcdf file, pulls down all of the time, then pulls the dates
-        of interest
+        """This function opens the netcdf file, pulls down all of the time, then pulls the dates of interest.
+        
         from the THREDDS (data loc) server based on start,end, and data location
         it returns the indicies in the NCML file of the dates start>=time>end
 
@@ -2465,7 +2373,7 @@ class getDataTestBed:
         return idx
     
     def getGridCMS(self, method):
-        """This function will grab data from the CMS grid folder on the server
+        """This function will grab data from the CMS grid folder on the server.
         
         This Function is depricated
 
@@ -2566,7 +2474,7 @@ class getDataTestBed:
             return gridDict
     
     def getBathyIntegratedTransect(self, method=1, ForcedSurveyDate=None, **kwargs):
-        r"""This function gets the integraated bathy, using the plant (2009) method.
+        """This function gets the integraated bathy, using the plant (2009) method.
 
         Args:
             method (int): a key which determines which method to find bathymetry with (Default
@@ -2790,11 +2698,12 @@ class getDataTestBed:
         return gridDict
     
     def getStwaveField(self, var, prefix, local=True, ijLoc=None, model='STWAVE'):
+        """Depricated."""
         warnings.warn('Using depricated function name: getStwaveField')
         return self.getModelField(var, prefix, local, ijLoc, model)
     
     def getModelField(self, var, prefix, local=True, ijLoc=None, model='STWAVE', **kwargs):
-        """retrives data from spatial data CMSWave and STWAVE model
+        """Retrives data from spatial data CMSWave and STWAVE model.
 
         Args:
             local (bool): defines whether the data is from the nested simulation or the regional
@@ -2991,15 +2900,15 @@ class getDataTestBed:
         return field
     
     def getWaveSpecSTWAVE(self, prefix, gaugenumber, local=True, model='STWAVE'):
+        """Depricated."""
         warnings.warn('Using depricated function name')
-        
         return self.getWaveSpecModel(prefix, gaugenumber, model)
     
     def getWaveSpecModel(self, prefix, gaugenumber, model='STWAVE', removeBadWLFlag=True):
-        """This function pulls down the data from the thredds server and puts the data into
-        proper places
-        to be read for STwave Scripts
-        this will return the wavespec with dir/freq bin and directionalWaveGaugeList wave energy
+        """This function pulls down the data from the thredds server and puts the data into proper places.
+        
+        To be read for STwave Scripts this will return the wavespec with dir/freq bin and directionalWaveGaugeList wave
+            energy
 
         Args:
             prefix (str): a 'key' to select which version of the simulations to pull data from
@@ -3160,53 +3069,8 @@ class getDataTestBed:
                 gname, self.start, self.end))
             return None
     
-    def getLidarWaveProf(self, removeMasked=True):
-        """  This function is a place holder, it does not work
-
-        """
-        
-        self.dataloc = 'projects/tucker/waveprofile/test.ncml'
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
-                                           dtRound=1 * 60)
-        self.lidarIndex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
-                                  epochEnd=self.epochd2)
-        
-        if np.size(self.lidarIndex) > 0 and self.lidarIndex is not None:
-            out = {'name':           nc.chartostring(self.ncfile['station_name'][:]),
-                   'lat':            self.ncfile['lidarLatitude'][:],
-                   'lon':            self.ncfile['lidarLongitude'][:],
-                   'lidarX':         self.ncfile['lidarX'][:],
-                   'lidarY':         self.ncfile['lidarY'][:],
-                   'frfX':           self.ncfile['xFRF'][:],
-                   'frfY':           self.ncfile['yFRF'][:],
-                   'runupDownLine':  self.ncfile['downLineDistance'][:],
-                   'waveFreq':       self.ncfile['waveFrequency'][:],
-                   'time':           self.ncfile['time'][self.lidarIndex],
-                   'WaterLevel':     self.ncfile['waterLevel'][self.lidarIndex],
-                   'waveHs':         self.ncfile['waveHs'][self.lidarIndex],
-                   'waveHsIG':       self.ncfile['waveHsIG'][self.lidarIndex],
-                   'waveHsTot':      self.ncfile['waveHsTotal'][self.lidarIndex],
-                   'waveSkewness':   self.ncfile['waveSkewness'][self.lidarIndex],
-                   'waveAsymmetry':  self.ncfile['waveAsymmetry'][self.lidarIndex],
-                   'waveEnergyDens': self.ncfile['waveEnergyDensity'][self.lidarIndex],
-                   'hydroFlag':      self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
-                   'percentMissing': self.ncfile['percentTimeSeriesMissing'][self.lidarIndex],
-                   }
-            
-            if removeMasked:
-                print('removeMasked currently not implemented for getLidarWaveProf')
-            
-            
-            else:
-                pass
-        
-        else:
-            print('There is no LIDAR data during this time period')
-            out = None
-        return out
-    
     def getCSHOREOutput(self, prefix):
-        """retrives data from spatial data CSHORE model
+        """Retrives data from spatial data CSHORE model.
         
         Args:
             prefix (str): a 'key' to select which version of the simulations to pull data from
