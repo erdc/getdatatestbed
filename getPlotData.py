@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""This is a class definition has something to do with getting plot data, it is currently unclear where or how it is
-used.
+"""This is a class definition has something to do with getting plot data, it is unclear where or how it is used.
 
 @author: David Young
 @organization: USACE CHL FRF

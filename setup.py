@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+"""Setup tools for getData"""
 from setuptools import setup
 
 setup(name='GetDataTestbed',

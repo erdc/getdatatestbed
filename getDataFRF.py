@@ -19,7 +19,6 @@ import pandas as pd
 
 from testbedutils import geoprocess as gp, sblib as sb
 
-
 def gettime(allEpoch, epochStart, epochEnd):
     """This function opens the netcdf file, and retrieves time.
     
@@ -44,7 +43,6 @@ def gettime(allEpoch, epochStart, epochEnd):
         idx = None
     finally:
         return idx
-
 
 def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     """Function grabs the netCDF file interested.
@@ -131,11 +129,11 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     
     return ncFile, sb.baseRound(allEpoch, base=dtRound) # round to nearest minute
 
-
 def removeDuplicatesFromDictionary(inputDict):
-    """This function checks through the data and will remove duplicates from key 'epochtime's a
-    place holder to check, and remove duplicate times from this whole class. It needs to be though through still,
-     but the code below is used to do it from an exterior script and would be a good place to start
+    """This function checks through the data and will remove duplicates from key 'epochtime's.
+    
+    A place holder to check, and remove duplicate times from this whole class. It needs to be though through still,
+    but the code below is used to do it from an exterior script and would be a good place to start.
 
     Args:
         inputDict (dict): to check this if its duplicate
@@ -238,7 +236,7 @@ class getObs:
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
     
     def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
-        """This function pulls down the data from the thredds server and puts the data into a dictionary
+        """This function pulls down the data from the thredds server and puts the data into a dictionary.
         
         TODO: Set optional date input from function arguments to change self.start self.end
 
@@ -1251,7 +1249,7 @@ class getObs:
             raise NameError('Bad Gauge name, specify proper gauge name/number, or add capability')
     
     def _wlGageURLlookup(self, gaugenumber):
-        """ A lookup table function that sets the URL backend for getGageWL.
+        """A lookup table function that sets the URL backend for getGageWL.
         
         Args:
             gaugenumber: a string or number that refers to a specific gauge and will set a url
@@ -1921,11 +1919,11 @@ class getObs:
         return out
     
     def getLidarDEM(self, **kwargs):
-        """This function will get the lidar DEM data, beach topography data
+        """This function will get the lidar DEM data, beach topography data.
 
-            This function is not finished being developed
+        This function is not finished being developed
 
-        Args:
+        Args: None
 
         Keyword Args:
            'xbounds': frf cross-shore bounds
@@ -2011,7 +2009,6 @@ class getObs:
 
 
         """
-        
         self.dataloc = 'integratedBathyProduct/RegionalBackgroundDEM/backgroundDEM.nc'
         self.ncfile = nc.Dataset(self.crunchDataLoc + self.dataloc)
         
@@ -2170,7 +2167,7 @@ class getObs:
     def getArgus(self, type, **kwargs):
         """Grabs argus data from the bathyDuck time period, particularly staple products.
         
-      Currently this is only retrieves variance and timex images.
+        Currently this is only retrieves variance and timex images.
 
         Args:
             type (str): this is a string that describes the video product eg var, timex
@@ -2256,7 +2253,7 @@ class getObs:
 
 
 class getDataTestBed:
-    """Retrieves model data"""
+    """Retrieves model data."""
     def __init__(self, d1, d2):
         """Initialization description here.
         
@@ -2303,7 +2300,6 @@ class getDataTestBed:
             index (bytearray): indicies for time of interest
 
         """
-        
         raise NotImplementedError('please use master get time that is not a member of this class ')
         # TODO find a way to pull only hourly data or regular interval of desired time
         # todo this use date2index and create a list of dates see help(nc.date2index)
@@ -2931,9 +2927,10 @@ class getDataTestBed:
                 125m pressure can be [10, 'xp125m', 'xp125']
 
             model (str): one of: STWAVE, CMS
+            
+            removeBadWLFlag(bool): run logic to remove bad data from returned dictionary (default=True)
 
         Returns: return dictionary with packaged data following keys
-
             'epochtime': time in epoch ('second since 1970-01-01
 
             'time': time in date time object
@@ -3070,7 +3067,7 @@ class getDataTestBed:
             return None
     
     def getCSHOREOutput(self, prefix):
-        """Retrives data from spatial data CSHORE model.
+        """Retrieves data from spatial data CSHORE model.
         
         Args:
             prefix (str): a 'key' to select which version of the simulations to pull data from
@@ -3078,34 +3075,32 @@ class getDataTestBed:
                 added in the future
 
         Returns:
-            dictionary with packaged data following keys
-
-            'epochtime' (float):  epoch time
-
-            'time' (obj): datetime of model output
-
-            'xFRF' (float): x location of data
-
-            'Hs' (float): significant wave height
-
-            'zb' (float): bed elevation
-
-            'WL' (float): water level
-
-            'bathyTime' (ojb): datetime of bathymetric survey used
-
-            'setup' (float): wave induced setup height
-
-            'aveN' (float): average northward current
-
-            'stdN' (float): standard deviation of northward current
-
-            'runupMean' (float): mean runup elevation
-
-            'runup2perc' (float): 2% runup elevation
+            dictionary with packaged data following keys:
+                'epochtime' (float):  epoch time
+    
+                'time' (obj): datetime of model output
+    
+                'xFRF' (float): x location of data
+    
+                'Hs' (float): significant wave height
+    
+                'zb' (float): bed elevation
+    
+                'WL' (float): water level
+    
+                'bathyTime' (ojb): datetime of bathymetric survey used
+    
+                'setup' (float): wave induced setup height
+    
+                'aveN' (float): average northward current
+    
+                'stdN' (float): standard deviation of northward current
+    
+                'runupMean' (float): mean runup elevation
+    
+                'runup2perc' (float): 2% runup elevation
 
         """
-        
         dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
         ncfile, allEpoch = getnc(dataLoc, self.THREDDS, self.callingClass)
         dataIndex = gettime(allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)

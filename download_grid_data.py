@@ -1,11 +1,4 @@
-# -------------------------------------------------------------------------------
-# Name:        download_grid_data.py
-# Purpose:     Downloads the most recent FRF GRID Survey data in TXT format.
-# Author:      k5opjakk
-# Created:     12/08/2015
-# Edited:      Spicer Bak 12/25/15
-#
-# -------------------------------------------------------------------------------
+""" Downloads the most recent FRF GRID Survey data in TXT format."""
 import urllib.request, urllib.parse, urllib.error
 import urllib.request, urllib.error, urllib.parse
 import json
@@ -20,7 +13,7 @@ __author__ = 'k5opjakk'
 
 
 def download_survey(objectid, survey_filename, save_path):
-    """Downloads the survey data extracts file to specified folder location
+    """Downloads the survey data extracts file to specified folder location.
 
     Args:
       objectid: objectid of survey to download
@@ -90,9 +83,8 @@ def download_survey(objectid, survey_filename, save_path):
     else:
         print("no jobId found in the response")
 
-
 def query_survey_data(service_url, grid_data=True):
-    """Returns the objectid, survey_filename of the most recent survey GRID
+    """Returns the objectid, survey_filename of the most recent survey GRID.
 
     Args:
       service_url: url to the service to query
