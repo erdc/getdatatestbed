@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Module for retrieving data that are not hosted by the FRF"""
+"""Module for retrieving data that are not hosted by the FRF."""
 import datetime as DT
 import netCDF4 as nc
 import os
@@ -7,9 +7,11 @@ import numpy as np
 import sys
 
 class forecastData:
+    """A data retrival class situated around gathering forecast data."""
     def __init__(self, d1):
-        """Initialization description here
-            Data are returned in self.datainex are inclusive at start,end
+        """Initialization description here.
+        
+        Data are returned in self.datainex are inclusive at start,end
 
         Args:
           d1: datetime object start time of forecast data
