@@ -2178,6 +2178,7 @@ class getObs:
             ybound: = [ymin, ymax]  which will truncate the cbathy domain to ymin, ymax (frf coord)
 
         Returns:
+            None
 
         """
         from skimage import color
@@ -2965,7 +2966,6 @@ class getDataTestBed:
 
 
         """
-        
         # Making gauges flexible
         if prefix in ['CB', 'HP', 'CBHP', 'FP', 'CBThresh']:
             urlFront = 'waveModels/%s/%s' % (model, prefix)

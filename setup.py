@@ -1,4 +1,4 @@
-"""Setup tools for getData"""
+"""Setup tools for getDataTestBed."""
 from setuptools import setup
 
 setup(name='GetDataTestbed',

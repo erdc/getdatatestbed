@@ -1,4 +1,4 @@
-""" Downloads the most recent FRF GRID Survey data in TXT format."""
+"""Downloads the most recent FRF GRID Survey data in TXT format."""
 import urllib.request, urllib.parse, urllib.error
 import urllib.request, urllib.error, urllib.parse
 import json

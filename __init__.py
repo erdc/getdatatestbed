@@ -1,1 +1,1 @@
-"""init module for getdatatestbed"""
+"""Init module for getdatatestbed."""
