@@ -14,9 +14,8 @@ import testbedutils.sblib as sb
 import netCDF4 as nc
 
 def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
-    """This function is just to remove clutter in my plot functions
-    all it does is pull out altimeter data and put it into the appropriate dictionary keys.
-    If None, it will return masked arrays.
+    """This function is just to remove clutter in my plot functions all it does is pull out altimeter data and put it
+    into the appropriate dictionary keys. If None, it will return masked arrays.
 
     Args:
         name: name of the altimeter you want (Alt03, Alt04, Alt05)
@@ -65,25 +64,25 @@ def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
     return dict
 
 def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
-    """
-    This function is just to remove clutter in my plotting scripts
+    """This function is just to remove clutter in my plotting scripts
     all it does is pull out altimeter data and put it into the appropriate dictionary keys.
     If None, it will return masked arrays.
 
-    :param t1: start time you want to pull (a datetime, not a string)
-    :param t2: end time you want to pull (a datetime, not a string)
-    :param name: name of the wave gage you want
-    :param mod_time: start time of the model
-    :param time: array of model datetimes
+    Args:
+         t1: start time you want to pull (a datetime, not a string)
+         t2: end time you want to pull (a datetime, not a string)
+         name: name of the wave gage you want
+         mod_time: start time of the model
+         time: array of model datetimes
 
-    :return: Altimeter data dictionary with keys:
+    Returns:
+        Altimeter data dictionary with keys:
             'Hs' - significant wave height
             'name' - gage name
             'wave_time' - timestamps of the data
             'xFRF' - position of the gage
             'plot_ind' - this just tells it which data point it should plot for the snapshots
     """
-
     t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
     t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
 
