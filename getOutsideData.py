@@ -142,7 +142,8 @@ class forecastData:
 
     def get_CbathyFromFTP(self, dlist, path, timex=True):
         """This function downloads argus cbathy bathy data from the argus ftp server.
-        times must be on the hour or half hour, it will return dates from a list
+        
+        Times must be on the hour or half hour, it will return dates from a list
         provided as dlist.  dlist can be a single point (not in list) in time or
         a list of datetimes
         # written by Ty Hesser
