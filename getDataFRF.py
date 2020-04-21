@@ -25,6 +25,10 @@ def gettime(allEpoch, epochStart, epochEnd):
     It pulls the dates of interest from the THREDDS (data loc) server based on d1,d2, and data location it returns
      the indices in the NCML file of the dates d1>=time>d2
 
+    It was modified to check if there are duplicate times, and only produces indices with unique
+    times
+
+
     Args:
         allEpoch (list, float): a list of floats that has epoch times in it
         epochStart (float): start time in epoch
