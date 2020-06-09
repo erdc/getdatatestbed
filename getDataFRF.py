@@ -1467,7 +1467,7 @@ class getObs:
         try:
             with open(datafile, 'rb') as fid:  # this will close a file when done loading it
                 loc_dict = pickle.load(fid)
-        except IOError:
+        except (IOError, UnicodeDecodeError):
             # now create pickle if one's not around
             loc_dict = {}
             # this should be date of searching( or date of gauge placement more accurately)
