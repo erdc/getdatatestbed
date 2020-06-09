@@ -1876,7 +1876,6 @@ class getObs:
                    'xFRF':              self.ncfile['xFRF'][:],
                    'yFRF':              self.ncfile['yFRF'][:],
                    'waveFrequency':     self.ncfile['waveFrequency'][:],
-            
                    'hydroQCflag':       self.ncfile['hydrodynamicsFlag'][self.lidarIndex],
                    'waterLevel':        self.ncfile['waterLevel'][self.lidarIndex, :],
                    'waveHs':            self.ncfile['waveHs'][self.lidarIndex, :],
@@ -1922,7 +1921,7 @@ class getObs:
             out = None
         return out
     
-    def getLidarDEM(self, **kwargs):
+    def getLidarTopo(self, **kwargs):
         """This function will get the lidar DEM data, beach topography data.
 
         This function is not finished being developed
@@ -1986,7 +1985,14 @@ class getObs:
             ys = slice(removeMinY, removeMaxY)
         else:
             ys = slice(None)
-        DEMdata = {'key': 'Nothin Here Yet'}
+        
+        DEMdata = {
+            'time': self.DEMtime,
+            'epochtime': self.allEpoch[self.idxDEM],
+            'xFRF': self.ncfile['xFRF'][xs],
+            'yFRF': self.ncfile['yFRF'][ys],
+            'elevation': self.ncfile['elevation'][self.idxDEM, ys, xs]
+        }
         
         return DEMdata
     
