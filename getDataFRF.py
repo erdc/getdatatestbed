@@ -1932,13 +1932,22 @@ class getObs:
         Keyword Args:
            'xbounds': frf cross-shore bounds
            'ybounds': frf alongshore bounds
-
+            lidarLoc':
         Returns:
           dictionary with lidar beach topography
             keys to be determined
 
         """
-        self.dataloc = 'geomorphology/DEMs/duneLidarDEM/duneLidarDEM.ncml'
+        lidarLoc = kwargs.get('lidarLoc', 'dune')
+        if lidarLoc == 'pier':
+            self.dataloc = 'geomorphology/DEMs/pierLidarDEM/pierLidarDEM.ncml'
+        elif lidarLoc == 'dune':
+            self.dataloc = 'geomorphology/DEMs/duneLidarDEM/duneLidarDEM.ncml'
+        elif lidarLoc == 'claris':
+            self.dataloc = 'geomorphology/DEMs/clarisDEM/clarisDEM.ncml'
+        else:
+            raise NotImplementedError('valid lidar locs are "dune" and "pier"')
+        
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
         self.idxDEM = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
@@ -1986,8 +1995,15 @@ class getObs:
             ys = slice(removeMinY, removeMaxY)
         else:
             ys = slice(None)
-        DEMdata = {'key': 'Nothin Here Yet'}
         
+        DEMdata = {
+                'xFRF':      self.ncfile['xFRF'][self.idxDEM, xs],
+                'yFRF':      self.ncfile['yFRF'][self.idxDEM, ys],
+                'elevation': self.ncfile['elevation'][self.idxDEM, ys, xs],
+                'time':      self.DEMtime,
+                'lat':       self.ncfile['yFRF'][self.idxDEM, ys],
+                'lon':       lon
+                }
         return DEMdata
     
     def getBathyRegionalDEM(self, utmEmin, utmEmax, utmNmin, utmNmax):
