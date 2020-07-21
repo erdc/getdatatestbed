@@ -71,6 +71,7 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     # toggle my data location
     start = kwargs.get('start', None)
     end = kwargs.get('end', None)
+    server = kwargs.get('server', None)
     FRFdataloc = u'http://134.164.129.55/thredds/dodsC/'
     chlDataLoc = u'https://chldata.erdc.dren.mil/thredds/dodsC/'
     # a list of data sets (just the ncml) that shouldn't drill down to monthly file
@@ -78,15 +79,16 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
 
     # chose which server to select based on IP
     ipAddress = socket.gethostbyname(socket.gethostname())
-    if ipAddress.startswith('134.164.129'):  # FRF subdomain
+    if server == 'FRF' and ipAddress.startswith('134.164.129'):  # FRF subdomain
         THREDDSloc = FRFdataloc
         pName = u'FRF'
-    else:
+    elif server in ['CHL', None]:
         THREDDSloc = chlDataLoc
         pName = u'frf'
         
     if callingClass == 'getDataTestBed':  # overwrite pName if calling for model data
         pName = u'cmtb'
+
     
     # now set URL for netCDF file call,
     if start is None and end is None:
@@ -189,7 +191,7 @@ def removeDuplicatesFromDictionary(inputDict):
 
 class getObs:
     """Class focused on retrieving observational data."""
-    def __init__(self, d1, d2):
+    def __init__(self, d1, d2, **kwargs):
         """Data are returned in self.dataindex are inclusive at start, exclusive at end."""
         # this is active wave gauge list for looping through as needed
         self.waveGaugeList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
@@ -210,7 +212,7 @@ class getObs:
         self.FRFdataloc = 'http://134.164.129.55/thredds/dodsC/FRF/'
         self.crunchDataLoc = 'http://134.164.129.55/thredds/dodsC/cmtb/'
         self.chlDataLoc = 'https://chlthredds.erdc.dren.mil/thredds/dodsC/frf/'  #
-
+        self.server = kwargs.get('server', None)
         self._comp_time()
         assert type(self.d2) == DT.datetime, 'd1 need to be in python "Datetime" data types'
         assert type(self.d1) == DT.datetime, 'd2 need to be in python "Datetime" data types'
@@ -290,7 +292,7 @@ class getObs:
         self._waveGaugeURLlookup(gaugenumber)
         # parsing out data of interest in time
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
-                                           dtRound=roundto * 60, start=self.d1, end=self.d2)
+                                           dtRound=roundto * 60, start=self.d1, end=self.d2, server=self.server)
         try:
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                          epochEnd=self.epochd2)
