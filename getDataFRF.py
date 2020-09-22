@@ -79,10 +79,10 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
 
     # chose which server to select based on IP
     ipAddress = socket.gethostbyname(socket.gethostname())
-    if server == 'FRF' and ipAddress.startswith('134.164.129'):  # FRF subdomain
+    if server in ['frf', 'FRF', None] and ipAddress.startswith('134.164.129'):  # FRF subdomain
         THREDDSloc = FRFdataloc
         pName = u'FRF'
-    elif server in ['CHL', None]:
+    elif server in ['CHL', 'chl', None]:
         THREDDSloc = chlDataLoc
         pName = u'frf'
         
@@ -106,6 +106,8 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
         fileparts = dataLocSplit[0].split('/')
         if fileparts[0] == 'oceanography':
             field = 'ocean'
+        elif fileparts[0] == 'meteorology':
+            field = 'met'
         else:
             field = fileparts[0]
         try:  # this will work for get Obs
@@ -616,7 +618,8 @@ class getObs:
             raise NameError('Specifiy proper Gauge number')
         
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
-                                           dtRound=collectionlength * 60)
+                                           dtRound=collectionlength * 60, start=self.d1, end=self.d2,
+                                           server=self.server)
         
         self.winddataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                      epochEnd=self.epochd2)
