@@ -504,9 +504,9 @@ class getObs:
         # _______________________________________
         # get the actual current data
         if np.size(currdataindex) > 1:
-            curr_aveU = self.ncfile['aveU'][
+            curr_aveU = self.ncfile['aveE'][
                 currdataindex]  # pulling depth averaged Eastward current
-            curr_aveV = self.ncfile['aveV'][
+            curr_aveV = self.ncfile['aveN'][
                 currdataindex]  # pulling depth averaged Northward current
             curr_spd = self.ncfile['currentSpeed'][currdataindex]  # currents speed [m/s]
             curr_dir = self.ncfile['currentDirection'][
@@ -517,7 +517,7 @@ class getObs:
             # for num in range(0, len(self.curr_time)):
             #     self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
             
-            curr_coords = gp.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
+            curr_coords = gp.FRFcoord(self.ncfile['longitude'][0], self.ncfile['latitude'][0])
             
             self.curpacket = {
                 'name':      str(self.ncfile.title),
@@ -527,8 +527,8 @@ class getObs:
                 'aveV':      curr_aveV,
                 'speed':     curr_spd,
                 'dir':       curr_dir,
-                'lat':       self.ncfile['lat'][0],
-                'lon':       self.ncfile['lon'][0],
+                'lat':       self.ncfile['latitude'][0],
+                'lon':       self.ncfile['longitude'][0],
                 'xFRF':      curr_coords['xFRF'],
                 'yFRF':      curr_coords['yFRF'],
                 'depth':     self.ncfile['depth'][:],
