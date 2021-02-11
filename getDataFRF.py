@@ -238,8 +238,8 @@ class getObs:
         # // is a floor division, not a comment on following line:
         rounding = (seconds + roundto / 2) // roundto * roundto
         return dt + DT.timedelta(0, rounding - seconds, -dt.microsecond)
-    
-    def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
+
+    def getWaveData(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
         """This function pulls down the data from the thredds server and puts the data into a dictionary.
         
         TODO: Set optional date input from function arguments to change self.start self.end
@@ -255,7 +255,7 @@ class getObs:
 
         Keyword Args:
             "returnAB" (bool): if this is True function will return a's and b's for time period (default=False)
-            "specOnly" (bool); if this is True function will not return bulk statistics (default=False)
+            "spec" (bool); if this is True function will not return bulk statistics (default=False)
 
         Returns:
           dictionary with following keys for all gauges
@@ -285,7 +285,7 @@ class getObs:
 
         """
         returnAB = kwargs.get('returnAB', False)
-        specOnly = kwargs.get('specOnly', False)
+        spec = kwargs.get('spec', False)
         # Making gauges flexible
         self._waveGaugeURLlookup(gaugenumber)
         # parsing out data of interest in time
@@ -295,7 +295,7 @@ class getObs:
             self.wavedataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                          epochEnd=self.epochd2)
             assert np.array(self.wavedataindex).all() is not None, 'there''s no data in your time period'
-            
+
             if np.size(self.wavedataindex) >= 1:
                 # consistant for all wave gauges
                 if np.size(self.wavedataindex) == 1:
@@ -332,28 +332,26 @@ class getObs:
                             'Hs':          self.ncfile['waveHs'][self.wavedataindex],
                             'peakf':       1 / self.ncfile['waveTp'][self.wavedataindex],
                 }
-                
+
                 # now do directionalWaveGaugeList gauge try
                 try:  # pull time specific data based on self.wavedataindex
                     wavespec['depth'] = self.ncfile['nominalDepth'][:]  # this should always go with directional gauges
                     wavespec['wavedirbin'] = self.ncfile['waveDirectionBins'][:]
-                    wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
                     wavespec['qcFlagE'] = self.ncfile['qcFlagE'][self.wavedataindex]
                     wavespec['qcFlagD'] = self.ncfile['qcFlagD'][self.wavedataindex]
-                    wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
+                    if spec is True:
+                        wavespec['dWED'] = self.ncfile['directionalWaveEnergyDensity'][self.wavedataindex, :, :]
+                        wavespec['fspec'] = self.ncfile['waveEnergyDensity'][self.wavedataindex, :]
 
+                        if wavespec['dWED'].ndim < 3:
+                            wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
+                            wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
 
-                    if wavespec['dWED'].ndim < 3:
-                        wavespec['dWED'] = np.expand_dims(wavespec['dWED'], axis=0)
-                        wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
-
-                    if specOnly is True:
-                        return removeDuplicatesFromDictionary(wavespec)  # pull out here if specOnly is true (saves time)
 
                     wavespec['waveDp'] = self.ncfile['wavePeakDirectionPeakFrequency'][self.wavedataindex]
                     wavespec['waveDm'] = self.ncfile['waveMeanDirection'][self.wavedataindex]
                     wavespec['Tm'] = self.ncfile['waveTm'][self.wavedataindex]
-                    
+
                     if returnAB is True:
                         wavespec['a1'] = self.ncfile['waveA1Value'][self.wavedataindex, :]
                         wavespec['a2'] = self.ncfile['waveA2Value'][self.wavedataindex, :]
@@ -367,7 +365,7 @@ class getObs:
                     else:
                         # leave it blank if lidar wave gauge.
                         wavespec['depth'] = np.nan
-                        
+
                     wavespec['wavedirbin'] = np.arange(0, 360, 90)  # 90 degree bins
                     wavespec['waveDp'] = np.ones_like(self.wavedataindex) * -999
                     try:
@@ -380,7 +378,7 @@ class getObs:
                                                       np.newaxis, :], axis=0)
                     if wavespec['fspec'].ndim < 2:
                         wavespec['fspec'] = np.expand_dims(wavespec['fspec'], axis=0)
-                    
+
                     # multiply the freq spectra for all directions
                     wavespec['dWED'] = np.ones([np.size(self.wavedataindex), np.size(wavespec['wavefreqbin']),
                                                 np.size(wavespec['wavedirbin'])])
@@ -405,12 +403,14 @@ class getObs:
                     except(KeyError):
                         pass  # non -directional gauge
                 wavespec = removeDuplicatesFromDictionary(wavespec)
-        
+
+                return wavespec
+
         except (RuntimeError, AssertionError):
             print('     ---- Problem Retrieving wave data from %s\n    - in this time period start: %s  End: %s' % (
                     gaugenumber, self.d1, self.d2))
-            
-            try:
+
+            """try:
                 wavespec = {'lat':  self.ncfile['latitude'][:],
                             'lon':  self.ncfile['longitude'][:],
                             'name': str(self.ncfile.title), }
@@ -419,10 +419,20 @@ class getObs:
             except KeyError:
                 wavespec = {'lat':  self.ncfile['lat'][:],
                             'lon':  self.ncfile['lon'][:],
-                            'name': str(self.ncfile.title), }
-        
-        return wavespec
-    
+                            'name': str(self.ncfile.title), }"""
+
+    def getWaveSpec(self, gaugenumber=0, roundto=30, removeBadDataFlag=4, **kwargs):
+        print("WARNING: getWaveSpec is depreciated, update to use getWaveData.")
+        returnAB = kwargs.get('returnAB', False)
+        specOnly = kwargs.get('specOnly', False)
+        if specOnly:
+            wavedata = self.getWaveData(gaugenumber, roundto, removeBadDataFlag, returnAB=returnAB, spec=True)
+            wavedict['dWED'] = wavedata['dWED']
+            wavedict['fspec'] = wavedata['fspec']
+            return wavedict
+        else:
+            return self.getWaveData(gaugenumber, roundto, removeBadDataFlag, returnAB=returnAB, spec=True)
+
     def getCurrents(self, gaugenumber=5, roundto=1):
         """This function pulls down the currents data from the Thredds Server.
 
@@ -539,7 +549,7 @@ class getObs:
             return self.curpacket
         
         else:
-            print('ERROR: There is no current data for this time period!!!')
+            print('ERROR: There is no current data for this time period at gauge: ', gaugenumber)
             self.curpacket = None
             return self.curpacket
     
