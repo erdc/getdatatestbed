@@ -82,7 +82,7 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     if server == 'FRF' and ipAddress.startswith('134.164.129') or ipAddress.startswith('10.0.0'):  # FRF subdomain
         THREDDSloc = FRFdataloc
         pName = u'FRF'
-    elif server in ['CHL', None]:
+    elif server in ['CHL', 'chl', None]:
         THREDDSloc = chlDataLoc
         pName = u'frf'
         
@@ -106,6 +106,8 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
         fileparts = dataLocSplit[0].split('/')
         if fileparts[0] == 'oceanography':
             field = 'ocean'
+        elif fileparts[0] == 'meteorology':
+            field = 'met'
         else:
             field = fileparts[0]
         try:  # this will work for get Obs
@@ -506,9 +508,9 @@ class getObs:
         # _______________________________________
         # get the actual current data
         if np.size(currdataindex) > 1:
-            curr_aveU = self.ncfile['aveU'][
+            curr_aveU = self.ncfile['aveE'][
                 currdataindex]  # pulling depth averaged Eastward current
-            curr_aveV = self.ncfile['aveV'][
+            curr_aveV = self.ncfile['aveN'][
                 currdataindex]  # pulling depth averaged Northward current
             curr_spd = self.ncfile['currentSpeed'][currdataindex]  # currents speed [m/s]
             curr_dir = self.ncfile['currentDirection'][
@@ -519,7 +521,7 @@ class getObs:
             # for num in range(0, len(self.curr_time)):
             #     self.curr_time[num] = self.roundtime(self.curr_time[num], roundto=roundto * 60)
             
-            curr_coords = gp.FRFcoord(self.ncfile['lon'][0], self.ncfile['lat'][0])
+            curr_coords = gp.FRFcoord(self.ncfile['longitude'][0], self.ncfile['latitude'][0])
             
             self.curpacket = {
                 'name':      str(self.ncfile.title),
@@ -529,8 +531,8 @@ class getObs:
                 'aveV':      curr_aveV,
                 'speed':     curr_spd,
                 'dir':       curr_dir,
-                'lat':       self.ncfile['lat'][0],
-                'lon':       self.ncfile['lon'][0],
+                'lat':       self.ncfile['latitude'][0],
+                'lon':       self.ncfile['longitude'][0],
                 'xFRF':      curr_coords['xFRF'],
                 'yFRF':      curr_coords['yFRF'],
                 'depth':     self.ncfile['depth'][:],
@@ -616,7 +618,8 @@ class getObs:
             raise NameError('Specifiy proper Gauge number')
         
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
-                                           dtRound=collectionlength * 60)
+                                           dtRound=collectionlength * 60, start=self.d1, end=self.d2,
+                                           server=self.server)
         
         self.winddataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
                                      epochEnd=self.epochd2)
