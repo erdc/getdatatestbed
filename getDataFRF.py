@@ -79,7 +79,7 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
 
     # chose which server to select based on IP
     ipAddress = socket.gethostbyname(socket.gethostname())
-    if server == 'FRF' and ipAddress.startswith('134.164.129'):  # FRF subdomain
+    if server == 'FRF' and ipAddress.startswith('134.164.129') or ipAddress.startswith('10.0.0'):  # FRF subdomain
         THREDDSloc = FRFdataloc
         pName = u'FRF'
     elif server in ['CHL', None]:
