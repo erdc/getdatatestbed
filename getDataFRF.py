@@ -88,6 +88,7 @@ def getnc(dataLoc, callingClass, epoch1=0,epoch2=0, dtRound=60, cutrange=100000,
             pName = u'frf'
     except:
         print('Could not aquire socket using CHLdata')
+
         THREDDSloc = chlDataLoc
         pName = u'frf'
         
@@ -1001,9 +1002,14 @@ class getObs:
             profileNum = self.ncfile['profileNumber'][idx]
             surveyNum = self.ncfile['surveyNumber'][idx]
             Ellipsoid = self.ncfile['Ellipsoid'][idx]
+<<<<<<< HEAD
             epochTime = self.ncfile['time'][idx]
             time = nc.num2date(epochTime, self.ncfile['time'].units,
                                only_use_cftime_datetimes=False)
+=======
+            time = nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units, only_use_cftime_datetimes=False)
+
+>>>>>>> development
             
             profileDict = {'xFRF':          xCoord,
                            'yFRF':          yCoord,
@@ -1979,40 +1985,41 @@ class getObs:
             print('There is no LIDAR data during this time period')
             out = None
         return out
-    
-    def getLidarTopo(self, **kwargs):
-        """This function will get the lidar DEM data, beach topography data.
 
-        This function is not finished being developed
+    def getLidarDEM(self, **kwargs):
+        """This function will get the lidar DEM data, beach topography data.
 
         Args: None
 
         Keyword Args:
            'xbounds': frf cross-shore bounds
            'ybounds': frf alongshore bounds
-            lidarLoc':
+            lidarLoc': what lidar DEM should i pull (valid: dune, claris, pier)
+
         Returns:
           dictionary with lidar beach topography
             keys to be determined
 
         """
         lidarLoc = kwargs.get('lidarLoc', 'dune')
-        if lidarLoc == 'pier':
-            self.dataloc = 'geomorphology/DEMs/pierLidarDEM/pierLidarDEM.ncml'
-        elif lidarLoc == 'dune':
-            self.dataloc = 'geomorphology/DEMs/duneLidarDEM/duneLidarDEM.ncml'
-        elif lidarLoc == 'claris':
-            self.dataloc = 'geomorphology/DEMs/clarisDEM/clarisDEM.ncml'
-        else:
-            raise NotImplementedError('valid lidar locs are "dune" and "pier"')
-        
+    
         self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
                                            dtRound=1 * 60)
-        self.idxDEM = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
-                              epochEnd=self.epochd2)
+        self.idxDEM = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1, epochEnd=self.epochd2)
         self.DEMtime = nc.num2date(self.allEpoch[self.idxDEM], 'seconds since 1970-01-01',
                                    only_use_cftime_datetimes=False)
-        
+      
+        if self.idxDEM is None:
+            try:
+                print(" last data point before your time {} DEM is {}".format(lidarLoc, nc.num2date(self.allEpoch[
+                      np.argwhere(self.allEpoch <self.epochd2).max().squeeze()], 'seconds since 1970-01-01',
+                                                 only_use_cftime_datetimes=False).strftime('%Y-%m-%dT%H%M%SZ')))
+            except (IndexError, ValueError):
+                print("   data didn't load")
+            return None
+        self.DEMtime = nc.num2date(self.allEpoch[self.idxDEM], 'seconds since 1970-01-01',
+                                    only_use_cftime_datetimes=False)
+    
         if 'xbounds' in kwargs and np.array(kwargs['xbounds']).size == 2:
             if kwargs['xbounds'][0] > kwargs['xbounds'][1]:
                 kwargs['xbounds'] = np.flip(kwargs['xbounds'], axis=0)
@@ -2022,18 +2029,18 @@ class getObs:
                 removeMinX = 0
             else:  # <= used here to handle inclusive initial index inherant in python
                 removeMinX = np.argwhere(
-                    self.ncfile['xFRF'][:] <= kwargs['xbounds'][0]).squeeze().max()
+                        self.ncfile['xFRF'][:] <= kwargs['xbounds'][0]).squeeze().max()
             # now max of x
             if (kwargs['xbounds'][1] > self.ncfile['xFRF'][:]).all():
                 removeMaxX = None
             else:
                 removeMaxX = np.argwhere(
-                    self.ncfile['xFRF'][:] >= kwargs['xbounds'][
-                        1]).squeeze().min() + 1  # python indexing
+                        self.ncfile['xFRF'][:] >= kwargs['xbounds'][
+                            1]).squeeze().min() + 1  # python indexing
             xs = slice(removeMinX, removeMaxX)
         else:
             xs = slice(None)
-        
+    
         if 'ybounds' in kwargs and np.array(kwargs['ybounds']).size == 2:
             if kwargs['ybounds'][0] > kwargs['ybounds'][1]:
                 kwargs['ybounds'] = np.flip(kwargs['ybounds'], axis=0)
@@ -2043,27 +2050,26 @@ class getObs:
                 removeMinY = 0  # ie get all data
             else:
                 removeMinY = np.argwhere(
-                    self.ncfile['yFRF'][:] <= kwargs['ybounds'][0]).squeeze().max()
+                        self.ncfile['yFRF'][:] <= kwargs['ybounds'][0]).squeeze().max()
             ## now max of y
             if (kwargs['ybounds'][1] > self.ncfile['yFRF'][:]).all():
                 removeMaxY = None
             else:
                 removeMaxY = np.argwhere(
-                    self.ncfile['yFRF'][:] >= kwargs['ybounds'][
-                        1]).squeeze().min() + 1  # python indexing
+                        self.ncfile['yFRF'][:] >= kwargs['ybounds'][
+                            1]).squeeze().min() + 1  # python indexing
             ys = slice(removeMinY, removeMaxY)
         else:
             ys = slice(None)
         
         DEMdata = {
-                'xFRF':      self.ncfile['xFRF'][self.idxDEM, xs],
-                'yFRF':      self.ncfile['yFRF'][self.idxDEM, ys],
+                'xFRF':      self.ncfile['xFRF'][xs],
+                'yFRF':      self.ncfile['yFRF'][ys],
                 'elevation': self.ncfile['elevation'][self.idxDEM, ys, xs],
                 'time':      self.DEMtime,
                 'epochtime': self.allEpoch[self.idxDEM],
-        
-                'lat':       self.ncfile['yFRF'][self.idxDEM, ys],
-                'lon':       lon
+                'lat':       self.ncfile['latitude'][ys, xs],
+                'lon':       self.ncfile['longitude'][ys,xs]
                 }
         return DEMdata
     
