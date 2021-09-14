@@ -19,7 +19,7 @@ import pandas as pd
 
 from testbedutils import geoprocess as gp, sblib as sb
 
-def gettime(allEpoch, epochStart, epochEnd):
+def gettime(allEpoch, epochStart, epochEnd, indexRef=0):
     """This function opens the netcdf file, and retrieves time.
     
     It pulls the dates of interest from the THREDDS (data loc) server based on d1,d2, and data location it returns
@@ -40,7 +40,7 @@ def gettime(allEpoch, epochStart, epochEnd):
     """
     try:
         mask = (allEpoch >= epochStart) & (allEpoch < epochEnd)
-        idx = np.argwhere(mask).squeeze()
+        idx = np.argwhere(mask).squeeze() + indexRef
         if np.size(idx) == 0:
             idx = None
     except TypeError:  # when None's are handed for allEpoch
@@ -48,7 +48,7 @@ def gettime(allEpoch, epochStart, epochEnd):
     finally:
         return idx
 
-def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
+def getnc(dataLoc, callingClass, epoch1=0,epoch2=0, dtRound=60, cutrange=100000,**kwargs):
     """Function grabs the netCDF file interested.
     
     Responsible for drilling down to specific monthly file if applicable to speed things up.
@@ -78,18 +78,24 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     doNotDrillList = ['survey']
 
     # chose which server to select based on IP
-    ipAddress = socket.gethostbyname(socket.gethostname())
-    if server == 'FRF' and ipAddress.startswith('134.164') or ipAddress.startswith('10.0.0'):  # FRF subdomain
-        THREDDSloc = FRFdataloc
-        pName = u'FRF'
-    elif server in ['CHL', 'chl', None]:
+    try:
+        ipAddress = socket.gethostbyname(socket.gethostname())
+        if server == 'FRF' and ipAddress.startswith('134.164') or ipAddress.startswith('10.0.0'):  # FRF subdomain
+            THREDDSloc = FRFdataloc
+            pName = u'FRF'
+        elif server in ['CHL', 'chl', None]:
+            THREDDSloc = chlDataLoc
+            pName = u'frf'
+    except:
+        print('Could not aquire socket using CHLdata')
         THREDDSloc = chlDataLoc
         pName = u'frf'
         
     if callingClass == 'getDataTestBed':  # overwrite pName if calling for model data
         pName = u'cmtb'
 
-    
+    #import pdb
+    #pdb.set_trace()
     # now set URL for netCDF file call,
     if start is None and end is None:
         ncfileURL = urljoin('[FillMismatch]'+THREDDSloc, pName, dataLoc)
@@ -126,17 +132,31 @@ def getnc(dataLoc, callingClass, dtRound=60, **kwargs):
     finished, n, maxTries = False, 0, 3  # initializing variables to iterate over
     ncFile, allEpoch = None, None  # will return None's when URL doesn't exist
     print(ncfileURL)
+
     while not finished and n < maxTries:
         try:
             ncFile = nc.Dataset(ncfileURL)  # get the netCDF file
-            allEpoch = ncFile['time'][:]
+            tt = ncFile['time']
+            if epoch1 ==0 and epoch2 == 0:
+                idts = [0,tt.shape[0]]
+                res1 = 0
+                res2 = 1
+            else:
+                idts = np.arange(0, tt.shape[0], cutrange)
+                temp = tt[idts]
+                res1 = np.min([idx for idx, val in enumerate(temp) if val > epoch1]) - 1
+                res2 = np.max([idx for idx, val in enumerate(temp) if val < epoch2]) + 1
+            indexRef = [idts[res1],idts[res2]]
+            allEpoch = ncFile['time'][idts[res1]:idts[res2]]
             finished = True
         except IOError:
             print('Error reading {}, trying again {}/{}'.format(ncfileURL, n + 1, maxTries))
             time.sleep(5)  # time in seconds to wait
             n += 1  # iteration number
-    
-    return ncFile, sb.baseRound(allEpoch, base=dtRound) # round to nearest minute
+    if indexRef[0] == 0:
+        return ncFile, sb.baseRound(allEpoch, base=dtRound)   #### Horrible fix, need updating
+    else:
+        return ncFile, sb.baseRound(allEpoch, base=dtRound), indexRef # round to nearest minute
 
 def removeDuplicatesFromDictionary(inputDict):
     """This function checks through the data and will remove duplicates from key 'epochtime's.
@@ -890,17 +910,23 @@ class getObs:
         # acceptableProfileNumbers = [None, ]
         self.dataloc = 'geomorphology/elevationTransects/survey/surveyTransects.ncml'  # location
         # of the gridded surveys
-        self.ncfile, self.allEpoch = getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
-                                           dtRound=1 * 60)
+        self.ncfile, self.allEpoch, indexRef= getnc(dataLoc=self.dataloc, callingClass=self.callingClass,
+                                           dtRound=1 * 60,epoch1=self.epochd1,epoch2=self.epochd2)
         try:
             self.bathydataindex = gettime(allEpoch=self.allEpoch, epochStart=self.epochd1,
-                                          epochEnd=self.epochd2)
+                                          epochEnd=self.epochd2,indexRef=indexRef[0])
         except IOError:  # when data are not on CHL thredds
             self.bathydataindex = None
         # returning None object is convention and must be followed/handled down the line
         # if self.bathydataindex is None:
         #     self.bathydataindex = []
-        
+        if self.bathydataindex is None:
+            indexRef[0] = indexRef[0] - 100000
+            if indexRef[0] < 0:
+                indexRef[0] = 0
+            indexRef[1] = indexRef[1] + 100000
+            if indexRef[1] > self.ncfile['time'].shape[0]:
+                indexRef[1] = self.ncfile['time'].shape[0]
         # logic to handle no transects in date range
         if forceReturnAll == True:
             idx = self.bathydataindex
@@ -910,22 +936,23 @@ class getObs:
             self.bathydataindex is None and method == 1):
             # there's no exact bathy match so find the max negative number where the negative
             # numbers are historical and the max would be the closest historical
-            val = (max([n for n in (self.ncfile['time'][:] - self.epochd1) if n < 0]))
-            idx = np.where((self.ncfile['time'][:] - self.epochd1) == val)[0][0]
+            temp = self.ncfile['time'][indexRef[0]:indexRef[1]]
+            val = (max([n for n in (temp - self.epochd1) if n < 0]))
+            idx = np.where((temp - self.epochd1) == val)[0][0] + indexRef[0]
             # print 'Bathymetry is taken as closest in HISTORY - operational'
         elif (np.size(self.bathydataindex) < 1 and method == 0) or (
             self.bathydataindex is None and method == 1):
-            idx = np.argmin(np.abs(self.ncfile['time'][:] - self.d1))  # closest in time
+            temp = self.ncfile['time'][indexRef[0]:indexRef[1]]
+            idx = np.argmin(np.abs(temp - self.d1)) + indexRef[0]  # closest in time
             # print 'Bathymetry is taken as closest in TIME - NON-operational'
         elif np.size(self.bathydataindex) > 1:  # if dates fall into d1,d2 bounds,
-            idx = self.bathydataindex[
-                0]  # return a single index. this means there was a survey between d1,d2
-        
+            idx = self.bathydataindex[0]  # return a single index. this means there was a survey between d1,d2
+
         if forceReturnAll is not True:
             # find the whole survey (via surveyNumber) and assign idx to return the whole survey
             idxSingle = idx
             idx = np.argwhere(
-                self.ncfile['surveyNumber'][:] == self.ncfile['surveyNumber'][idxSingle]).squeeze()
+                self.ncfile['surveyNumber'][indexRef[0]:indexRef[1]] == self.ncfile['surveyNumber'][idxSingle]).squeeze() + indexRef[0]
             if np.size(idx) == 0:
                 print('The closest in history to your start date is %s\n' % nc.num2date(
                     self.gridTime[idx],
@@ -974,13 +1001,14 @@ class getObs:
             profileNum = self.ncfile['profileNumber'][idx]
             surveyNum = self.ncfile['surveyNumber'][idx]
             Ellipsoid = self.ncfile['Ellipsoid'][idx]
-            time = nc.num2date(self.ncfile['time'][idx], self.ncfile['time'].units,
+            epochTime = self.ncfile['time'][idx]
+            time = nc.num2date(epochTime, self.ncfile['time'].units,
                                only_use_cftime_datetimes=False)
             
             profileDict = {'xFRF':          xCoord,
                            'yFRF':          yCoord,
                            'elevation':     elevation_points,
-                           'epochtime':     self.allEpoch[idx],
+                           'epochtime':     epochTime,
                            'time':          time,
                            'lat':           lat,
                            'lon':           lon,
